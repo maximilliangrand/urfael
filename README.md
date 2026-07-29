@@ -143,7 +143,7 @@ brew install ffmpeg whisper-cpp coreutils       # macOS
 # Linux: sudo apt install ffmpeg espeak-ng libnotify-bin grim  (+ build whisper.cpp)
 ```
 
-The brain uses Claude Code's model **aliases** (`sonnet` for most turns, escalating to `opus` for code & deep reasoning), so it always tracks the latest models your plan supports. Opus needs **Max**; on **Pro**, set `URFAEL_OPUS_MODEL=sonnet`. Full setup (voice tiers, connectors, bridges, Linux) is in [docs/SETUP.md](docs/SETUP.md).
+The brain uses Claude Code's model **aliases** (`opus` for most turns, escalating to `fable` for code & deep reasoning), so it always tracks the latest models your plan supports — Opus 5 and Fable 5 today, their successors tomorrow, with no code change. Switch any time: `/fable`, `/opus`, or `/sonnet` prefixes a single turn; "switch to fable" / `urfael model fable` pins; "back to auto" restores routing. The top tiers need **Max**; on **Pro**, set `URFAEL_FABLE_MODEL=sonnet URFAEL_OPUS_MODEL=sonnet`. Full setup (voice tiers, connectors, bridges, Linux) is in [docs/SETUP.md](docs/SETUP.md).
 
 > [!NOTE]
 > **Fair use & your Claude login.** Urfael runs entirely on *your own* `claude` login; it bundles no credentials, stores no tokens, and pools nothing across users. It's an open-source tool for ordinary, individual use. If you want to run it as a shared service or at production scale, use an Anthropic **API key** instead of a subscription. Don't have a subscription at all? `urfael setup` lets you paste an API key (pay-per-token) instead, for the same Urfael at a metered cost. See [SECURITY.md](SECURITY.md) and Anthropic's [Usage Policy](https://www.anthropic.com/legal/aup) and [Consumer Terms](https://www.anthropic.com/legal/consumer-terms).

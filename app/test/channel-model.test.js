@@ -75,11 +75,14 @@ test('cap: a cap is derivable ONLY from the owner roster, never from a sender-su
     assert.equal(normPinModel(s), null, s);
 });
 
-// (7) Integration shape: the exact askScoped line — a guest capped at sonnet cannot burn opus on a code prompt.
-test('cap: a guest capped at sonnet cannot reach opus even on a classifyModel-opus prompt', () => {
+// (7) Integration shape: the exact askScoped line — a guest capped at sonnet cannot burn fable on a code prompt.
+test('cap: a guest capped at sonnet cannot reach fable even on a classifyModel-fable prompt', () => {
   const principal = resolvePrincipal(buildRoster({ telegram: [{ id: '9', role: 'guest', maxModel: 'sonnet' }] }, {}), 'telegram', '9');
   // mirror daemon.askScoped: capModel(classifyModel(text), normPinModel(ctx.modelCap))
   const routed = capModel(classifyModel('debug this code and refactor the module'), normPinModel(principal.model));
-  assert.equal(classifyModel('debug this code and refactor the module'), MODELS.opus, 'the phrase would auto-route to opus');
+  assert.equal(classifyModel('debug this code and refactor the module'), MODELS.fable, 'the phrase would auto-route to fable');
   assert.equal(routed, MODELS.sonnet, 'but the cap floors it back to sonnet');
+  // a mid-rank cap lowers fable to opus, and never raises an opus-classified turn
+  assert.equal(capModel(MODELS.fable, 'opus'), MODELS.opus, 'an opus cap lowers a fable route to opus');
+  assert.equal(capModel(MODELS.opus, 'fable'), MODELS.opus, 'a fable cap never raises an opus route');
 });

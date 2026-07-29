@@ -443,17 +443,17 @@ let transcript = [];
 // daemon has a hard cap; this closes the last one that trusted a well-behaved client.
 const TRANSCRIPT_CAP = 400;
 function pushTranscript(entry) { transcript.push(entry); if (transcript.length > TRANSCRIPT_CAP) transcript.splice(0, transcript.length - TRANSCRIPT_CAP); }
-let convoModel = MODELS.sonnet;   // sticky: escalate to Opus and stay for the conversation (continuity)
+let convoModel = MODELS.opus;   // sticky: escalate to Fable and stay for the conversation (continuity); Opus is the floor
 let softTurns = 0;                // consecutive non-hard turns while on Opus → de-escalate back to Sonnet
 let turnCounter = 0;
 
 // A user-PINNED model overrides auto-routing entirely (set by NL "switch to opus" or `urfael model`),
 // persisted so it survives restarts and is shared by every channel (TUI/CLI/voice/chat). null = auto.
 const MODELPIN = path.join(JDIR, 'model.pin');
-let pinnedModel = (() => { try { const v = fs.readFileSync(MODELPIN, 'utf8').trim(); return (v === 'opus' || v === 'sonnet') ? v : null; } catch { return null; } })();
+let pinnedModel = (() => { try { const v = fs.readFileSync(MODELPIN, 'utf8').trim(); return (v === 'fable' || v === 'opus' || v === 'sonnet') ? v : null; } catch { return null; } })();
 if (pinnedModel) convoModel = MODELS[pinnedModel];   // a persisted pin takes effect immediately, before the first turn
 function setPin(model) {
-  pinnedModel = (model === 'opus' || model === 'sonnet') ? model : null;
+  pinnedModel = (model === 'fable' || model === 'opus' || model === 'sonnet') ? model : null;
   try { fs.mkdirSync(JDIR, { recursive: true }); if (pinnedModel) fs.writeFileSync(MODELPIN, pinnedModel + '\n'); else fs.rmSync(MODELPIN, { force: true }); } catch {}
   return pinnedModel;
 }
@@ -480,7 +480,7 @@ function setBrainMode(mode) {
   try { fs.mkdirSync(JDIR, { recursive: true }); if (brainMode) fs.writeFileSync(BRAINPIN, brainMode + '\n', { mode: 0o600 }); else fs.rmSync(BRAINPIN, { force: true }); } catch {}
   return brainMode;
 }
-const tierName = (m) => (m === MODELS.opus ? 'Opus' : 'Sonnet');
+const tierName = (m) => (m === MODELS.fable ? 'Fable' : m === MODELS.opus ? 'Opus' : 'Sonnet');
 
 // PERSONA: a voice overlay applied to the warm sessions via --append-system-prompt. The anchor 'urfael'
 // has no overlay (byte-identical spawn). Persisted like the model pin; shared by every local channel.
@@ -643,10 +643,10 @@ function applyModelDirective(dir) {
   if (dir.action === 'status') {
     text = pinnedModel
       ? 'I am pinned to ' + tierName(MODELS[pinnedModel]) + ', sir — until you say otherwise.'
-      : 'Auto-routing, sir — I am on ' + tierName(convoModel) + ' right now (Opus for the hard problems, Sonnet otherwise).';
+      : 'Auto-routing, sir — I am on ' + tierName(convoModel) + ' right now (Fable for the hard problems, Opus otherwise).';
   } else if (dir.action === 'auto') {
-    setPin(null); softTurns = 0;
-    text = 'Auto-routing restored, sir — Opus for the hard problems, Sonnet for the rest.';
+    setPin(null); softTurns = 0; convoModel = MODELS.opus;
+    text = 'Auto-routing restored, sir — Fable for the hard problems, Opus for the rest.';
   } else if (dir.action === 'provider') {
     // a provider switch is a config write + a daemon restart (and may need a key), so it is done from the CLI, not
     // mid-conversation. Recognising the phrase here keeps it from being run as a task; the CLI does the real switch.
@@ -732,7 +732,7 @@ async function runCouncilAsBrain(text, opts) {
   return shape(answer, { ms, aborted, tokens });
 }
 const brain = {
-  warmUp() { getSession(MODELS.sonnet).ask('Reply with exactly: ready', { silent: true }).catch(() => {}); }, // silent: never leak the warm-up into a client stream
+  warmUp() { getSession(MODELS.opus).ask('Reply with exactly: ready', { silent: true }).catch(() => {}); }, // warm the DEFAULT tier (Opus); silent: never leak the warm-up into a client stream
   async ask(text, opts) {
     const dir = parseModelDirective(text);                            // "switch to opus" / "use the fast model" / "back to auto"
     if (dir) return applyModelDirective(dir);                          // a control command — no LLM turn, not recorded
@@ -753,11 +753,11 @@ const brain = {
     // through UNCHANGED to the CLI subscription path below. When nativeDefault is null this whole block is skipped, so
     // everything from here down is BYTE-IDENTICAL to today (same routing, budget guardrail, telemetry, CLI fallback).
     if (nativeDefault) { const nr = await tryNativeDefault(text, opts); if (nr) return nr; }
-    const ov = routeOverride(text);                                   // explicit "/opus …" / "/sonnet …" wins for THIS turn
+    const ov = routeOverride(text);                                   // explicit "/fable …" / "/opus …" / "/sonnet …" wins for THIS turn
     if (ov) { text = ov.text; convoModel = MODELS[ov.model]; softTurns = 0; }
     else if (pinnedModel) { convoModel = MODELS[pinnedModel]; softTurns = 0; }   // a user pin overrides auto-routing entirely
-    else if (classifyModel(text) === MODELS.opus) { convoModel = MODELS.opus; softTurns = 0; }
-    else if (convoModel === MODELS.opus && ++softTurns >= 3) { convoModel = MODELS.sonnet; softTurns = 0; } // don't stay pinned to Opus forever
+    else if (classifyModel(text) === MODELS.fable) { convoModel = MODELS.fable; softTurns = 0; }
+    else if (convoModel === MODELS.fable && ++softTurns >= 3) { convoModel = MODELS.opus; softTurns = 0; } // don't stay pinned to Fable forever
     // usage guardrail (opt-in URFAEL_BUDGET_*): in HARD mode, refuse a new turn once the rolling window is spent.
     const bw = budgetWindow();
     if (bw.state.level === 'over' && bw.limits.hard) {
@@ -2723,8 +2723,8 @@ const server = http.createServer(async (req, res) => {
       req.on('end', () => {
         let spec = {}; try { spec = JSON.parse(body || '{}'); } catch {}
         const dir = (spec.action === 'auto') ? { action: 'auto' } : (spec.action === 'status') ? { action: 'status' }
-          : (spec.model === 'opus' || spec.model === 'sonnet') ? { action: 'pin', model: spec.model } : null;
-        if (!dir) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'use {action:"auto"|"status"} or {model:"opus"|"sonnet"}' })); return; }
+          : (spec.model === 'fable' || spec.model === 'opus' || spec.model === 'sonnet') ? { action: 'pin', model: spec.model } : null;
+        if (!dir) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'use {action:"auto"|"status"} or {model:"fable"|"opus"|"sonnet"}' })); return; }
         const r = applyModelDirective(dir);
         res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, pinned: pinnedModel, model: tierName(convoModel), text: r.text }));
       });

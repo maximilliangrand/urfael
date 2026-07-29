@@ -66,12 +66,20 @@ Optional background jobs (opt-in): `com.urfael.morningbrief` (8am brief), `com.u
 (keeps the Obsidian connection alive).
 
 ### Models & plans
-The brain uses Claude Code's model **aliases** — `sonnet` for most turns, escalating to `opus` for hard
-ones (code, deep reasoning). Aliases always resolve to the latest model your plan supports, so nothing
-breaks when Anthropic ships a new version. **Opus access requires a Max plan** — on **Pro**, set
+The brain uses Claude Code's model **aliases** — `opus` for most turns, escalating to `fable` for hard
+ones (code, deep reasoning). Aliases always resolve to the latest model your plan supports (Opus 5 and
+Fable 5 today), so nothing breaks when Anthropic ships a new version. Sonnet still serves the cheap
+internal passes (summaries, verification, heartbeat) and stays reachable by hand.
+
+**Switching** works everywhere the same way: prefix one turn with `/fable`, `/opus`, or `/sonnet`
+(`/f` `/o` `/s`); pin verbally ("switch to fable", "give me the smartest one", "use the fast model") or
+via `urfael model fable|opus|sonnet`; restore auto-routing with "back to auto" / `urfael model auto`.
+Per-principal ceilings in team.json (`maxModel: fable|opus|sonnet`) cap what remote senders can burn.
+
+**The top tiers require a Max plan** — on **Pro**, set `URFAEL_FABLE_MODEL=sonnet` and
 `URFAEL_OPUS_MODEL=sonnet` so escalation stays on Sonnet instead of failing. You can also pin exact ids
-(e.g. `URFAEL_OPUS_MODEL=claude-opus-4-8`). Set these in the daemon plist's `EnvironmentVariables`
-(next to `URFAEL_YOLO`), the same place you set any other daemon env var.
+(e.g. `URFAEL_FABLE_MODEL=claude-fable-5`, `URFAEL_OPUS_MODEL=claude-opus-5`). Set these in the daemon
+plist's `EnvironmentVariables` (next to `URFAEL_YOLO`), the same place you set any other daemon env var.
 
 ## 5. Enabling hands, eyes & autonomy (opt-in — read SECURITY.md)
 - **Computer-use MCPs** (browser/desktop/vision): see `config/mcp.json.example`. macOS will prompt for
