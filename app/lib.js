@@ -69,27 +69,38 @@ function quarantineCorrupt(file, label) {
 // Override per machine via env (set in the daemon plist's EnvironmentVariables), e.g. a Pro plan with
 // no Opus access: URFAEL_OPUS_MODEL=sonnet. You can also pin an exact id like 'claude-opus-4-8'.
 // (Legacy JARVIS_* names are still honored so old plists keep working.)
+// Three tiers, best-first: fable (Claude Fable — the frontier model, for the hard problems), opus (Claude
+// Opus — the default working tier), sonnet (kept for cheap internal passes and explicit down-switches).
+// Defaults are the claude CLI's OWN aliases ('fable'/'opus'/'sonnet'), which the CLI resolves to the NEWEST
+// model of each family — so Urfael always runs the most recent generation without a code change. Pin an exact
+// id via URFAEL_FABLE_MODEL / URFAEL_OPUS_MODEL / URFAEL_SONNET_MODEL when you need to freeze one.
 const MODELS = {
   sonnet: process.env.URFAEL_SONNET_MODEL || process.env.JARVIS_SONNET_MODEL || 'sonnet',
   opus: process.env.URFAEL_OPUS_MODEL || process.env.JARVIS_OPUS_MODEL || 'opus',
+  fable: process.env.URFAEL_FABLE_MODEL || 'fable',
 };
+const TIER_RANK = { fable: 3, opus: 2, sonnet: 1 };
+// tierOf(model) — loose tier of a model string (alias OR pinned id), fail-down to sonnet. PURE.
+function tierOf(m) { const s = String(m == null ? '' : m); return /fable|mythos/i.test(s) ? 'fable' : /opus/i.test(s) ? 'opus' : 'sonnet'; }
 
-// Explicit per-turn model override: a message LEADING with /opus | /sonnet | /o | /s forces that tier and is
-// stripped before the brain sees it (so "/opus refactor this" routes to Opus on "refactor this"). null = no
-// override → fall back to classifyModel. Local turns only — never honored for remote/untrusted senders.
+// Explicit per-turn model override: a message LEADING with /fable | /opus | /sonnet | /f | /o | /s forces that
+// tier and is stripped before the brain sees it (so "/fable refactor this" routes to Fable on "refactor this").
+// null = no override → fall back to classifyModel. Local turns only — never honored for remote/untrusted senders.
 function routeOverride(text) {
-  const m = String(text == null ? '' : text).match(/^\s*\/(opus|sonnet|o|s)\b[ \t]*/i);
+  const m = String(text == null ? '' : text).match(/^\s*\/(fable|opus|sonnet|f|o|s)\b[ \t]*/i);
   if (!m) return null;
   const k = m[1].toLowerCase();
-  return { model: (k === 'opus' || k === 'o') ? 'opus' : 'sonnet', text: String(text).slice(m[0].length) };
+  const model = (k === 'fable' || k === 'f') ? 'fable' : (k === 'opus' || k === 'o') ? 'opus' : 'sonnet';
+  return { model, text: String(text).slice(m[0].length) };
 }
 
-// Pick the model tier for an utterance: Opus for hard work (code, deep reasoning, architecture,
-// analysis); Sonnet for everything else — it still reasons. No Haiku.
+// Pick the model tier for an utterance: Fable for hard work (code, deep reasoning, architecture,
+// analysis); Opus for everything else — it still reasons deeply. Sonnet is never auto-routed; it stays
+// reachable by explicit pin/override and serves the cheap internal passes.
 function classifyModel(text) {
   const t = (text || '').toLowerCase();
-  if (/\b(code|coding|program|function|debug|bug|refactor|repos?\b|git|api|python|javascript|typescript|rust|golang|sql|regex|compile|deploy|terminal|stack ?trace|build|script|class|architect|algorithm|optimi[sz]e|figure out|think through|reason|trade.?off|complex|in.?depth|step.?by.?step|analy[sz]e|hard problem)\b/.test(t)) return MODELS.opus;
-  return MODELS.sonnet;
+  if (/\b(code|coding|program|function|debug|bug|refactor|repos?\b|git|api|python|javascript|typescript|rust|golang|sql|regex|compile|deploy|terminal|stack ?trace|build|script|class|architect|algorithm|optimi[sz]e|figure out|think through|reason|trade.?off|complex|in.?depth|step.?by.?step|analy[sz]e|hard problem)\b/.test(t)) return MODELS.fable;
+  return MODELS.opus;
 }
 
 // ---- PER-PRINCIPAL MODEL CAP (owner-set ceiling on auto-routing) -------------------------------------
@@ -98,24 +109,25 @@ function classifyModel(text) {
 // turn auto-routes as usual (classifyModel), then is LOWERED if it would exceed the cap — it can never RAISE a
 // tier a remote sender could otherwise reach. Opt-in: no cap → behaviour is byte-identical to today.
 //
-// normPinModel(v) — the fail-closed validator: returns 'opus' | 'sonnet' | null. Accepts ONLY the two real tier
-// names, case-insensitively; everything else (objects/arrays/numbers/'', 'haiku', a pinned id, a sender-shaped
-// string) → null. Mirrors resolveProfile's string discipline so junk — or a forged socket payload — can name at
-// most one of the two tiers and never inject an arbitrary model id. PURE.
+// normPinModel(v) — the fail-closed validator: returns 'fable' | 'opus' | 'sonnet' | null. Accepts ONLY the
+// three real tier names, case-insensitively; everything else (objects/arrays/numbers/'', 'haiku', a pinned id,
+// a sender-shaped string) → null. Mirrors resolveProfile's string discipline so junk — or a forged socket
+// payload — can name at most one of the three tiers and never inject an arbitrary model id. PURE.
 function normPinModel(v) {
   if (typeof v !== 'string') return null;
   const k = v.trim().toLowerCase();
-  return (k === 'opus' || k === 'sonnet') ? k : null;
+  return (k === 'fable' || k === 'opus' || k === 'sonnet') ? k : null;
 }
 // capModel(classified, cap) — clamp an auto-routed model DOWN to the cap. `classified` is whatever classifyModel
-// returned (an alias or an env-pinned id); the tier is read with the same loose /opus/i match turnCost uses, so it
-// survives a pinned id. A valid cap that ranks BELOW the classified tier lowers it (opus → MODELS.sonnet); an equal/
-// higher cap, or an invalid/unset cap, returns `classified` UNCHANGED — the cap can only ever lower, never raise. PURE.
+// returned (an alias or an env-pinned id); the tier is read with the same loose tierOf() match turnCost uses, so
+// it survives a pinned id. A valid cap that ranks BELOW the classified tier lowers it (fable → the opus cap); an
+// equal/higher cap, or an invalid/unset cap, returns `classified` UNCHANGED — the cap can only ever lower, never
+// raise. PURE.
 function capModel(classified, cap) {
   const c = normPinModel(cap);
   if (!c) return classified;                                            // invalid/unset cap → pure passthrough to auto-routing
-  const tier = /opus/i.test(String(classified == null ? '' : classified)) ? 'opus' : 'sonnet';
-  if (c === 'sonnet' && tier === 'opus') return MODELS.sonnet;          // opus auto-route blocked: lowered to the sonnet cap
+  const tier = tierOf(classified);
+  if (TIER_RANK[c] < TIER_RANK[tier]) return MODELS[c];                 // above the ceiling: lowered to the cap tier
   return classified;                                                    // cap is at/above the classified tier → no change
 }
 
@@ -154,7 +166,8 @@ function budgetState(usage, limits) {
 // through as a parameter — never read here. No fs, no env, no throw.
 function turnCostEst(rec, rates) {
   const r = rates || {};
-  const tier = /opus/i.test(String((rec && rec.model) || '')) ? (r.opus || {}) : (r.sonnet || {});
+  const t = tierOf(rec && rec.model);
+  const tier = t === 'fable' ? (r.fable || r.opus || {}) : t === 'opus' ? (r.opus || {}) : (r.sonnet || {});
   const inR = Number(tier.in) || 0, outR = Number(tier.out) || 0;
   const tin = (rec && rec.tokIn) || 0, tout = (rec && rec.tokOut) || 0, tcache = (rec && rec.tokCache) || 0;
   return (tin * inR + tcache * inR * 0.1 + tout * outR) / 1e6;
@@ -297,7 +310,7 @@ const SCOPED_ENV_PROVIDER = ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTH
   'ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_CUSTOM_HEADERS', 'ANTHROPIC_BEDROCK_BASE_URL', 'ANTHROPIC_VERTEX_BASE_URL',
   'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_SKIP_BEDROCK_AUTH', 'CLAUDE_CODE_SKIP_VERTEX_AUTH',
   'AWS_REGION', 'AWS_PROFILE', 'AWS_BEARER_TOKEN_BEDROCK', 'CLOUD_ML_REGION', 'ANTHROPIC_VERTEX_PROJECT_ID', 'GOOGLE_APPLICATION_CREDENTIALS'];
-const SCOPED_ENV_KEYS = ['URFAEL_SONNET_MODEL', 'URFAEL_OPUS_MODEL', 'URFAEL_CLAUDE_BIN', 'URFAEL_VAULT_DIR', ...SCOPED_ENV_PROVIDER];
+const SCOPED_ENV_KEYS = ['URFAEL_SONNET_MODEL', 'URFAEL_OPUS_MODEL', 'URFAEL_FABLE_MODEL', 'URFAEL_CLAUDE_BIN', 'URFAEL_VAULT_DIR', ...SCOPED_ENV_PROVIDER];
 function scopedEnv(src, extra) {
   const s = src || process.env;
   const env = { PATH: s.PATH, HOME: s.HOME, USER: s.USER, URFAEL_OVERLAY: '1' };
@@ -1131,7 +1144,8 @@ function parseModelDirective(text) {
   t = t.replace(/[.!?]+$/g, '').trim();
   if (!t) return null;
 
-  const OPUS = '(opus|the (?:big|bigger|biggest|large|larger|powerful|smart|smarter|smartest|strong|stronger|best|heavy|heavier|deep|deeper|deepest|capable|serious)(?: model| one)?)';
+  const FABLE = '(fable|the (?:biggest|smartest|strongest|deepest|best|top|frontier|flagship|most (?:capable|powerful|intelligent))(?: model| one)?)';
+  const OPUS = '(opus|the (?:big|bigger|large|larger|powerful|smart|smarter|strong|stronger|heavy|heavier|deep|deeper|capable|serious)(?: model| one)?)';
   const SONNET = '(sonnet|the (?:fast|faster|fastest|quick|quicker|quickest|small|smaller|light|lighter|lite|cheap|cheaper|nimble)(?: model| one)?)';
   const SWITCH = '(?:switch|change|swap|set|go|move|flip|put|bump|take)';
   const CONN = '(?: over)?(?: to| with| (?:the )?models? to)?';          // "switch [over] [to|with|the model to] X"
@@ -1159,7 +1173,8 @@ function parseModelDirective(text) {
   const pm = t.match(new RegExp('^(?:' + USE + '|' + SWITCH + CONN + '|(?:go )?back to(?: my)?)(?: on| to| with)?\\s+(?:the\\s+)?(' + PNAMES + ')(?:\\s+(?:model|provider))?$', 'i'));
   if (pm) return { action: 'provider', id: PROV[pm[1].toLowerCase()] };
 
-  // PIN opus / sonnet
+  // PIN fable / opus / sonnet — fable FIRST so "the smartest model" lands on the frontier tier
+  if (test(SWITCH + CONN + ' ' + FABLE) || test(USE + ' ' + FABLE) || test(FABLE)) return { action: 'pin', model: 'fable' };
   if (test(SWITCH + CONN + ' ' + OPUS) || test(USE + ' ' + OPUS) || test(OPUS)) return { action: 'pin', model: 'opus' };
   if (test(SWITCH + CONN + ' ' + SONNET) || test(USE + ' ' + SONNET) || test(SONNET)) return { action: 'pin', model: 'sonnet' };
 
@@ -1322,6 +1337,7 @@ function classifyError(text) {
 
 // fallbackModelFor(m) → the other native tier to retry a failed turn on. PURE.
 function fallbackModelFor(m) {
+  if (m === MODELS.fable) return MODELS.opus;   // frontier tier exhausted/overloaded → step down one tier
   if (m === MODELS.opus) return MODELS.sonnet;
   if (m === MODELS.sonnet) return MODELS.opus;
   return MODELS.sonnet;
@@ -1372,4 +1388,4 @@ async function resolvePromptText({ argv = [], readFile, readStdin, stdinIsTTY, m
   return text;
 }
 
-module.exports = { atomicWriteJSON, resolvePromptText, classifyError, fallbackModelFor, MODELS, classifyModel, normPinModel, capModel, routeOverride, budgetLimits, budgetState, turnCostEst, rollupUsage, segmentSentences, resolveProfile, delegateScope, narrowScope, scopedEnv, profileFor, buildRoster, resolvePrincipal, TEAM_CHANNELS, CHANNEL_MATURITY, addPrincipal, removePrincipal, normalizeReminder, normalizeCron, normalizeJobAction, normalizeScript, normalizeWatch, watchFireArgs, reapOrphanPids, pidStartMarker, pidStartMarkerAsync, stillOursProbe, makePidLedger, CHAIN_MAX, makeCronGate, dedupePending, nextOccurrence, parseCron, nextCronTime, parseDays, nextDaysTime, buildHeartbeatPrompt, HOOK_ACTIONS, normalizeHook, hashHookSecret, hookSecretOk, isPrivateHost, quarantineCorrupt, newPairCode, redeemPairCode, editDistance, suggestCommand, sparkline, parseModelDirective, parsePersonaDirective, parseCouncilDirective, moaGate, asyncCouncilGate, envOn, parseSimplexEvent };
+module.exports = { atomicWriteJSON, resolvePromptText, classifyError, fallbackModelFor, MODELS, tierOf, classifyModel, normPinModel, capModel, routeOverride, budgetLimits, budgetState, turnCostEst, rollupUsage, segmentSentences, resolveProfile, delegateScope, narrowScope, scopedEnv, profileFor, buildRoster, resolvePrincipal, TEAM_CHANNELS, CHANNEL_MATURITY, addPrincipal, removePrincipal, normalizeReminder, normalizeCron, normalizeJobAction, normalizeScript, normalizeWatch, watchFireArgs, reapOrphanPids, pidStartMarker, pidStartMarkerAsync, stillOursProbe, makePidLedger, CHAIN_MAX, makeCronGate, dedupePending, nextOccurrence, parseCron, nextCronTime, parseDays, nextDaysTime, buildHeartbeatPrompt, HOOK_ACTIONS, normalizeHook, hashHookSecret, hookSecretOk, isPrivateHost, quarantineCorrupt, newPairCode, redeemPairCode, editDistance, suggestCommand, sparkline, parseModelDirective, parsePersonaDirective, parseCouncilDirective, moaGate, asyncCouncilGate, envOn, parseSimplexEvent };

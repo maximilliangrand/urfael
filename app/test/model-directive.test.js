@@ -5,9 +5,16 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { parseModelDirective: p } = require('../lib');
 
+test('pins Fable from many natural phrasings (superlatives land on the frontier tier)', () => {
+  for (const s of ['switch to fable', 'use fable', 'fable', 'go with fable', 'switch me to fable please',
+                   'give me the smartest one', 'use the best model', 'switch to the top model',
+                   'use the most capable model', 'give me the frontier model', 'use the flagship one'])
+    assert.deepEqual(p(s), { action: 'pin', model: 'fable' }, s);
+});
+
 test('pins Opus from many natural phrasings', () => {
   for (const s of ['switch to opus', 'use opus', 'go opus', 'switch me to opus please', 'make it opus',
-                   'opus', 'use the powerful model', 'switch to the big model', 'give me the smartest one',
+                   'opus', 'use the powerful model', 'switch to the big model',
                    'talk to me with opus', 'change the model to opus', 'set model to opus', 'go with opus'])
     assert.deepEqual(p(s), { action: 'pin', model: 'opus' }, s);
 });

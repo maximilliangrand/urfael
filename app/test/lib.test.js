@@ -3,28 +3,30 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { classifyModel, segmentSentences, MODELS, resolveProfile, normalizeReminder, normalizeCron, nextOccurrence, normalizeHook, hashHookSecret, hookSecretOk, parseCron, nextCronTime, parseDays } = require('../lib');
 
-test('routing: code/dev → Opus', () => {
+test('routing: code/dev → Fable (the frontier tier)', () => {
   for (const q of ['debug this python function', 'refactor the auth module', 'push my code to the repo', 'architect a caching layer'])
+    assert.equal(classifyModel(q), MODELS.fable, q);
+});
+
+test('routing: chat/admin/writing → Opus (the default tier)', () => {
+  for (const q of ['hey what is up', "what's on my calendar", 'draft an email to Alex', 'add a meeting tomorrow at 3pm'])
     assert.equal(classifyModel(q), MODELS.opus, q);
 });
 
-test('routing: chat/admin/writing → Sonnet', () => {
-  for (const q of ['hey what is up', "what's on my calendar", 'draft an email to Alex', 'add a meeting tomorrow at 3pm'])
-    assert.equal(classifyModel(q), MODELS.sonnet, q);
-});
-
 test('routing: "report" must not trip "repo"', () => {
-  assert.equal(classifyModel('write a report on Q2'), MODELS.sonnet);
+  assert.equal(classifyModel('write a report on Q2'), MODELS.opus);
 });
 
-test('routing: explicit /opus //sonnet override forces the tier and strips the token', () => {
+test('routing: explicit /fable //opus //sonnet override forces the tier and strips the token', () => {
   const { routeOverride } = require('../lib');
-  assert.deepEqual(routeOverride('/opus refactor the auth module'), { model: 'opus', text: 'refactor the auth module' });
-  assert.deepEqual(routeOverride('/sonnet what is the capital of France'), { model: 'sonnet', text: 'what is the capital of France' });
+  assert.deepEqual(routeOverride('/fable refactor the auth module'), { model: 'fable', text: 'refactor the auth module' });
+  assert.deepEqual(routeOverride('/opus what is the capital of France'), { model: 'opus', text: 'what is the capital of France' });
+  assert.deepEqual(routeOverride('/sonnet keep it light'), { model: 'sonnet', text: 'keep it light' });
+  assert.deepEqual(routeOverride('/f ship it'), { model: 'fable', text: 'ship it' });
   assert.deepEqual(routeOverride('/o ship it'), { model: 'opus', text: 'ship it' });
   assert.deepEqual(routeOverride('/s hi'), { model: 'sonnet', text: 'hi' });
-  // no override → null (and an inline /opus mid-sentence is NOT an override)
-  for (const t of ['hello there', 'tell me about /opus the model', 'opus without slash', '', null])
+  // no override → null (and an inline /fable mid-sentence is NOT an override)
+  for (const t of ['hello there', 'tell me about /fable the model', 'fable without slash', '', null])
     assert.equal(routeOverride(t), null, JSON.stringify(t));
 });
 

@@ -403,7 +403,7 @@ function readStdinAdapter(maxBytes) {
       return;
     }
 
-    console.log('usage: urfael dataset [stats | export --format sft|atropos|lessons|all [--since <date>] [--channel <name>] [--model opus|sonnet] [--out <dir>] [--no-redact]]');
+    console.log('usage: urfael dataset [stats | export --format sft|atropos|lessons|all [--since <date>] [--channel <name>] [--model fable|opus|sonnet] [--out <dir>] [--no-redact]]');
     return;
   }
 
@@ -1204,8 +1204,8 @@ function readStdinAdapter(maxBytes) {
     }
 
     if (sub) {
-      const spec = /^(auto|reset|unpin|automatic)$/.test(sub) ? { action: 'auto' } : (sub === 'opus' || sub === 'sonnet') ? { model: sub } : null;
-      if (!spec) { console.error('usage: urfael model [opus | sonnet | auto | route --for cost|speed|quality|privacy]'); process.exit(1); }
+      const spec = /^(auto|reset|unpin|automatic)$/.test(sub) ? { action: 'auto' } : (sub === 'fable' || sub === 'opus' || sub === 'sonnet') ? { model: sub } : null;
+      if (!spec) { console.error('usage: urfael model [fable | opus | sonnet | auto | route --for cost|speed|quality|privacy]'); process.exit(1); }
       const r = await req('POST', '/model', spec);
       if (r && r.error) { console.error('✗ ' + r.error); process.exit(1); }
       console.log(gold('✓ ' + (r.text || 'done')));
@@ -1213,7 +1213,7 @@ function readStdinAdapter(maxBytes) {
     }
     const m = await req('GET', '/model');
     if (m && m.pinned) console.log(gold('pinned to ' + m.pinned) + dim('   · say “go back to auto” (or `urfael model auto`) to unpin'));
-    else console.log(gold('auto-routing') + dim('   · on ' + ((m && m.model) || '…') + ' now · say “switch to opus” (or `urfael model opus`) to pin'));
+    else console.log(gold('auto-routing') + dim('   · on ' + ((m && m.model) || '…') + ' now · say “switch to fable” (or `urfael model fable`) to pin'));
     return;
   }
   if (cmd === 'persona') {
@@ -1396,7 +1396,7 @@ function readStdinAdapter(maxBytes) {
       return;
     }
     if (sub === 'add' && rest[1] && rest[2]) {
-      // urfael team add <channel> <id> [name] [role] [--max opus|sonnet]
+      // urfael team add <channel> <id> [name] [role] [--max fable|opus|sonnet]
       // --max sets an OWNER-imposed model CEILING for this principal: their turns auto-route as usual but can never
       // exceed this tier, so a member/guest can't burn the costly tier on a heavy prompt. Invalid values are ignored.
       let maxModel = '';
@@ -1421,7 +1421,7 @@ function readStdinAdapter(maxBytes) {
       writeTeam(team); console.log(gold('✓ removed ') + rest[2] + dim(' from ' + rest[1]));
       return;
     }
-    if (sub === 'add' || sub === 'remove' || sub === 'rm') { console.log('usage: urfael team add <channel> <id> [name] [owner|member|guest] [--max opus|sonnet]   ·   urfael team remove <channel> <id>'); return; }
+    if (sub === 'add' || sub === 'remove' || sub === 'rm') { console.log('usage: urfael team add <channel> <id> [name] [owner|member|guest] [--max fable|opus|sonnet]   ·   urfael team remove <channel> <id>'); return; }
     // default: show the roster
     const team = readTeam();
     const chans = Object.keys(team).filter((c) => Array.isArray(team[c]) && team[c].length);

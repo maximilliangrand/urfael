@@ -4,6 +4,14 @@ All notable changes to Urfael are recorded here. The format follows [Keep a Chan
 
 Run `urfael version` to see what you are on, and `urfael update` to pull and reinstall the latest.
 
+## [0.13.0] - 2026-07-29
+
+### Added
+
+- **Frontier model tier: the brain now runs on the best models.** Auto-routing moved one tier up — hard turns (code, deep reasoning, architecture, analysis) go to **Fable** and everything else to **Opus**, using the claude CLI's own `fable`/`opus` aliases so Urfael always tracks the newest generation (Claude Fable 5 and Claude Opus 5 today) with no code change. Sonnet keeps serving the cheap internal passes (summaries, verification, curator, heartbeat) and stays reachable by hand.
+- **Switching, on every surface.** Per-turn: `/fable` `/opus` `/sonnet` (`/f` `/o` `/s`) prefixes. Pin: "switch to fable", "give me the smartest one" (superlatives now land on the frontier tier), `urfael model fable|opus|sonnet`, or `POST /model`. Unpin: "back to auto" / `urfael model auto` — which now also resets the conversation to the Opus floor. Per-principal team caps (`maxModel`) accept the third tier and clamp with a real rank order (`fable > opus > sonnet`), so a mid-rank cap lowers a fable route to opus and never raises anything. `URFAEL_FABLE_MODEL` pins an exact id and crosses the scopedEnv boundary like its siblings.
+- The warm-up session now pre-warms the Opus tier (the new default) instead of Sonnet, and turn-cost estimates recognise the fable tier (falling back to opus rates when no fable rate is configured).
+
 ## [0.12.2] - 2026-07-29
 
 ### Fixed
