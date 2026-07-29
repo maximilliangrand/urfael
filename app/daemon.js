@@ -301,7 +301,7 @@ const TURN_TIMEOUT_MS = Math.min(Math.max(parseInt(process.env.URFAEL_TURN_TIMEO
 let distilling = false;           // single-flight guard for the memory-distill pass
 
 // Build the MINIMAL env for a sandboxed one-shot child (remote turns, cron, hooks, watches, background /job):
-// PATH/HOME + our model knobs + the backend-ROUTING vars, so "run Urfael on a local GPU / Bedrock / Vertex / a
+// PATH/HOME/USER + our model knobs + the backend-ROUTING vars, so "run Urfael on a local GPU / Bedrock / Vertex / a
 // proxy" works on EVERY path, not just the warm session. We forward the model-ACCESS credential (the child must
 // reach the model to work, exactly as the warm session does) but NOT the daemon's unrelated secrets (bridge.env
 // etc.) — and the untrusted profile has no egress tool, so a credential in the child's env can't be exfiltrated

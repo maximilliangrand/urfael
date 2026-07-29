@@ -113,12 +113,13 @@ test('attribution: an ask prompt carries the principal/role/scope header + the u
 });
 
 // ── ENV SCOPING: a sandboxed/delegated child gets an ALLOWLIST env, never the daemon's full process env. ──
-test('scopedEnv is an ALLOWLIST: ambient secrets stripped, PATH/HOME + model routing kept, extras forwarded', () => {
-  const src = { PATH: '/bin', HOME: '/home/u', ANTHROPIC_BASE_URL: 'http://gpu.local', URFAEL_OPUS_MODEL: 'opus',
+test('scopedEnv is an ALLOWLIST: ambient secrets stripped, PATH/HOME/USER + model routing kept, extras forwarded', () => {
+  const src = { PATH: '/bin', HOME: '/home/u', USER: 'u', ANTHROPIC_BASE_URL: 'http://gpu.local', URFAEL_OPUS_MODEL: 'opus',
     TELEGRAM_BOT_TOKEN: 'secret-123', AWS_SECRET_ACCESS_KEY: 'nope', RANDOM_AMBIENT: 'x', URFAEL_SANDBOX: 'docker' };
   const scoped = scopedEnv(src);                                    // no extras
   assert.equal(scoped.PATH, '/bin');
   assert.equal(scoped.HOME, '/home/u');
+  assert.equal(scoped.USER, 'u');                                   // keychain floor: claude's subscription credential is unreachable without USER
   assert.equal(scoped.URFAEL_OVERLAY, '1');                         // every sandboxed child is stamped
   assert.equal(scoped.ANTHROPIC_BASE_URL, 'http://gpu.local');     // model ROUTING forwarded (the child must reach the model)
   assert.equal(scoped.URFAEL_OPUS_MODEL, 'opus');
