@@ -82,7 +82,7 @@ function argvFor(job) {
 }
 
 // The background child crosses the SAME scopedEnv() boundary every other spawn uses (cron, hook, watch, remote,
-// askScoped): PATH/HOME + model knobs + the backend routing/access vars, and NOTHING else — so the daemon's
+// askScoped): PATH/HOME/USER + model knobs + the backend routing/access vars, and NOTHING else — so the daemon's
 // unrelated secrets (bridge.env, other providers' keys, anything ambient in its environment) never reach an
 // UNREVIEWED background job. This was the LONE spawn path still handing the child the full process env. The
 // goal-loop's operational selectors (isolation backend + yolo, the documented env-equivalents of its --sandbox

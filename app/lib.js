@@ -283,8 +283,10 @@ function narrowScope(requested, ceiling) {
 }
 
 // The env ALLOWLIST for EVERY sandboxed / delegated child (remote turns, cron, hooks, watches, background /job):
-// PATH/HOME + our model knobs + the backend ROUTING/ACCESS vars (so "run on a local GPU / Bedrock / Vertex / a
-// proxy" works on every path), and NOTHING else. The daemon's unrelated secrets (bridge.env, other providers'
+// PATH/HOME/USER + our model knobs + the backend ROUTING/ACCESS vars (so "run on a local GPU / Bedrock / Vertex / a
+// proxy" works on every path), and NOTHING else. USER is part of the floor because the claude CLI's subscription
+// credential lives in the macOS login Keychain and the lookup fails ("Not logged in") without USER in the env;
+// it is not a secret — the same account name is already visible in HOME. The daemon's unrelated secrets (bridge.env, other providers'
 // keys, anything ambient in its environment) are stripped BY CONSTRUCTION — this is an allowlist, fail-closed.
 // Single-sourced here so no spawn path can quietly diverge and hand a child the full process env. The untrusted
 // profile has no egress tool anyway, so a forwarded model credential can't be exfiltrated. Pure: reads `src`
@@ -298,7 +300,7 @@ const SCOPED_ENV_PROVIDER = ['ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTH
 const SCOPED_ENV_KEYS = ['URFAEL_SONNET_MODEL', 'URFAEL_OPUS_MODEL', 'URFAEL_CLAUDE_BIN', 'URFAEL_VAULT_DIR', ...SCOPED_ENV_PROVIDER];
 function scopedEnv(src, extra) {
   const s = src || process.env;
-  const env = { PATH: s.PATH, HOME: s.HOME, URFAEL_OVERLAY: '1' };
+  const env = { PATH: s.PATH, HOME: s.HOME, USER: s.USER, URFAEL_OVERLAY: '1' };
   for (const k of [...SCOPED_ENV_KEYS, ...(Array.isArray(extra) ? extra : [])]) if (s[k]) env[k] = s[k];
   return env;
 }

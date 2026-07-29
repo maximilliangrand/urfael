@@ -526,7 +526,7 @@ async function main() {
     'shell scheduling requires URFAEL_SCRIPT_CRON=1; chained script steps gated too; a blueprint manifest is action-fixed to cron.agent (no script/toolset/model/no_agent/raw-schedule field is representable) and fill() funnels through lib.normalizeCron, so a blueprint can only ever produce a read/fetch-only agent cron under CRON_ALLOWED_TOOLS, never a shell job');
   // the saved-script LIBRARY (execute_code form): the BODY is owner-registered; caller args arrive as positional
   // $1..$N (argv), NEVER concatenated into the command — so an injected turn can only parameterize a saved script.
-  check('the script library passes caller args as positional argv ($1..$N), never concatenated, and is opt-in', /argv\.push\(String\(a\)/.test(daemonSrc) && /'-c', script, 'urfael-script'/.test(daemonSrc) && /script library is OFF/.test(daemonSrc), 'no shell-injection surface; needs URFAEL_SCRIPT_CRON=1');
+  check('the script library passes caller args as positional argv ($1..$N), never concatenated, and is opt-in', /boundedArgs\.push\(String\(a\)/.test(daemonSrc) && /\.concat\(boundedArgs\)/.test(daemonSrc) && /'-c', script, 'urfael-script'/.test(daemonSrc) && /script library is OFF/.test(daemonSrc), 'no shell-injection surface; needs URFAEL_SCRIPT_CRON=1');
 
   // ── 8. INBOUND WEBHOOK TRIGGER ────────────────────────────────────────────
   attackClass('Inbound event trigger — an external webhook must not become an escalation',
@@ -740,7 +740,7 @@ async function main() {
   const acptSrc = fs.readFileSync(path.join(APP, 'acp-translate.js'), 'utf8');
   check('the ACP editor bridge opens NO new inbound port: its only network primitive is the existing outbound socket',
     !/createServer|\.listen\(/.test(acpSrc) && !/createServer|\.listen\(/.test(acptSrc)
-      && /socketPath: SOCK/.test(acpSrc) && /daemon\.sock/.test(acpSrc)
+      && /socketPath: SOCK/.test(acpSrc) && /SOCK = ipc\.daemonSock\(\)/.test(acpSrc)
       && !/mcpServers/.test(acptSrc.replace(/NOT forwarded[\s\S]*?moat/i, '')),   // editor-supplied MCP servers are never forwarded into the trusted turn
     'urfael acp is a foreground stdio child (the editor owns it); it CONNECTs to the 0600 daemon socket and never .listen()s — strictly quieter than serve/dashboard/hooks, which at least bind loopback');
 

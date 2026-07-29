@@ -4,6 +4,13 @@ All notable changes to Urfael are recorded here. The format follows [Keep a Chan
 
 Run `urfael version` to see what you are on, and `urfael update` to pull and reinstall the latest.
 
+## [0.12.2] - 2026-07-29
+
+### Fixed
+
+- **Sandboxed children could not authenticate on subscription Macs ("Not logged in").** The claude CLI keeps its subscription credential in the macOS login Keychain, and the Keychain lookup fails without `USER` in the child's environment — so every spawn crossing the `scopedEnv` boundary (ask/research jobs, cron one-shots, hooks, watches, council workers) died in under a second with `Not logged in · Please run /login` while the warm session (full env) worked fine. `USER` is now part of the scoped-env floor alongside `PATH`/`HOME` — it is the account name, not a secret, and is already derivable from `HOME`. Pinned by a unit assertion; the previously failing `ask job completes` e2e is green again (56/0/4).
+- **Two rotted security-benchmark checks re-anchored (no behavior change).** The script-library positional-argv check still matched the pre-Windows-port code shape (`argv.push(String(a))`; the code now bounds args via `boundedArgs`) and the ACP no-inbound-port check expected a literal `daemon.sock` that moved into `ipc.daemonSock()`. Both checks now assert the same invariants against the current code — the argv check is stricter (it also requires the `.concat(boundedArgs)` argv form) — restoring the benchmark to an honest `125/125`.
+
 ## [0.12.1] - 2026-07-22
 
 ### Fixed
