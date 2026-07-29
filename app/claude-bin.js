@@ -1,7 +1,9 @@
 'use strict';
 // app/claude-bin.js — ONE resolver for "how do we spawn the claude CLI here", pure + injected like platform.js.
 // Returns { bin, pre }: spawn(bin, pre.concat(args)) at every call site. On POSIX pre is ALWAYS [] and bin is
-// the same absolute-path probe that shipped — byte-identical behavior.
+// an absolute-path probe: the native installer's ~/.local/bin/claude FIRST (the CLI's own installer moved there,
+// and a GUI-launched daemon has no ~/.local/bin on PATH — without this probe every spawn dies with "claude CLI
+// not found"), then the shipped homebrew/system locations.
 //
 // Native Windows needs care: an npm-installed claude is a `claude.cmd` shim, and spawning a .cmd without a
 // shell is (correctly) refused by Node, while spawning WITH a shell would let metacharacters in a prompt
@@ -57,7 +59,9 @@ function resolve(env, platform, fsx, execPath) {
   const fs = fsx || require('fs');
   const xp = execPath || process.execPath;
   if (p === 'win32') return resolveWin(e, fs, xp);
-  const bin = e.URFAEL_CLAUDE_BIN || POSIX_PROBES.find((c) => exists(fs, c)) || 'claude';
+  const home = String(e.HOME || '');
+  const probes = (home ? [path.posix.join(home, '.local', 'bin', 'claude')] : []).concat(POSIX_PROBES);
+  const bin = e.URFAEL_CLAUDE_BIN || probes.find((c) => exists(fs, c)) || 'claude';
   return { bin, pre: [] };
 }
 

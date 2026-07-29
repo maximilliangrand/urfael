@@ -18,6 +18,16 @@ test('POSIX resolution is byte-identical to the shipped probe (pre always empty)
   assert.deepEqual(cb.resolve({}, 'linux', fakeFs([]), '/usr/bin/node'), { bin: 'claude', pre: [] });
 });
 
+test('POSIX: the native installer ~/.local/bin/claude is probed FIRST (a GUI daemon has no ~/.local/bin on PATH)', () => {
+  const native = '/Users/alice/.local/bin/claude';
+  assert.deepEqual(cb.resolve({ HOME: '/Users/alice' }, 'darwin', fakeFs([native, '/opt/homebrew/bin/claude']), '/usr/bin/node'),
+    { bin: native, pre: [] });                                          // native installer beats a stale brew install
+  assert.deepEqual(cb.resolve({ HOME: '/Users/alice' }, 'darwin', fakeFs(['/opt/homebrew/bin/claude']), '/usr/bin/node'),
+    { bin: '/opt/homebrew/bin/claude', pre: [] });                      // no native install → shipped probes unchanged
+  assert.deepEqual(cb.resolve({ HOME: '/Users/alice', URFAEL_CLAUDE_BIN: '/x/claude' }, 'darwin', fakeFs([native]), '/usr/bin/node'),
+    { bin: '/x/claude', pre: [] });                                     // explicit override still beats every probe
+});
+
 test('win32: the native installer exe is preferred and spawned directly', () => {
   const exe = path.join(HOME, '.local', 'bin', 'claude.exe');
   assert.deepEqual(cb.resolve(ENV, 'win32', fakeFs([exe]), NODE), { bin: exe, pre: [] });

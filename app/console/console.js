@@ -103,7 +103,10 @@ function splitSpoken(t) {
   const m = (t || '').match(/\[SPOKEN\]([\s\S]*?)\[\/SPOKEN\]/i);
   const remark = m ? m[1].trim() : '';
   const body = (t || '').replace(/\[SPOKEN\][\s\S]*?\[\/SPOKEN\]/i, '').replace(/\[\/?SPOKEN\]/gi, '').trim();
-  return { remark, body: body || remark };
+  // A spoken-only reply (nothing outside the tags) renders ONCE: the remark IS the message, not an aside to
+  // it — the old body||remark fallback printed the same sentence twice (italic aside + body). `spoken` keeps
+  // the full voice line for TTS regardless of how the split rendered.
+  return { remark: body ? remark : '', body: body || remark, spoken: remark };
 }
 function renderLive() {
   if (!liveMsg) return;
@@ -152,8 +155,8 @@ function finishLive(r) {
   const pinned = nearBottom();
   // the done event carries aborted:true; the awaited ask() resolves without it, so also detect '(stopped)' text
   const stopped = !!(r && (r.aborted || r.text === '(stopped)'));
-  const { remark, body } = splitSpoken((r && r.text) || liveText);
-  if (wasMine && !stopped) speak(remark || (body || '').split(/(?<=[.!?])\s/)[0]);
+  const { remark, body, spoken } = splitSpoken((r && r.text) || liveText);
+  if (wasMine && !stopped) speak(spoken || (body || '').split(/(?<=[.!?])\s/)[0]);
   liveMsg.querySelector('.remark').textContent = stopped ? '' : remark;
   liveMsg.classList.toggle('stopped', stopped);
   liveMsg.querySelector('.text').textContent = stopped ? (body || '(stopped)') : (body || '(no reply — is the brain awake?)');
