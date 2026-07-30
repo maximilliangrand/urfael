@@ -21,7 +21,7 @@ brew install ffmpeg whisper-cpp coreutils
 This is the recommended path because the installer is read-it-first friendly. It never auto-installs heavy software and never enables anything risky on your behalf.
 
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git && cd urfael
+git clone https://github.com/Grandillionaire/urfael.git urfael-src && cd urfael-src
 ./install.sh        # checks deps, fetches the speech model, scaffolds your vault, writes config templates
 urfael setup        # onboarding wizard: subscription (default), an API key, or a local model
 cd app && npm start # the Console opens
@@ -40,7 +40,7 @@ curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh 
 The same path, in PowerShell. Do not double-click `install.sh` — that is the macOS/Linux installer; Windows has its own:
 
 ```powershell
-git clone https://github.com/Grandillionaire/urfael.git; cd urfael
+git clone https://github.com/Grandillionaire/urfael.git urfael-src; cd urfael-src
 powershell -ExecutionPolicy Bypass -File .\install.ps1   # deps check, speech model + whisper-server (both SHA-pinned), vault, `urfael` on PATH
 urfael setup                                              # same onboarding wizard (open a NEW terminal first so PATH refreshes)
 cd app; npm start                                         # the Console opens

@@ -68,13 +68,17 @@ function frame(title, lines, forceInner) {
   return out.join('\n');
 }
 
-function req(method, p, body) {
+function req(method, p, body, opts) {
   // parse the JSON reply, else fall back to the raw string; a socket error/timeout REJECTS (Error('timeout')).
-  return dc.request(method, p, body, { socketPath: SOCK, timeoutMs: 300000 }).then((b) => { try { return JSON.parse(b); } catch { return b; } });
+  // Default timeout is 300s (sized for a long /ask turn); callers pass a short one for liveness probes.
+  return dc.request(method, p, body, { socketPath: SOCK, timeoutMs: (opts && opts.timeoutMs) || 300000 }).then((b) => { try { return JSON.parse(b); } catch { return b; } });
 }
 
 async function ensureDaemon() {
-  const ok = () => req('GET', '/health').then(() => true).catch(() => false);
+  // /health must use a SHORT timeout: a wedged daemon that accepts the socket but never replies would otherwise
+  // hang the CLI for the full 300s /ask timeout with NO output before any spinner starts — total silence. 1.5s
+  // is plenty for a healthy local socket and turns a multi-minute silent hang into a fast, honest failure.
+  const ok = () => req('GET', '/health', undefined, { timeoutMs: 1500 }).then(() => true).catch(() => false);
   if (await ok()) return true;
   try { const p = spawn(process.execPath, [DAEMON], { detached: true, stdio: 'ignore' }); p.unref(); } catch {}
   for (let i = 0; i < 20; i++) { await new Promise((r) => setTimeout(r, 400)); if (await ok()) return true; }

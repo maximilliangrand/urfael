@@ -49,6 +49,12 @@ test('every "NN/NN checks" and "NN checks passed" in the docs equals the real be
       assert.equal(Number(m[2]), CHECKS, rel + ' cites ' + m[0] + ' but the benchmark has ' + CHECKS + ' checks');
     }
     for (const m of txt.matchAll(/(\d+)\s+checks passed/gi)) assert.equal(Number(m[1]), CHECKS, rel + ' cites "' + m[0] + '" but the benchmark has ' + CHECKS + ' checks');
+    // also the "NN of MM checks" prose form — a machine-read JSON-LD FAQ once drifted to "123 of 125 checks"
+    // (invisible to the slash-form matcher above), which search engines then surface. Both numbers must be real.
+    for (const m of txt.matchAll(/(\d+)\s+of\s+(\d+)\s+checks/gi)) {
+      assert.equal(Number(m[1]), CHECKS, rel + ' cites "' + m[0] + '" but the benchmark has ' + CHECKS + ' checks');
+      assert.equal(Number(m[2]), CHECKS, rel + ' cites "' + m[0] + '" but the benchmark has ' + CHECKS + ' checks');
+    }
   }
 });
 

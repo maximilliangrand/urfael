@@ -81,6 +81,11 @@ const watchBus = new sessionBus.EventBus({ cap: sessionBus.RING_CAP });
 { const t = setInterval(() => { try { for (const id of clients.prune(90000)) watchBus.publish({ kind: 'client.gone', clientId: id, t: Date.now() }); } catch {} }, 30000); if (t.unref) t.unref(); }
 
 const VAULT = path.join(os.homedir(), process.env.URFAEL_VAULT_DIR || 'Urfael');
+// Backfill USER before ANY claude child spawns. A launchd/ssh/headless-started daemon can have an env with no
+// USER, which breaks the macOS login-Keychain credential lookup → every turn fails "Not logged in" even though
+// the user IS signed in (running `claude` in a terminal, where USER is set, works). This one line turns that
+// permanent, misleading auth failure into a working turn. (scopedEnv forwards USER to every child.)
+if (!process.env.USER) { try { process.env.USER = require('os').userInfo().username; } catch {} }
 const MEMORY_DIR = path.join(os.homedir(), process.env.URFAEL_MEMORY_DIR || 'Urfael-memory');
 // The memory repo is a SIBLING of the vault, so it's outside the brain's project root (cwd=VAULT). Claude Code
 // sandboxes tool access to the project dir, so without this the brain can't READ its own memory (it'd have to ask
@@ -3265,6 +3270,18 @@ function onBindError(e) {
 // here and mutate shared state (reconcile/WAL-recover) on its way to discovering it lost.
 function onListening() {
   if (!IPC_AUTH) { try { fs.chmodSync(SOCK, 0o600); } catch {} } // 0600: only the owner can POST to the brain (POSIX; a win32 pipe has no mode — the token above is the boundary)
+  // SELF-HEAL the two things a GUI/.dmg user (who never ran install.sh) would otherwise be missing, so the
+  // FIRST turn works no matter how they arrived: (1) a vault to be the claude cwd — its absence used to make
+  // every spawn fail with a misleading "claude not installed"; (2) filled CLAUDE.md placeholders — their
+  // absence made the brain address the user as "{{USER_NAME}}". Both are idempotent and fail-soft.
+  try {
+    const persona = require('./persona');
+    const v = persona.ensureVault(VAULT, path.join(REPO_ROOT, 'vault-template'), fs);
+    if (v.created) logEvent({ ev: 'vault_scaffolded', minimal: !!v.minimal });
+    else if (!v.ok) logEvent({ ev: 'WARN', msg: 'could not scaffold the vault at ' + VAULT + ': ' + v.error });
+    const pr = persona.ensurePersona(VAULT, fs);
+    if (pr.filled) logEvent({ ev: 'persona_filled' });
+  } catch (e) { try { logEvent({ ev: 'WARN', msg: 'vault self-heal failed: ' + String((e && e.message) || e) }); } catch {} }
   cleanupOrphanBrains(); jobstore.reconcile();
   // CRASH-SAFE TRANSCRIPT WAL (opt-in URFAEL_TRANSCRIPT_WAL): a journal entry that SURVIVED a restart means the daemon
   // died mid-turn. Recover the user's message into the transcript, marked recovered, so the last exchange is never
