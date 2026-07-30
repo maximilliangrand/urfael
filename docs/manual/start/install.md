@@ -35,20 +35,31 @@ If you prefer a one-liner, a bootstrap clones the repo and runs `install.sh` for
 curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
 ```
 
-### Native Windows (beta)
+### Native Windows (beta) — the easy way
 
-The same path, in PowerShell. Do not double-click `install.sh` — that is the macOS/Linux installer; Windows has its own:
+You do not need to install anything first, and you do not need to be technical. **Copy this one line, paste it into PowerShell, and press Enter:**
+
+```powershell
+irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex
+```
+
+To open PowerShell: press the Windows key, type `PowerShell`, and click it. That one line installs the prerequisites for you (Node, git, ffmpeg, and Claude Code, via Windows' built-in `winget`), downloads Urfael, sets it up, walks you through connecting your Claude account, and offers to open the app. That is the whole install.
+
+Prefer to click instead of paste? Download the repo as a ZIP (green **Code** button on GitHub → **Download ZIP**), unzip it, and **double-click `install-windows.cmd`**. It does the same guided install. If Windows shows a blue **"Windows protected your PC"** box, click **More info** → **Run anyway** — that appears because the helper isn't code-signed yet, not because anything is wrong.
+
+You will sign into Claude once during setup (a browser opens — sign in with your Claude Pro/Max account, or paste an API key). After it finishes, open a **new** terminal and type `urfael "hello"`, or use the Console window the installer opened.
+
+<details><summary>Doing it by hand (for developers)</summary>
 
 ```powershell
 git clone https://github.com/Grandillionaire/urfael.git urfael-src; cd urfael-src
-powershell -ExecutionPolicy Bypass -File .\install.ps1   # deps check, speech model + whisper-server (both SHA-pinned), vault, `urfael` on PATH
-urfael setup                                              # same onboarding wizard (open a NEW terminal first so PATH refreshes)
-cd app; npm start                                         # the Console opens
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Guided   # -Guided auto-installs prerequisites + runs setup
 ```
 
-Or the one-line bootstrap, short enough to read first: `irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex`
+Drop `-Guided` if you already have Node 20+, git, ffmpeg and Claude Code and just want the plain install. Do not double-click `install.sh` — that is the macOS/Linux installer.
+</details>
 
-Windows differences, stated plainly: the daemon's control plane is a per-user named pipe plus a required token file under your profile (the POSIX build uses a `0600` unix socket — same trust statement, different kernel); autostart is a Run-key command the installer prints but never adds for you; `--check` commands for goal jobs run under PowerShell; docker/ssh goal sandboxes and host-reaching plugin cells stay POSIX/WSL-only for now. The brain's `curl --unix-socket` examples become `node _urfael/daemonctl.js …` (the installer scaffolds it).
+Windows differences, stated plainly: the daemon's control plane is a per-user named pipe plus a required token file under your profile (the POSIX build uses a `0600` unix socket — same trust statement, different kernel); the Console (`npm start`) uses the Electron desktop runtime, which the installer downloads and verifies; autostart is a Run-key command the installer prints but never adds for you; `--check` commands for goal jobs run under PowerShell; docker/ssh goal sandboxes and host-reaching plugin cells stay POSIX/WSL-only for now. The brain's `curl --unix-socket` examples become `node _urfael/daemonctl.js …` (the installer scaffolds it).
 
 ## Path 2: the packaged desktop app
 

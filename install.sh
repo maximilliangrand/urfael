@@ -175,13 +175,23 @@ record_repo(){ printf '%s' "$REPO" > "$JDIR/repo"; ok "repo path recorded ($REPO
 # app deps + the `urfael` terminal command. CLI_LINKED is read by the closing banner so we never tell a user
 # to run `urfael "hello"` when the CLI didn't actually land on their PATH.
 CLI_LINKED=0
+# app deps are COMPLETE only when (1) npm finished (node_modules/.package-lock.json) AND (2) electron's binary
+# actually downloaded — `npm start` runs `electron .`, electron is a devDependency, and its ~100MB postinstall
+# can be skipped (production config) or blocked (firewall/AV). require('electron') returns the binary path;
+# existsSync proves the binary landed. Cross-platform (mac/linux dist path differs; node resolves it).
+app_deps_ok(){ [ -f "$REPO/app/node_modules/.package-lock.json" ] && ( cd "$REPO/app" && node -e "const f=require('fs');let p;try{p=require('electron')}catch(e){process.exit(3)};process.exit(f.existsSync(p)?0:4)" >/dev/null 2>&1 ); }
 install_app_and_cli(){
-  # A COMPLETE install leaves node_modules/.package-lock.json; a directory alone can be a half-finished install
-  # (interrupted npm, disk full) that the old `[ -d node_modules ]` check would falsely call "done" forever.
-  if [ -f "$REPO/app/node_modules/.package-lock.json" ]; then ok "app deps installed"; else
-    ( cd "$REPO/app" && npm install --silent )
-    if [ -f "$REPO/app/node_modules/.package-lock.json" ]; then ok "npm install (app)"; else
-      bad "npm install failed (network / disk / proxy?) — the app can't run without it. Fix the cause, then re-run ./install.sh"; exit 1
+  if app_deps_ok; then ok "app deps installed (Electron runtime verified)"; else
+    warn "installing app dependencies (Node packages + the Electron desktop runtime, ~150MB one time)…"
+    ( cd "$REPO/app" && npm_config_production=false npm install --include=dev --no-audit --no-fund )
+    # electron installed but its binary missing → run electron's own installer to re-fetch it
+    if ! app_deps_ok && [ -f "$REPO/app/node_modules/electron/install.js" ]; then
+      warn "Electron binary did not download — re-fetching it (a firewall/proxy can block this)…"
+      ( cd "$REPO/app" && node node_modules/electron/install.js )
+    fi
+    if app_deps_ok; then ok "npm install (app, Electron verified)"
+    elif [ -f "$REPO/app/node_modules/.package-lock.json" ]; then bad "Node packages installed, but the Electron desktop binary is missing (firewall/proxy likely blocked its download). The \`urfael\` CLI works; the Console (npm start) will not until Electron installs — allow node through your firewall, then re-run ./install.sh"; exit 1
+    else bad "npm install failed (network / disk / proxy?) — the app can't run without it. Fix the cause, then re-run ./install.sh"; exit 1
     fi
   fi
   BINDIR="$(dirname "$(command -v node || echo /opt/homebrew/bin/node)")"

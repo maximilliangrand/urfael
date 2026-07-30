@@ -128,6 +128,14 @@ urfael setup        # onboarding wizard: subscription (default), an API key, or 
 cd app && npm start # the Console opens
 ```
 
+**On Windows (native beta), you don't install anything first.** Open PowerShell (Windows key → type `PowerShell` → click) and paste one line — it installs Node, git, ffmpeg and Claude Code for you, then sets everything up and opens the app:
+
+```powershell
+irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex
+```
+
+Prefer clicking? Download the ZIP and double-click **`install-windows.cmd`**. WSL also works (the source path above, unchanged). Full detail in the [Windows install guide](docs/manual/start/install.md).
+
 Prefer a one-liner? There's a bootstrap (`get.sh`) that clones and runs `install.sh` for you:
 
 ```bash
