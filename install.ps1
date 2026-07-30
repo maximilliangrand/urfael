@@ -2,8 +2,13 @@
 # scaffolds what is missing, never overwrites your vault or secrets, and enables NOTHING risky
 # automatically. Read SECURITY.md first.
 #
-#   Run it from a PowerShell prompt:   powershell -ExecutionPolicy Bypass -File .\install.ps1
-#   (Double-clicking a .ps1 opens Notepad by design on Windows — use the command above.)
+#   Plain install:   powershell -ExecutionPolicy Bypass -File .\install.ps1
+#   Guided install:  powershell -ExecutionPolicy Bypass -File .\install.ps1 -Guided
+#     (-Guided auto-installs the prerequisites via winget — Node, git, ffmpeg, Claude Code — then runs the
+#      setup wizard and offers to open the app. It is what the double-click install-windows.cmd and the
+#      one-line get.ps1 bootstrap use, so a non-technical person does not have to install anything by hand.)
+#   (Double-clicking a .ps1 opens Notepad by design on Windows — use install-windows.cmd instead.)
+param([switch]$Guided)
 $ErrorActionPreference = 'Continue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
@@ -38,9 +43,42 @@ Say ("    " + (C '38;5;214' ([string]::Join('', $RUNES))) + "   " + (C '2' 'Liqu
 Say ""
 Say ("  " + (C '1;38;5;179' 'I N S T A L L  (Windows)') + "   " + (C '2' '- idempotent - nothing risky enabled - keeps your vault & secrets'))
 
+function Have($bin) { $null -ne (Get-Command $bin -ErrorAction SilentlyContinue) }
+# Pull newly-installed tools onto THIS session's PATH (winget updates the registry, not the live process),
+# so a just-installed node/git/ffmpeg is usable immediately without opening a new window.
+function Update-SessionPath {
+  $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+
+# ── 0) GUIDED prerequisites (only with -Guided) ──────────────────────────────────────────────────────
+# Install everything a non-technical person would otherwise have to hunt down, using winget (built into
+# Windows 10 1809+ / 11). Each step is announced, idempotent (skips what is already present), and falls back
+# to a plain download link if winget is unavailable. Never needs admin for these user-scope installs.
+if ($Guided) {
+  Sect 'PREREQUISITES' 'installing what Urfael needs, so you do not have to (Node, git, ffmpeg, Claude Code)'
+  $winget = Have 'winget'
+  if (-not $winget) { Warn 'winget is not available (older Windows). Install Node 20+ (https://nodejs.org) and Git (https://git-scm.com) by hand, then re-run.' }
+  function Ensure-WinGet($id, $label, $probe, $url) {
+    if (& $probe) { Ok "$label already installed"; return $true }
+    if (-not $winget) { Warn "$label missing - install it from $url, then re-run"; return $false }
+    Warn "installing $label ..."
+    winget install --id $id -e --source winget --accept-package-agreements --accept-source-agreements --silent 2>$null | Out-Null
+    Update-SessionPath
+    if (& $probe) { Ok "$label installed"; return $true } else { Warn "$label did not install cleanly - get it from $url, then re-run"; return $false }
+  }
+  # Node 20+ (LTS). If an OLD node is present, winget upgrades toward LTS; the hard check below still enforces >=20.
+  Ensure-WinGet 'OpenJS.NodeJS.LTS' 'Node.js (LTS)' { Have 'node' } 'https://nodejs.org' | Out-Null
+  Ensure-WinGet 'Git.Git'          'Git'           { Have 'git' }  'https://git-scm.com' | Out-Null
+  Ensure-WinGet 'Gyan.FFmpeg'      'ffmpeg (voice)' { Have 'ffmpeg' } 'https://www.gyan.dev/ffmpeg/builds/' | Out-Null
+  # Claude Code — the brain. Prefer the native/npm install; probe the same shapes app/claude-bin.js resolves.
+  $claudeThere = (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) -or (Test-Path (Join-Path $env:APPDATA 'npm\node_modules\@anthropic-ai\claude-code\cli.js')) -or (Have 'claude')
+  if ($claudeThere) { Ok 'Claude Code already installed' }
+  elseif (Have 'npm') { Warn 'installing Claude Code (npm global) ...'; npm install -g '@anthropic-ai/claude-code' --no-audit --no-fund 2>$null | Out-Null; Update-SessionPath; if (Have 'claude') { Ok 'Claude Code installed' } else { Warn 'Claude Code did not install - see https://claude.com/claude-code' } }
+  else { Warn 'Claude Code needs Node first - see https://claude.com/claude-code' }
+}
+
 # ── 1) dependencies (report, don't auto-install heavy things) ────────────────────────────────────────
 Sect 'DEPENDENCIES' 'what the brain + local voice need'
-function Have($bin) { $null -ne (Get-Command $bin -ErrorAction SilentlyContinue) }
 $node = Get-Command node -ErrorAction SilentlyContinue
 if ($node) {
   $v = (& node --version) -replace '^v', ''
@@ -138,15 +176,30 @@ Set-Content -NoNewline -Path (Join-Path $JDIR 'repo') -Value $REPO
 Ok "repo path recorded ($REPO)"
 
 # ── 6) app deps + the `urfael` terminal command ──────────────────────────────────────────────────────
-Sect 'APP & CLI' 'node deps + the `urfael` terminal command'
-# A COMPLETE install leaves node_modules\.package-lock.json; a bare directory can be a half-finished install
-# that the old Test-Path check would call "done" forever. Verify the sentinel, and STOP on a real npm failure
-# instead of printing a false "installed" ($ErrorActionPreference='Continue' would otherwise swallow it).
-$depSentinel = Join-Path $REPO 'app\node_modules\.package-lock.json'
-if (Test-Path $depSentinel) { Ok 'app deps installed' }
+Sect 'APP & CLI' 'node deps (incl. the Electron desktop runtime) + the `urfael` terminal command'
+# TWO things must be true, and the old check verified neither: (1) devDependencies installed — the Console
+# `npm start` runs `electron .`, and electron is a devDependency, so a `production` npm config / NODE_ENV would
+# SKIP it → "electron is not installed"; (2) electron's ~100MB platform binary actually downloaded — Windows
+# AV/firewall silently blocks that postinstall, leaving the package present but the exe missing. We force
+# devDeps AND verify the real electron.exe, then repair it if the binary didn't land.
+$appDir = Join-Path $REPO 'app'
+$depSentinel = Join-Path $appDir 'node_modules\.package-lock.json'
+$electronExe = Join-Path $appDir 'node_modules\electron\dist\electron.exe'
+function Test-AppDeps { (Test-Path $depSentinel) -and (Test-Path $electronExe) }
+if (Test-AppDeps) { Ok 'app deps installed (Electron runtime verified)' }
 else {
-  Push-Location (Join-Path $REPO 'app'); npm install --silent; Pop-Location
-  if (Test-Path $depSentinel) { Ok 'npm install (app)' }
+  Warn 'installing app dependencies (Node packages + the Electron desktop runtime, ~150MB one time)...'
+  Push-Location $appDir
+  $env:npm_config_production = 'false'   # force devDependencies (electron) even under a production npm config
+  npm install --include=dev --no-audit --no-fund
+  # if electron installed but its binary did not download (AV/firewall), run electron's own installer to re-fetch it
+  if (-not (Test-AppDeps) -and (Test-Path (Join-Path $appDir 'node_modules\electron\install.js'))) {
+    Warn 'Electron binary did not download - re-fetching it (a firewall/AV can block this; set ELECTRON_MIRROR if behind a proxy)...'
+    node node_modules\electron\install.js
+  }
+  Pop-Location
+  if (Test-AppDeps) { Ok 'app deps installed (Electron runtime verified)' }
+  elseif (Test-Path $depSentinel) { Bad 'Node packages installed, but the Electron desktop binary is missing (your antivirus/firewall likely blocked its download). The `urfael` CLI works; the Console (npm start) will not until Electron installs. Allow node/electron through your firewall, then re-run install.ps1.'; exit 1 }
   else { Bad 'npm install failed (network / disk / proxy?) - the app cannot run without it. Fix the cause, then re-run install.ps1'; exit 1 }
 }
 # a .cmd shim in %LOCALAPPDATA%\Urfael\bin + a one-time user-PATH append (no admin, no system PATH)
@@ -184,3 +237,22 @@ Say ''
 Say ("  " + (C '38;5;214' ([char]0x25B8)) + " " + (C '1;38;5;179' 'Run  urfael setup') + "  " + (C '2' '- pick how Urfael reaches Claude (your subscription, an API key, or a local model).'))
 Say ''
 Say ("  " + (C '1;38;5;179' ([string]$RUNES[0] + '  Ready, sir.')) + "  " + (C '2' 'Talk to Urfael - run ') + (C '38;5;109' 'urfael "hello"') + (C '2' ' from any terminal.'))
+
+# ── GUIDED finale: run the setup wizard + offer to open the app, so a non-technical person never has to type
+# a second command. We call the CLI by full path (the PATH shim only resolves in a NEW terminal). Best-effort.
+if ($Guided) {
+  Say ''
+  Sect 'SETUP' 'a few friendly questions to connect Urfael to Claude and learn who you are'
+  # Sign-in nudge: if Claude is installed but not signed in, the subscription probe inside setup reminds them;
+  # surface it up front too, and offer to open the sign-in so they are not left hunting.
+  $cliJs = Join-Path $REPO 'app\cli.js'
+  try { & node $cliJs setup } catch { Warn ("setup could not run automatically - open a NEW terminal and type:  urfael setup   (" + $_.Exception.Message + ")") }
+  Say ''
+  $go = Read-Host '  Open the Urfael Console now? [Y/n]'
+  if ($go -notmatch '^[Nn]') {
+    Warn 'starting the Console (a new window will open)...'
+    try { Start-Process -FilePath (Join-Path $REPO 'app\node_modules\electron\dist\electron.exe') -ArgumentList (Join-Path $REPO 'app') -WorkingDirectory (Join-Path $REPO 'app') } catch { Warn ('could not auto-start - open a NEW terminal and run:  cd "' + $REPO + '\app"; npm start') }
+  } else {
+    Say ('  When you are ready:  open a NEW terminal and run   ' + (C '38;5;109' 'urfael "hello"') + '   (or  cd "' + $REPO + '\app"; npm start  for the Console)')
+  }
+}

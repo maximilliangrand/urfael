@@ -4,6 +4,14 @@ All notable changes to Urfael are recorded here. The format follows [Keep a Chan
 
 Run `urfael version` to see what you are on, and `urfael update` to pull and reinstall the latest.
 
+## [0.13.2] - 2026-07-30
+
+### Added / Fixed — Windows install is now genuinely one-step, and Electron never silently goes missing
+
+- **One-paste Windows install for non-technical users.** `get.ps1` (`irm … | iex`) now installs the prerequisites itself via winget — Node, git, and then, through the new **`-Guided`** mode of `install.ps1`, ffmpeg and Claude Code too — clones Urfael, runs the whole install, walks the user through the setup wizard, and offers to open the Console. Nothing to install by hand first. For people who prefer clicking, a new **`install-windows.cmd`** does the same guided install on a double-click (a `.cmd` is double-clickable; a `.ps1` opens Notepad). The landing page, README, and Windows install guide now lead with the one-paste / double-click path instead of a manual multi-step PowerShell sequence, and explain the SmartScreen "More info → Run anyway" prompt where the user actually meets it. `-Guided` is opt-in; the plain `install.ps1` is unchanged (so CI and existing flows are byte-identical).
+- **Electron is now installed AND verified, cross-platform.** The Console (`npm start` → `electron .`) needs Electron at runtime, but Electron is a `devDependency`, so a `production` npm config could skip it and, even when installed, its ~100 MB platform binary is frequently blocked by Windows antivirus/firewall — leaving "electron is not installed" with the installer having reported success. Both installers now force devDependencies (`--include=dev`), verify the real Electron binary exists (not just that npm ran), and re-fetch the binary via Electron's own installer if it didn't download — failing with an exact, actionable message if it still can't. This was the reported "Electron is not installed on Windows" break.
+- **CI parse-checks every PowerShell installer on the real Windows runtime** (`install.ps1` + `get.ps1`), so a syntax error in the one-line bootstrap or the guided path — neither of which the execution smoke covers — can no longer ship unnoticed.
+
 ## [0.13.1] - 2026-07-30
 
 ### Fixed

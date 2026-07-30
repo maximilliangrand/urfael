@@ -38,6 +38,22 @@ jobs:
           FUZZ_ITERS: '6000'
       - name: SSRF red-team (differential, loopback)
         run: npm run redteam
+      # Parse-check EVERY PowerShell installer on the real Windows runtime. get.ps1 and the -Guided path are not
+      # executed by the smoke below (they'd hit the network / winget), so this is what guards their SYNTAX — a
+      # parse error in the one-line bootstrap would otherwise ship unnoticed (nobody on the team runs Windows).
+      - name: parse-check the PowerShell installers (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: ${{ github.workspace }}
+        run: |
+          $bad = 0
+          foreach ($f in 'install.ps1','get.ps1') {
+            $errs = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $f).Path, [ref]$null, [ref]$errs) | Out-Null
+            if ($errs) { Write-Host "PARSE ERRORS in $f :"; $errs | ForEach-Object { Write-Host "  $_" }; $bad = 1 }
+            else { Write-Host "ok  $f parses" }
+          }
+          if ($bad) { throw 'a PowerShell installer has parse errors' }
       # The Windows installer EXECUTES on every push (downloads skipped): vault scaffold + junction, config
       # templates, the urfael shim + PATH append, autostart helpers — then the installed CLI must answer.
       # Parse-checking alone would miss runtime breakage; nobody on the team runs Windows hardware.
