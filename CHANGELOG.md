@@ -4,6 +4,24 @@ All notable changes to Urfael are recorded here. The format follows [Keep a Chan
 
 Run `urfael version` to see what you are on, and `urfael update` to pull and reinstall the latest.
 
+## [0.13.1] - 2026-07-30
+
+### Fixed
+
+An onboarding-bulletproofing pass from four parallel audits of the whole first-touch path (installer, setup wizard, first-boot, and docs) plus hands-on runs in a fresh throwaway home. The goal: from download to a working assistant there is no way to end up silently broken or misconfigured. `1390` unit tests; benchmark stays `125/125`.
+
+- **The daemon now self-heals a missing vault and unfilled persona at boot** (new `app/persona.js`, called from the listen path). A `.dmg`/GUI user who never ran `install.sh` used to reach a running daemon with no `~/Urfael` vault → every turn spawned `claude` with a non-existent cwd and failed with a misleading "claude CLI not found". Now the daemon scaffolds the vault from the template and fills the `{{USER_NAME}}`/`{{CITY}}`/`{{TIMEZONE}}`/`{{LANGUAGE}}` placeholders (auto-detected, with safe fallbacks) so the brain never addresses the user as "{{USER_NAME}}" and the first turn works no matter how they installed. Idempotent and fail-soft. Verified live in a fresh home.
+- **`get.sh` cloned into `~/urfael`, which is the same directory as the `~/Urfael` vault on case-insensitive macOS** — so the vault scaffold silently no-op'd and the source tree masqueraded as the vault. Changed the default clone target to `urfael-src` (matching `get.ps1`), added a `-ef` inode guard in `install.sh` that stops with an exact fix, and corrected every documented `cd urfael` in README/install.md/index.html.
+- **`install.sh` now fails LOUDLY up front** instead of a green ✓ on a too-old Node followed by a cryptic npm crash: hard preflight for Node ≥ 20 + npm + git (matching `install.ps1`), plus `bash`-only and no-`sudo` guards that turn the two most common wrong invocations into one clear line.
+- **An interrupted whisper-model download is no longer trusted forever.** Both installers downloaded the 142 MB model straight to its final path, so a mid-stream drop left a partial file that every future run reported as "✓ present" — silently breaking local STT. Now: download to a `.part`, checksum it, and rename in only on success; re-verify an existing file's checksum rather than trusting its mere existence.
+- **`install.sh` picks the SHA verifier that's actually installed** (`sha256sum` or `shasum`), so a `shasum`-less Linux box no longer deletes a good 142 MB download as a false "mismatch" and re-downloads it every run.
+- **The installer's `claude` probe now matches `app/claude-bin.js`** (`~/.local/bin` first), so the Claude Code installer's current default location no longer produces a false "claude MISSING".
+- **Honest success reporting**: memory-repo git-init, `npm install`, and the CLI symlink now only print ✓ when they actually succeeded (a completion sentinel, not just a directory), and `install.ps1` stops on a real npm/extract failure instead of `Continue`-swallowing it.
+- **The daemon backfills `USER`** at boot, fixing the false "Not logged in" a launchd/headless daemon hit because the macOS login-Keychain lookup needs `USER` in the child env.
+- **`urfael setup` no longer hangs on a closed/piped stdin** (EOF now flushes and completes on defaults), and **the CLI `/health` probe uses a 1.5 s timeout** instead of inheriting the 300 s `/ask` timeout — a wedged daemon fails fast instead of a silent multi-minute hang.
+- **Provider-config integrity**: switching modes now clears stale `URFAEL_OPUS_MODEL`/`URFAEL_SONNET_MODEL`/`URFAEL_FABLE_MODEL` (a leftover local-model mapping no longer silently routes a subscription at a model it doesn't have), and local mode now maps the **Fable** tier too (defaulting to the Opus mapping) so the v0.13.0 frontier router doesn't send most turns to a model the proxy doesn't have.
+- Docs: added the missing `urfael setup` step to the landing snippet, fixed the JSON-LD "123 of 125 checks" drift (with a new guard pattern so the "N of M" form can't recur), and corrected the Windows `urfael status` first-run instruction.
+
 ## [0.13.0] - 2026-07-29
 
 ### Added

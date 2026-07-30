@@ -71,7 +71,7 @@
       "name": "Is it actually secure, or is that just a word?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "It is a command: npm run security. It boots the real daemon and dashboard and attacks them the way self-hosted agents were attacked in 2026, then prints a pass-or-fail table. The latest run resists 11 of 11 real-world attack classes across 123 of 125 checks. You do not take our word for it. You run it."
+        "text": "It is a command: npm run security. It boots the real daemon and dashboard and attacks them the way self-hosted agents were attacked in 2026, then prints a pass-or-fail table. The latest run resists 11 of 11 real-world attack classes across 125 of 125 checks. You do not take our word for it. You run it."
       }
     },
     {
@@ -467,7 +467,7 @@ This restores your tracked files to that snapshot. The current state is checkpoi
   <section id="compare">
     <h2>The honest part</h2>
     <p class="lede">Against Hermes Agent and OpenClaw, Urfael wins where it counts for a machine that lives on your desk: no inbound port, a flat bill, an attack benchmark you run yourself, and a ledger that proves what it did. It loses on raw scale and channel count, and we put that in the same table.</p>
-    <p class="lede" style="margin-top:12px">The security posture is verified by a command and frozen by 1382 tests. The newer bridges, Discord voice, and the Android host are code-complete but not yet certified against live accounts, and we label them that way.</p>
+    <p class="lede" style="margin-top:12px">The security posture is verified by a command and frozen by 1390 tests. The newer bridges, Discord voice, and the Android host are code-complete but not yet certified against live accounts, and we label them that way.</p>
     <p style="text-align:center;margin:24px 0 0">
       <a href="/compare" style="font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:.5px;color:#ecd3a0;border:1px solid rgba(212,168,90,.25);padding:11px 22px;border-radius:10px;display:inline-block;margin:5px">The full comparison &rsaquo;</a>
       <a href="/honesty" style="font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:.5px;color:#ecd3a0;border:1px solid rgba(212,168,90,.25);padding:11px 22px;border-radius:10px;display:inline-block;margin:5px">What&rsquo;s lightly tested &rsaquo;</a>
@@ -483,8 +483,9 @@ This restores your tracked files to that snapshot. The current state is checkpoi
       <a class="btn" href="/manual/#/start/install">Windows (native beta)</a>
     </div>
     <p class="cap">macOS (Apple Silicon) and Linux ship native installers, not yet notarized. <b style="color:var(--gold-soft)">To open on macOS the first time:</b> drag Urfael to Applications, then open System Settings, go to Privacy and Security, and click <b>Open Anyway</b> (or run <code>xattr -dr com.apple.quarantine /Applications/Urfael.app</code> in Terminal). Intel Macs run from source. On Windows, run <code>install.ps1</code> in PowerShell (native beta; SmartScreen will warn on the unsigned .exe) — WSL also works. Or use the two-line source install below.</p>
-    <pre>git clone https://github.com/Grandillionaire/urfael.git &amp;&amp; cd urfael
+    <pre>git clone https://github.com/Grandillionaire/urfael.git urfael-src &amp;&amp; cd urfael-src
 ./install.sh        # checks deps, scaffolds your vault, no keys
+urfael setup        # subscription / API key / local — and fills your name, city, timezone
 cd app &amp;&amp; npm start # the Console opens</pre>
     <p><b>You need:</b> a <a href="https://claude.com/claude-code">Claude Code</a> subscription (Pro or Max) signed in, or any provider, or a local model. macOS on Apple Silicon or Intel is the best-tested target; Linux is supported but newer. Full setup is in the <a href="/manual/#/start/install">install guide</a>.</p>
     <p><b style="color:var(--gold-soft)">Or run it 100% on your own GPU.</b> A local model (Ollama / NVIDIA NIM) plus local voice means nothing leaves the machine. <a href="/manual/#/guides/local-gpu">Guide</a>.</p>
@@ -596,7 +597,7 @@ cd app &amp;&amp; npm start # the Console opens</pre>
 
 <script>
 /* ---- ground truth: every number on this page reads from here, so it cannot drift from `npm run security` ---- */
-const URFAEL = { classes:11, checks:125, unitTests:1382 };
+const URFAEL = { classes:11, checks:125, unitTests:1390 };
 const RM = matchMedia('(prefers-reduced-motion:reduce)').matches;
 
 document.getElementById('navSeal').textContent = 'ᚢ '+URFAEL.classes+'/'+URFAEL.classes;

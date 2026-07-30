@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 # Urfael installer (macOS + Linux). Idempotent: scaffolds what's missing, never overwrites your vault
 # or secrets, and enables NOTHING risky automatically. Read SECURITY.md first.
+#
+# Run it as YOURSELF with bash:  ./install.sh   (not `sh install.sh`, not `sudo`).
+# The two guards below turn the two most common wrong invocations into one clear line instead of a
+# cryptic mid-script crash (`sh` lacks BASH_SOURCE/arrays) or a root-owned home you can't write to.
+if [ -z "${BASH_VERSION:-}" ]; then echo "✗ Run Urfael's installer with bash:  ./install.sh   (you used sh, which can't run it)"; exit 1; fi
+if [ "$(id -u)" = 0 ]; then echo "✗ Do NOT run Urfael's installer with sudo/root — run it as your normal user. It installs into YOUR home, and root-owned files would break the app."; exit 1; fi
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JDIR="$HOME/.claude/urfael"
@@ -52,6 +58,44 @@ esac
 banner
 printf "\n  ${GB}I N S T A L L${R}   ${D}· idempotent · nothing risky enabled · keeps your vault & secrets${R}\n"
 
+# ── HARD preflight ───────────────────────────────────────────────────────────
+# The pieces the install genuinely CANNOT proceed without. Fail LOUDLY and up front with the exact fix,
+# rather than a green ✓ on a too-old Node followed by a cryptic npm crash 20 lines later (the old behavior:
+# node/npm/git were mere warnings and the script barrelled on). Mirrors what install.ps1 already did.
+preflight_hard(){
+  local ok=1
+  if ! command -v node >/dev/null 2>&1; then bad "node is required (Urfael needs Node 20+). Install it: https://nodejs.org"; ok=0
+  else
+    local major; major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+    if [ "${major:-0}" -lt 20 ]; then bad "Node $(node -v 2>/dev/null) is too old — Urfael needs Node 20+. Upgrade: https://nodejs.org"; ok=0; fi
+  fi
+  command -v npm >/dev/null 2>&1 || { bad "npm is required (it ships with Node). Reinstall Node: https://nodejs.org"; ok=0; }
+  command -v git >/dev/null 2>&1 || { bad "git is required (your private memory repo is a git repo). Install it: https://git-scm.com"; ok=0; }
+  [ "$ok" = 1 ] || { printf "\n  ${RD}Install the missing prerequisite(s) above, then re-run ./install.sh${R}\n\n"; exit 1; }
+}
+
+# The SAME claude resolution app/claude-bin.js (POSIX) + app/setup.js use: ~/.local/bin is the Claude Code
+# installer's current default and is NOT on a login/GUI PATH, so a bare `command -v claude` false-reports
+# "MISSING" and sends the user to reinstall something that is already there. Keep all three in agreement.
+claude_present(){
+  for p in "$HOME/.local/bin/claude" "$HOME/.claude/local/claude" /opt/homebrew/bin/claude /usr/local/bin/claude /usr/bin/claude; do
+    [ -x "$p" ] && return 0
+  done
+  command -v claude >/dev/null 2>&1
+}
+
+# Pick the SHA-256 verifier actually present: coreutils `sha256sum` (most Linux) or `shasum -a 256` (macOS +
+# perl). Returns a function-like via $HASHER. If NEITHER exists we must NOT delete a good download as a false
+# "mismatch" (the old bug on a shasum-less Linux: re-download 142MB every run forever) — we skip verification
+# with a loud note instead.
+HASHER=""
+if command -v sha256sum >/dev/null 2>&1; then HASHER="sha256sum"
+elif command -v shasum >/dev/null 2>&1; then HASHER="shasum -a 256"; fi
+sha_ok(){ # sha_ok <expected-hex> <file>
+  [ -n "$HASHER" ] || return 2                                    # 2 = "no hasher" (caller decides), never a mismatch
+  echo "$1  $2" | $HASHER -c - >/dev/null 2>&1
+}
+
 # ── shared steps ─────────────────────────────────────────────────────────────
 # These behave identically on macOS and Linux (no platform-specific shell-outs).
 
@@ -61,19 +105,25 @@ fetch_model(){
   mkdir -p "$JDIR"
   MODELDIR="$JDIR/models"; mkdir -p "$MODELDIR"
   WHISPER_SHA256="a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002"
-  if [ -f "$MODELDIR/ggml-base.en.bin" ]; then ok "whisper model present"; else
-    warn "downloading whisper base.en model (~142MB, one time)…"
-    if curl -fsSL -o "$MODELDIR/ggml-base.en.bin" \
-         https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin; then
-      if echo "$WHISPER_SHA256  $MODELDIR/ggml-base.en.bin" | shasum -a 256 -c - >/dev/null 2>&1; then
-        ok "local STT model ready (checksum verified)"
-      else
-        rm -f "$MODELDIR/ggml-base.en.bin"
-        warn "model checksum MISMATCH — deleted for safety. Re-run, or set STT_PROVIDER=elevenlabs"
-      fi
-    else
-      warn "model download failed — re-run, or set STT_PROVIDER=elevenlabs"
-    fi
+  MODEL="$MODELDIR/ggml-base.en.bin"
+  # Re-verify an EXISTING file's checksum, not just its existence. The old code trusted any file at this path
+  # forever — so a download interrupted mid-stream (a 142MB file on flaky wifi) left a partial .bin that every
+  # future run reported as "present", silently breaking local STT with no way for the user to notice.
+  if [ -f "$MODEL" ]; then
+    if sha_ok "$WHISPER_SHA256" "$MODEL"; then ok "whisper model present (checksum verified)"; return
+    elif [ $? -eq 2 ]; then ok "whisper model present (checksum not verified — no sha256sum/shasum on this box)"; return   # present + no hasher: trust it, never re-download-loop
+    else warn "existing model failed its checksum (partial/corrupt) — re-downloading"; rm -f "$MODEL"; fi
+  fi
+  warn "downloading whisper base.en model (~142MB, one time)…"
+  # Download to a .part file, checksum THAT, and only rename into place on success — so an interrupted or
+  # tampered download can NEVER masquerade as a valid model. A failure leaves nothing at the real path.
+  TMP="$MODEL.part"; rm -f "$TMP"
+  if curl -fsSL -o "$TMP" https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin; then
+    if sha_ok "$WHISPER_SHA256" "$TMP"; then mv "$TMP" "$MODEL"; ok "local STT model ready (checksum verified)"
+    elif [ $? -eq 2 ]; then mv "$TMP" "$MODEL"; warn "STT model downloaded (checksum NOT verified — install coreutils for sha256sum to verify)"   # no hasher: keep the download, say so
+    else rm -f "$TMP"; warn "model checksum MISMATCH — discarded. Re-run, or set STT_PROVIDER=elevenlabs"; fi
+  else
+    rm -f "$TMP"; warn "model download failed (interrupted?) — nothing was left half-written; just re-run, or set STT_PROVIDER=elevenlabs"
   fi
 }
 
@@ -86,6 +136,14 @@ write_secret_templates(){
 
 # scaffold the vault from the template (never overwrite an existing vault)
 scaffold_vault(){
+  # Guard the case-insensitive-macOS trap: if the REPO clone IS the vault dir (e.g. cloned to ~/urfael, which on
+  # APFS equals ~/Urfael), scaffolding would silently no-op and the source tree would masquerade as the vault.
+  # `-ef` compares by inode, so it catches the collision regardless of case. Stop with the exact fix.
+  if [ "$VAULT" -ef "$REPO" ] 2>/dev/null; then
+    bad "You cloned Urfael INTO its vault path ($VAULT). On macOS ~/urfael and ~/Urfael are the same folder."
+    say "    Move the clone aside and re-run:  cd ~ && mv \"$REPO\" ~/urfael-src && cd ~/urfael-src && ./install.sh"
+    exit 1
+  fi
   if [ -e "$VAULT" ]; then ok "$VAULT already exists (kept — not overwritten)"; else
     cp -R "$REPO/vault-template" "$VAULT"
     rm -rf "$VAULT/memory"                                        # memory lives in ~/Urfael-memory, not the vault
@@ -99,8 +157,13 @@ scaffold_vault(){
 scaffold_memory(){
   if [ -d "$MEM/.git" ]; then ok "$MEM already exists"; else
     mkdir -p "$MEM"; cp "$REPO/vault-template/memory/"*.md "$MEM/"
-    ( cd "$MEM" && git init -q && git add -A && git commit -q -m "init: Urfael memory" 2>/dev/null )
-    ok "created private local memory repo at $MEM"
+    # git presence is guaranteed by preflight_hard, but keep the success message HONEST: only claim the repo
+    # was created if git init+commit actually succeeded (the old unconditional ok() could lie).
+    if ( cd "$MEM" && git init -q && git add -A && git commit -q -m "init: Urfael memory" ) >/dev/null 2>&1; then
+      ok "created private local memory repo at $MEM"
+    else
+      bad "could not initialize the memory git repo at $MEM — check git, then re-run"; exit 1
+    fi
   fi
 }
 
@@ -109,19 +172,30 @@ scaffold_memory(){
 #   with the ~/Urfael vault. Clone the repo anywhere; everything resolves through this.)
 record_repo(){ printf '%s' "$REPO" > "$JDIR/repo"; ok "repo path recorded ($REPO)"; }
 
-# app deps + the `urfael` terminal command
+# app deps + the `urfael` terminal command. CLI_LINKED is read by the closing banner so we never tell a user
+# to run `urfael "hello"` when the CLI didn't actually land on their PATH.
+CLI_LINKED=0
 install_app_and_cli(){
-  if [ -d "$REPO/app/node_modules" ]; then ok "app deps installed"; else ( cd "$REPO/app" && npm install --silent ) && ok "npm install (app)"; fi
+  # A COMPLETE install leaves node_modules/.package-lock.json; a directory alone can be a half-finished install
+  # (interrupted npm, disk full) that the old `[ -d node_modules ]` check would falsely call "done" forever.
+  if [ -f "$REPO/app/node_modules/.package-lock.json" ]; then ok "app deps installed"; else
+    ( cd "$REPO/app" && npm install --silent )
+    if [ -f "$REPO/app/node_modules/.package-lock.json" ]; then ok "npm install (app)"; else
+      bad "npm install failed (network / disk / proxy?) — the app can't run without it. Fix the cause, then re-run ./install.sh"; exit 1
+    fi
+  fi
   BINDIR="$(dirname "$(command -v node || echo /opt/homebrew/bin/node)")"
-  if [ -w "$BINDIR" ]; then ln -sfn "$REPO/app/cli.js" "$BINDIR/urfael" && chmod +x "$REPO/app/cli.js" && ok "linked \`urfael\` CLI into $BINDIR"
-  else warn "can't write $BINDIR — run: npm link --prefix \"$REPO/app\" (or alias urfael=\"node $REPO/app/cli.js\")"; fi
+  if [ -w "$BINDIR" ]; then ln -sfn "$REPO/app/cli.js" "$BINDIR/urfael" && chmod +x "$REPO/app/cli.js" && { CLI_LINKED=1; ok "linked \`urfael\` CLI into $BINDIR"; }
+  else warn "can't write $BINDIR — run: npm link --prefix \"$REPO/app\" (or add alias urfael=\"node $REPO/app/cli.js\" to your shell rc)"; fi
 }
 
 if [ "$OS" = "Darwin" ]; then
   # ════════════════════════════ macOS ════════════════════════════
   # 1) dependency check (report, don't auto-install heavy things)
   sect "DEPENDENCIES" "what the brain + local voice need"
-  for c in claude node npm; do command -v "$c" >/dev/null && ok "$c" || warn "$c MISSING — install it (claude: https://claude.com/claude-code)"; done
+  preflight_hard                                     # node>=20 + npm + git, or a clear stop
+  ok "node $(node -v 2>/dev/null)"; ok "npm"; ok "git"
+  claude_present && ok "claude" || warn "claude CLI not found — install Claude Code (https://claude.com/claude-code) and run \`claude\` once to sign in"
   command -v uv >/dev/null && ok "uv" || warn "uv missing — https://docs.astral.sh/uv (needed for some MCP servers)"
   { command -v gtimeout >/dev/null || command -v timeout >/dev/null; } && ok "timeout/gtimeout" || warn "gtimeout missing — 'brew install coreutils' (needed for the autonomous loop)"
   python3 -c 'import matplotlib' 2>/dev/null && ok "matplotlib" || warn "matplotlib missing — 'pip3 install --user matplotlib numpy' (for charts)"
@@ -186,7 +260,9 @@ else
   # 1) dependency check (report, don't auto-install heavy things). Package names vary by distro;
   #    we name the binary/library so you can `apt`/`dnf`/`pacman` it however your distro wants.
   sect "DEPENDENCIES" "what the brain + local voice need"
-  for c in claude node npm; do command -v "$c" >/dev/null && ok "$c" || warn "$c MISSING — install it (claude: https://claude.com/claude-code)"; done
+  preflight_hard                                     # node>=20 + npm + git, or a clear stop
+  ok "node $(node -v 2>/dev/null)"; ok "npm"; ok "git"
+  claude_present && ok "claude" || warn "claude CLI not found — install Claude Code (https://claude.com/claude-code) and run \`claude\` once to sign in"
   command -v uv >/dev/null && ok "uv" || warn "uv missing — https://docs.astral.sh/uv (needed for some MCP servers)"
   command -v timeout >/dev/null && ok "timeout" || warn "timeout missing — install GNU coreutils (needed for the autonomous loop)"
   python3 -c 'import matplotlib' 2>/dev/null && ok "matplotlib" || warn "matplotlib missing — 'pip3 install --user matplotlib numpy' (for charts)"

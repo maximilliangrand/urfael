@@ -21,7 +21,7 @@ const warn = (s) => `\x1b[38;5;208m${s}\x1b[0m`;
 function makeIO() {
   const stdin = process.stdin;
   const tty = !!stdin.isTTY;
-  let buf = '', mask = false, pending = null;
+  let buf = '', mask = false, pending = null, ended = false;
   const queue = [];
   const give = (l) => { if (pending) { const p = pending; pending = null; p(l.trim()); } else queue.push(l.trim()); };
   if (tty) { try { stdin.setRawMode(true); } catch {} }
@@ -34,7 +34,12 @@ function makeIO() {
       else if (ch >= ' ') { buf += ch; if (tty) process.stdout.write(mask ? '*' : ch); }  // printable only (drops escape seqs)
     }
   });
-  const next = () => new Promise((res) => { if (queue.length) res(queue.shift()); else pending = res; });
+  // EOF handling: a closed pipe / mid-flow Ctrl-D used to leave every awaited read hanging FOREVER (no output,
+  // no exit). On end, flush any buffered final line, then resolve all further reads to '' so the wizard falls
+  // through on defaults and finishes instead of hanging — a non-interactive run completes deterministically.
+  const onEnd = () => { if (ended) return; ended = true; if (buf.trim()) { const l = buf; buf = ''; give(l); } if (pending) { const p = pending; pending = null; p(''); } };
+  stdin.on('end', onEnd); stdin.on('close', onEnd);
+  const next = () => new Promise((res) => { if (queue.length) res(queue.shift()); else if (ended) res(''); else pending = res; });
   return {
     ask: (q) => { process.stdout.write(q); mask = false; return next(); },
     askHidden: (q) => { process.stdout.write(q); mask = tty; return next(); },          // mask only matters on a TTY
@@ -55,21 +60,11 @@ function claudePath() { // include the native Claude Code install dirs (~/.local
   }
   return ['/opt/homebrew/bin/claude', '/usr/local/bin/claude', '/usr/bin/claude', path.join(home, '.local', 'bin', 'claude'), path.join(home, '.claude', 'local', 'claude')].find((p) => { try { fs.accessSync(p); return true; } catch { return false; } }) || (has('claude') ? 'claude' : ''); }
 
-// Best-effort auto-detect of who the user is, so we can fill the CLAUDE.md {{PLACEHOLDERS}} instead of making
-// them hand-edit (a step everyone forgets — then the brain literally addresses you as "{{USER_NAME}}").
-function detectPersona() {
-  const tryGit = (k) => { try { return spawnSync('git', ['config', k], { stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }).stdout.toString().trim(); } catch { return ''; } };   // argv-vector git: same on every OS, no shell
-  let name = tryGit('user.name');
-  const email = tryGit('user.email');
-  if (!name && email) name = email.split('@')[0];
-  if (!name) name = process.env.USER || process.env.LOGNAME || process.env.USERNAME || '';
-  let tz = '', locale = '';
-  try { const o = Intl.DateTimeFormat().resolvedOptions(); tz = o.timeZone || ''; locale = o.locale || ''; } catch {}
-  const city = tz.includes('/') ? tz.split('/').pop().replace(/_/g, ' ') : '';
-  const LANGS = { en: 'English', de: 'German', fr: 'French', es: 'Spanish', it: 'Italian', pt: 'Portuguese', nl: 'Dutch', ru: 'Russian', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', ar: 'Arabic', hi: 'Hindi', pl: 'Polish', tr: 'Turkish', sv: 'Swedish', uk: 'Ukrainian' };
-  const language = LANGS[(locale.split('-')[0] || 'en').toLowerCase()] || 'English';
-  return { name, city, timezone: tz, language };
-}
+// Persona detection + placeholder fill live in the shared app/persona.js so the wizard and the daemon's
+// boot-time self-heal can NEVER disagree about who the owner is or how a blank field falls back. Re-exported
+// under the old name so callers/tests keep working.
+const persona = require('./persona');
+const detectPersona = () => persona.detectPersona();
 
 // read provider.env into a {KEY:val} map (so we edit non-destructively), and write it back atomic + 0600
 function readEnv() {
@@ -141,9 +136,13 @@ async function run() {
     let choice = '';
     while (!['1', '2', '3'].includes(choice)) choice = await io.ask('  Choose ' + gold('[1-3]') + ' (Enter = 1): ') || '1';
 
-    // start from current config and clear the auth keys we manage, then set per the choice
+    // start from current config and clear the keys we manage, then set per the choice. The MODEL-tier keys are
+    // cleared too: a leftover URFAEL_OPUS_MODEL=llama3 from a prior local-mode setup would otherwise survive a
+    // switch back to subscription and silently route every turn at a model the subscription doesn't have (a
+    // wasted failed round-trip, then a silent downgrade). Only local mode re-sets them below.
     const next = { ...cur };
     delete next.ANTHROPIC_API_KEY; delete next.ANTHROPIC_BASE_URL; delete next.ANTHROPIC_AUTH_TOKEN;
+    delete next.URFAEL_OPUS_MODEL; delete next.URFAEL_SONNET_MODEL; delete next.URFAEL_FABLE_MODEL;
 
     if (choice === '1') {
       p('');
@@ -174,10 +173,16 @@ async function run() {
       else p('  ' + dim('using ' + url));
       next.ANTHROPIC_BASE_URL = url;
       next.ANTHROPIC_AUTH_TOKEN = (await io.ask('  Auth token ' + dim('(Enter = "local")') + ': ')) || 'local';
-      const om = await io.ask('  Map the Opus tier to which model? ' + dim('(Enter = skip)') + ': ');
-      const sm = await io.ask('  Map the Sonnet tier to which model? ' + dim('(Enter = skip)') + ': ');
+      const fm = await io.ask('  Map the ' + bold('Fable') + ' tier (hard problems) to which model? ' + dim('(Enter = same as Opus)') + ': ');
+      const om = await io.ask('  Map the ' + bold('Opus') + ' tier to which model? ' + dim('(Enter = skip)') + ': ');
+      const sm = await io.ask('  Map the ' + bold('Sonnet') + ' tier to which model? ' + dim('(Enter = skip)') + ': ');
       if (om) next.URFAEL_OPUS_MODEL = om;
       if (sm) next.URFAEL_SONNET_MODEL = sm;
+      // Fable is the DEFAULT tier the router picks for most substantive turns (v0.13.0). A local proxy has no
+      // model literally named 'fable', so leaving it unmapped means nearly every turn fails over. Map it
+      // explicitly, or fall back to the Opus mapping the user just gave, so local mode routes to a REAL model.
+      next.URFAEL_FABLE_MODEL = fm || om || sm || undefined;
+      if (!next.URFAEL_FABLE_MODEL) delete next.URFAEL_FABLE_MODEL;
       p('  ' + ok('Provider set.') + ' ' + dim('Any model now answers; the sandbox + guarantees are unchanged. Cost meter reads $0.'));
     }
 
@@ -222,8 +227,7 @@ async function run() {
         const city = await ask('city', d.city);
         const tz = await ask('timezone', d.timezone);
         const lang = await ask('language', d.language);
-        md = md.replace(/\{\{USER_NAME\}\}/g, name || 'friend').replace(/\{\{CITY\}\}/g, city || 'your city')
-          .replace(/\{\{TIMEZONE\}\}/g, tz || 'local').replace(/\{\{LANGUAGE\}\}/g, lang || 'English');
+        md = persona.fillPlaceholders(md, { name, city, timezone: tz, language: lang });   // shared fallbacks (friend/your city/local/English)
         fs.writeFileSync(CLAUDE_MD, md);
         p('  ' + ok('✓ Personalized ') + dim(CLAUDE_MD) + dim('  — Urfael now knows who it serves, from the first turn.'));
       }

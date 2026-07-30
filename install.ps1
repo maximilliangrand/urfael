@@ -62,15 +62,20 @@ New-Item -ItemType Directory -Force -Path $JDIR, (Join-Path $JDIR 'models'), $UB
 $model = Join-Path $JDIR 'models\ggml-base.en.bin'
 $MODEL_SHA = 'A03779C86DF3323075F5E796CB2CE5029F00EC8869EEE3FDFB897AFE36C6D002'
 $SkipDownloads = ($env:URFAEL_INSTALL_SKIP_DOWNLOADS -eq '1')   # CI smoke: everything but the two big downloads
-if (Test-Path $model) { Ok 'whisper model present' }
+# Re-verify an EXISTING file, not just its existence: an interrupted download (142MB on flaky wifi) left a
+# partial .bin that Test-Path alone trusted forever, silently breaking STT. Download to a .part and rename in
+# only on a verified checksum, so a failure never leaves a file that masquerades as valid.
+if ((Test-Path $model) -and ((Get-FileHash $model -Algorithm SHA256).Hash -eq $MODEL_SHA)) { Ok 'whisper model present (checksum verified)' }
 elseif ($SkipDownloads) { Warn 'skipping whisper model download (URFAEL_INSTALL_SKIP_DOWNLOADS=1)' }
 else {
+  if (Test-Path $model) { Warn 'existing model failed its checksum (partial/corrupt) - re-downloading'; Remove-Item $model -Force }
   Warn 'downloading whisper base.en model (~142MB, one time)...'
+  $mpart = "$model.part"; if (Test-Path $mpart) { Remove-Item $mpart -Force }
   try {
-    Invoke-WebRequest -UseBasicParsing -Uri 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin' -OutFile $model
-    if ((Get-FileHash $model -Algorithm SHA256).Hash -eq $MODEL_SHA) { Ok 'local STT model ready (checksum verified)' }
-    else { Remove-Item $model -Force; Warn 'model checksum MISMATCH - deleted for safety. Re-run, or set STT_PROVIDER=elevenlabs' }
-  } catch { Warn 'model download failed - re-run, or set STT_PROVIDER=elevenlabs' }
+    Invoke-WebRequest -UseBasicParsing -Uri 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin' -OutFile $mpart
+    if ((Get-FileHash $mpart -Algorithm SHA256).Hash -eq $MODEL_SHA) { Move-Item $mpart $model -Force; Ok 'local STT model ready (checksum verified)' }
+    else { Remove-Item $mpart -Force; Warn 'model checksum MISMATCH - discarded. Re-run, or set STT_PROVIDER=elevenlabs' }
+  } catch { if (Test-Path $mpart) { Remove-Item $mpart -Force }; Warn 'model download failed (interrupted?) - nothing left half-written; just re-run, or set STT_PROVIDER=elevenlabs' }
 }
 # whisper-server.exe: the official whisper.cpp Windows build, pinned by release tag AND SHA-256 (fail-closed,
 # same discipline as the model above). Extracted into %LOCALAPPDATA%\Urfael\bin, which main.js probes.
@@ -87,11 +92,14 @@ else {
     if ((Get-FileHash $wzip -Algorithm SHA256).Hash -eq $WZIP_SHA) {
       $tmp = Join-Path $env:TEMP 'urfael-whisper-extract'
       if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
-      Expand-Archive -Path $wzip -DestinationPath $tmp -Force
-      Copy-Item (Join-Path $tmp 'Release\whisper-server.exe') $UBIN -Force
-      Copy-Item (Join-Path $tmp 'Release\*.dll') $UBIN -Force
+      # -ErrorAction Stop so a failed extract/copy (AV quarantine, disk) raises into the catch instead of
+      # printing a false "ready" with no exe actually installed. Only claim success if the exe truly landed.
+      Expand-Archive -Path $wzip -DestinationPath $tmp -Force -ErrorAction Stop
+      Copy-Item (Join-Path $tmp 'Release\whisper-server.exe') $UBIN -Force -ErrorAction Stop
+      Copy-Item (Join-Path $tmp 'Release\*.dll') $UBIN -Force -ErrorAction Stop
       Remove-Item $tmp -Recurse -Force
-      Ok "whisper-server ready (checksum verified) -> $UBIN"
+      if (Test-Path $wserver) { Ok "whisper-server ready (checksum verified) -> $UBIN" }
+      else { Warn 'whisper-server extract did not produce the exe - voice STT will need a manual whisper-server on PATH' }
     } else { Warn 'whisper zip checksum MISMATCH - skipped for safety (voice STT will need a manual whisper-server on PATH)' }
   } catch { Warn 'whisper download failed - voice STT needs whisper-server.exe on PATH (re-run to retry)' }
   finally { if (Test-Path $wzip) { Remove-Item $wzip -Force } }
@@ -131,8 +139,16 @@ Ok "repo path recorded ($REPO)"
 
 # ── 6) app deps + the `urfael` terminal command ──────────────────────────────────────────────────────
 Sect 'APP & CLI' 'node deps + the `urfael` terminal command'
-if (Test-Path (Join-Path $REPO 'app\node_modules')) { Ok 'app deps installed' }
-else { Push-Location (Join-Path $REPO 'app'); npm install --silent; Pop-Location; Ok 'npm install (app)' }
+# A COMPLETE install leaves node_modules\.package-lock.json; a bare directory can be a half-finished install
+# that the old Test-Path check would call "done" forever. Verify the sentinel, and STOP on a real npm failure
+# instead of printing a false "installed" ($ErrorActionPreference='Continue' would otherwise swallow it).
+$depSentinel = Join-Path $REPO 'app\node_modules\.package-lock.json'
+if (Test-Path $depSentinel) { Ok 'app deps installed' }
+else {
+  Push-Location (Join-Path $REPO 'app'); npm install --silent; Pop-Location
+  if (Test-Path $depSentinel) { Ok 'npm install (app)' }
+  else { Bad 'npm install failed (network / disk / proxy?) - the app cannot run without it. Fix the cause, then re-run install.ps1'; exit 1 }
+}
 # a .cmd shim in %LOCALAPPDATA%\Urfael\bin + a one-time user-PATH append (no admin, no system PATH)
 $shim = Join-Path $UBIN 'urfael.cmd'
 Set-Content -Path $shim -Value ("@echo off`r`nnode `"$REPO\app\cli.js`" %*")
@@ -158,7 +174,7 @@ Say ("   Optional: edit `"$JDIR\tts.env`" for a higher-quality local voice (Koko
 Say '2. Optional, not needed to start: the brain already reads + writes ~\Urfael with its file tools.'
 Say '3. urfael setup  auto-detects + fills your name / city / timezone / language into ~\Urfael\CLAUDE.md'
 Say '4. Start the brain + UI (new terminal so PATH refreshes):'
-Say ("      " + (C '38;5;109' 'urfael status') + "                          # starts the always-on brain on demand")
+Say ("      " + (C '38;5;109' 'urfael "hello"') + "                          # first run auto-starts the brain, then answers")
 Say ("      " + (C '38;5;109' "cd `"$REPO\app`"; npm start") + "            # the overlay UI")
 Say '   Autostart at login (optional, your call):'
 Say ("      " + (C '38;5;109' ("reg add HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v UrfaelDaemon /t REG_SZ /d `"wscript.exe \`"$UBIN\start-daemon-hidden.vbs\`"`" /f")))
