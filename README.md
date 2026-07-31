@@ -136,7 +136,7 @@ irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex
 
 Prefer clicking? Download the ZIP and double-click **`install-windows.cmd`**. WSL also works (the source path above, unchanged). Full detail in the [Windows install guide](docs/manual/start/install.md).
 
-Prefer a one-liner? There's a bootstrap (`get.sh`) that clones and runs `install.sh` for you:
+**Nothing installed yet? One line does everything.** The `get.sh` bootstrap installs the prerequisites for you (Node, git, ffmpeg, Claude Code — via Homebrew on macOS, apt/dnf/pacman on Linux), clones Urfael, runs the guided install, and walks you through setup. On a Mac you can also download the ZIP and double-click **`install-mac.command`**.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
