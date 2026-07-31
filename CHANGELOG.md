@@ -4,6 +4,16 @@ All notable changes to Urfael are recorded here. The format follows [Keep a Chan
 
 Run `urfael version` to see what you are on, and `urfael update` to pull and reinstall the latest.
 
+## [0.13.3] - 2026-07-30
+
+### Added — macOS & Linux one-line install now installs everything for you (parity with the Windows guided path)
+
+- **The `get.sh` one-liner (`curl … | bash`) is now guided.** It installs the prerequisites a non-technical user would otherwise have to hunt down — on macOS via **Homebrew** (installed if missing), on Linux via apt/dnf/pacman — Node, git, ffmpeg, and Claude Code, then clones Urfael, runs the install, runs the setup wizard, and offers to open the Console. It reconnects the keyboard (`</dev/tty`) so the wizard's questions work even through the pipe. Nothing to install by hand.
+- **`install.sh --guided`** is the flag behind it: auto-install prerequisites → normal install → setup wizard → offer to launch. Plain `./install.sh` is byte-identical to before (a regression test confirms the guided-only sections never appear without the flag), so the read-it-first path is unchanged.
+- **`install-mac.command`** — a double-clickable macOS entry (a `.command` opens Terminal on double-click) that runs the guided install, with the right-click → **Open** Gatekeeper note where the user meets it.
+- Landing page, README, and the install guide now lead with the one-paste / double-click path on every OS.
+- (Also folds in the cross-platform Electron verify+repair from 0.13.2 for the `install.sh` path: app deps are "installed" only when the real Electron binary is present, not merely when npm finished.)
+
 ## [0.13.2] - 2026-07-30
 
 ### Added / Fixed — Windows install is now genuinely one-step, and Electron never silently goes missing

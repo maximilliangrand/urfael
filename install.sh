@@ -7,6 +7,11 @@
 # cryptic mid-script crash (`sh` lacks BASH_SOURCE/arrays) or a root-owned home you can't write to.
 if [ -z "${BASH_VERSION:-}" ]; then echo "✗ Run Urfael's installer with bash:  ./install.sh   (you used sh, which can't run it)"; exit 1; fi
 if [ "$(id -u)" = 0 ]; then echo "✗ Do NOT run Urfael's installer with sudo/root — run it as your normal user. It installs into YOUR home, and root-owned files would break the app."; exit 1; fi
+# --guided: auto-install the prerequisites (Homebrew + Node/git/ffmpeg + Claude Code) so a non-technical user
+# installs nothing by hand, then run the setup wizard + offer to open the app. Off by default (the plain,
+# read-it-first install is unchanged). The double-click install-mac.command and the get.sh one-liner use it.
+GUIDED=0
+for a in "$@"; do case "$a" in --guided) GUIDED=1 ;; esac; done
 set -uo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 JDIR="$HOME/.claude/urfael"
@@ -94,6 +99,52 @@ elif command -v shasum >/dev/null 2>&1; then HASHER="shasum -a 256"; fi
 sha_ok(){ # sha_ok <expected-hex> <file>
   [ -n "$HASHER" ] || return 2                                    # 2 = "no hasher" (caller decides), never a mismatch
   echo "$1  $2" | $HASHER -c - >/dev/null 2>&1
+}
+
+# ── GUIDED prerequisites (only with --guided) ────────────────────────────────
+# Install everything a non-technical person would otherwise hunt down, so they install nothing by hand.
+# macOS: Homebrew (installed if missing) → brew install node/git/ffmpeg. Linux: apt/dnf/pacman if we recognize
+# one, else a clear "install these" note (distros vary too much to auto-drive safely). Claude Code via npm.
+# Idempotent (skips what is present) and best-effort (a failure degrades to a link + the hard preflight below).
+guided_prereqs(){
+  [ "$GUIDED" = 1 ] || return 0
+  sect "PREREQUISITES" "installing what Urfael needs, so you do not have to"
+  if [ "$OS" = "Darwin" ]; then
+    if ! command -v brew >/dev/null 2>&1; then
+      warn "installing Homebrew (Apple's standard software installer) — it may ask for your Mac password once…"
+      NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty || warn "Homebrew install did not complete — see https://brew.sh, then re-run"
+      # put brew on PATH for THIS session (Apple Silicon vs Intel prefix)
+      for p in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$p" ] && eval "$("$p" shellenv)"; done
+    fi
+    if command -v brew >/dev/null 2>&1; then
+      for pkg in node git ffmpeg; do
+        case "$pkg" in
+          node) command -v node >/dev/null 2>&1 && { ok "node present"; continue; } ;;
+          git)  command -v git  >/dev/null 2>&1 && { ok "git present";  continue; } ;;
+          ffmpeg) command -v ffmpeg >/dev/null 2>&1 && { ok "ffmpeg present"; continue; } ;;
+        esac
+        warn "installing $pkg…"; brew install "$pkg" >/dev/null 2>&1 && ok "$pkg installed" || warn "$pkg did not install — 'brew install $pkg' by hand, then re-run"
+      done
+    else
+      warn "no Homebrew — install Node 20+ (https://nodejs.org) and git, then re-run"
+    fi
+  else
+    # Linux: try the distro package manager; otherwise instruct.
+    if command -v apt-get >/dev/null 2>&1; then PM="sudo apt-get install -y"; UPD="sudo apt-get update"
+    elif command -v dnf >/dev/null 2>&1; then PM="sudo dnf install -y"; UPD=""
+    elif command -v pacman >/dev/null 2>&1; then PM="sudo pacman -S --noconfirm"; UPD=""
+    else PM=""; fi
+    if [ -n "$PM" ]; then
+      [ -n "${UPD:-}" ] && $UPD >/dev/null 2>&1 </dev/tty || true
+      for pkg in nodejs npm git ffmpeg; do command -v "${pkg/nodejs/node}" >/dev/null 2>&1 || { warn "installing $pkg…"; $PM "$pkg" >/dev/null 2>&1 </dev/tty && ok "$pkg installed" || warn "$pkg did not install — install it with your package manager, then re-run"; }; done
+    else
+      warn "unrecognized Linux package manager — install Node 20+, git and ffmpeg with your distro's tools, then re-run"
+    fi
+  fi
+  # Claude Code (the brain) via npm global — once Node exists.
+  if claude_present; then ok "Claude Code present"
+  elif command -v npm >/dev/null 2>&1; then warn "installing Claude Code…"; npm install -g @anthropic-ai/claude-code >/dev/null 2>&1 && ok "Claude Code installed" || warn "Claude Code did not install — see https://claude.com/claude-code"
+  else warn "Claude Code needs Node first — see https://claude.com/claude-code"; fi
 }
 
 # ── shared steps ─────────────────────────────────────────────────────────────
@@ -203,6 +254,7 @@ if [ "$OS" = "Darwin" ]; then
   # ════════════════════════════ macOS ════════════════════════════
   # 1) dependency check (report, don't auto-install heavy things)
   sect "DEPENDENCIES" "what the brain + local voice need"
+  guided_prereqs                                     # --guided: auto-install prerequisites (brew/apt + claude) first
   preflight_hard                                     # node>=20 + npm + git, or a clear stop
   ok "node $(node -v 2>/dev/null)"; ok "npm"; ok "git"
   claude_present && ok "claude" || warn "claude CLI not found — install Claude Code (https://claude.com/claude-code) and run \`claude\` once to sign in"
@@ -270,6 +322,7 @@ else
   # 1) dependency check (report, don't auto-install heavy things). Package names vary by distro;
   #    we name the binary/library so you can `apt`/`dnf`/`pacman` it however your distro wants.
   sect "DEPENDENCIES" "what the brain + local voice need"
+  guided_prereqs                                     # --guided: auto-install prerequisites (brew/apt + claude) first
   preflight_hard                                     # node>=20 + npm + git, or a clear stop
   ok "node $(node -v 2>/dev/null)"; ok "npm"; ok "git"
   claude_present && ok "claude" || warn "claude CLI not found — install Claude Code (https://claude.com/claude-code) and run \`claude\` once to sign in"
@@ -341,4 +394,25 @@ else
   ${GB}ᚢ  Ready, sir.${R}  ${D}Talk to Urfael — tap the orb, or just run  ${R}${CY}urfael "hello"${R}${D}  from any terminal.${R}
 NEXT
 
+fi
+
+# ── GUIDED finale: run the setup wizard + offer to open the app, so a non-technical person never types a
+# second command. The `urfael` PATH link only resolves in a NEW terminal, so we call the CLI by full path.
+if [ "$GUIDED" = 1 ]; then
+  sect "SETUP" "a few friendly questions to connect Urfael to Claude and learn who you are"
+  # </dev/tty reconnects stdin to the terminal so the wizard's prompts work even when install.sh was reached
+  # through the get.sh one-liner (curl | bash), where stdin is the piped script, not the keyboard.
+  node "$REPO/app/cli.js" setup </dev/tty || warn "setup could not run automatically — run it yourself:  urfael setup  (in a new terminal)"
+  printf "\n"
+  # Only OFFER to launch if we can actually read the answer from the terminal; otherwise just print how to start
+  # (so a non-interactive/piped run never silently launches the Console).
+  _go=""; _asked=0
+  if printf "  Open the Urfael Console now? [Y/n] " && read -r _go </dev/tty 2>/dev/null; then _asked=1; fi
+  if [ "$_asked" = 1 ] && [ "$OS" = "Darwin" ] && ! printf '%s' "$_go" | grep -qi '^n'; then
+    warn "opening the Console…"
+    ( cd "$REPO/app" && npm start >/dev/null 2>&1 & )
+    printf "  ${D}(also runs later from any NEW terminal:  ${R}${CY}urfael \"hello\"${R}${D})${R}\n"
+  else
+    printf "\n  ${D}When ready, open a NEW terminal and run  ${R}${CY}urfael \"hello\"${R}${D}  (or  cd \"%s/app\" && npm start  for the Console).${R}\n" "$REPO"
+  fi
 fi

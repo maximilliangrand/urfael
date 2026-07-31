@@ -18,11 +18,31 @@ REPO_URL="${URFAEL_REPO:-https://github.com/Grandillionaire/urfael.git}"
 DIR="${URFAEL_DIR:-$HOME/urfael-src}"
 
 say(){ printf '%s\n' "$1"; }
-need(){ command -v "$1" >/dev/null 2>&1 || { say "✗ Urfael needs '$1' on your PATH first. Install it, then re-run."; exit 1; }; }
+have(){ command -v "$1" >/dev/null 2>&1; }
+need(){ have "$1" || { say "✗ Urfael needs '$1' on your PATH first. Install it, then re-run."; exit 1; }; }
 
 say "── Urfael bootstrap ─────────────────────────────"
 [ "$(id -u)" = 0 ] && { say "✗ Do NOT run this with sudo/root — run it as your normal user (Urfael installs into YOUR home)."; exit 1; }
-need git; need node; need curl
+need curl
+
+# Install just enough to CLONE (git) and RUN the installer (node), so a non-technical user starts from nothing.
+# The full prerequisite set (ffmpeg, Claude Code) is handled by install.sh --guided below. macOS uses Homebrew
+# (installed if missing); Linux uses apt/dnf/pacman when recognized; otherwise we point at the download.
+if ! have git || ! have node; then
+  if [ "$(uname)" = "Darwin" ]; then
+    if ! have brew; then
+      say "→ installing Homebrew (Apple's standard installer; it may ask for your Mac password once)"
+      NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty || true
+      for p in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$p" ] && eval "$("$p" shellenv)"; done
+    fi
+    have brew && { have git || brew install git >/dev/null 2>&1; have node || brew install node >/dev/null 2>&1; }
+  else
+    if have apt-get; then sudo apt-get update >/dev/null 2>&1 </dev/tty || true; sudo apt-get install -y git nodejs npm >/dev/null 2>&1 </dev/tty || true
+    elif have dnf; then sudo dnf install -y git nodejs npm >/dev/null 2>&1 </dev/tty || true
+    elif have pacman; then sudo pacman -S --noconfirm git nodejs npm >/dev/null 2>&1 </dev/tty || true; fi
+  fi
+fi
+need git; need node
 
 if [ -d "$DIR/.git" ]; then
   say "→ updating the existing clone at $DIR"
@@ -40,5 +60,7 @@ else
 fi
 
 cd "$DIR"
-say "→ handing off to ./install.sh (read-it-first friendly; enables nothing risky)"
-exec bash ./install.sh
+say "→ handing off to the guided installer (installs the rest, sets up, opens the app)"
+# --guided installs ffmpeg + Claude Code + app deps, then runs the setup wizard. </dev/tty reconnects the
+# keyboard so the wizard's questions work even though THIS script arrived through `curl … | bash`.
+exec bash ./install.sh --guided </dev/tty

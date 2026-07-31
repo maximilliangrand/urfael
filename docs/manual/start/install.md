@@ -16,9 +16,21 @@ One Homebrew line covers the local-voice tools on macOS:
 brew install ffmpeg whisper-cpp coreutils
 ```
 
-## Path 1: run from source in `app/`
+## macOS & Linux — the easy way
 
-This is the recommended path because the installer is read-it-first friendly. It never auto-installs heavy software and never enables anything risky on your behalf.
+You do not need to install anything first. Open Terminal (on a Mac: press ⌘-Space, type `Terminal`, Enter) and paste this one line:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
+```
+
+It installs the prerequisites for you (on macOS via Homebrew, which it installs if missing; on Linux via apt/dnf/pacman) — Node, git, ffmpeg, and Claude Code — downloads Urfael, sets it up, walks you through connecting your Claude account, and offers to open the app. That is the whole install. (You may be asked for your Mac password once, when Homebrew installs.)
+
+Prefer to click? On a Mac, download the repo as a ZIP (green **Code** button on GitHub → **Download ZIP**), unzip it, and **double-click `install-mac.command`**. If macOS says it "cannot be opened because it is from an unidentified developer," right-click the file → **Open** → **Open** (that is Gatekeeper on an unsigned helper, not a problem with the file).
+
+## Path 1: run from source, step by step
+
+Prefer to see every step? This is the same thing by hand. `install.sh` is read-it-first friendly — it never enables anything risky.
 
 ```bash
 git clone https://github.com/Grandillionaire/urfael.git urfael-src && cd urfael-src
@@ -27,13 +39,7 @@ urfael setup        # onboarding wizard: subscription (default), an API key, or 
 cd app && npm start # the Console opens
 ```
 
-`install.sh` writes config templates (`chmod 600`), scaffolds the vault and memory repo, runs `npm install`, links the `urfael` CLI onto your PATH, and writes the service files (launchd on macOS, `systemd --user` on Linux) without loading them. You start the daemon yourself in [start/quickstart.md](start/quickstart.md).
-
-If you prefer a one-liner, a bootstrap clones the repo and runs `install.sh` for you. It is deliberately short so you can read it first.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
-```
+(`./install.sh --guided` does the auto-install-everything version above, if you want it without the one-liner.) `install.sh` writes config templates (`chmod 600`), scaffolds the vault and memory repo, installs the app dependencies (including the Electron desktop runtime, which it verifies), links the `urfael` CLI onto your PATH, and writes the service files (launchd on macOS, `systemd --user` on Linux) without loading them. You start the daemon yourself in [start/quickstart.md](start/quickstart.md).
 
 ### Native Windows (beta) — the easy way
 
