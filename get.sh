@@ -35,7 +35,7 @@ if ! have git || ! have node; then
       NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" </dev/tty || true
       for p in /opt/homebrew/bin/brew /usr/local/bin/brew; do [ -x "$p" ] && eval "$("$p" shellenv)"; done
     fi
-    have brew && { have git || brew install git >/dev/null 2>&1; have node || brew install node >/dev/null 2>&1; }
+    if have brew; then have git || brew install git >/dev/null 2>&1 || true; have node || brew install node >/dev/null 2>&1 || true; fi
   else
     if have apt-get; then sudo apt-get update >/dev/null 2>&1 </dev/tty || true; sudo apt-get install -y git nodejs npm >/dev/null 2>&1 </dev/tty || true
     elif have dnf; then sudo dnf install -y git nodejs npm >/dev/null 2>&1 </dev/tty || true
