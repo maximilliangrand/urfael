@@ -68,4 +68,4 @@ The pure parsing and allowlist logic for every channel is unit-tested and frozen
 - For Fortress versus Full and how to widen remote reach safely, see [security/modes.md](security/modes.md).
 - For multiple allowlisted people per channel and the role rules, see [security/team.md](security/team.md).
 
-The allowlist and the sandbox profiles are defined in [app/lib.js](https://github.com/Grandillionaire/urfael/blob/main/app/lib.js), and the per-channel transport plumbing in [app/bridge/bridge-core.js](https://github.com/Grandillionaire/urfael/blob/main/app/bridge/bridge-core.js).
+The allowlist and the sandbox profiles are defined in [app/lib.js](https://github.com/maximilliangrand/urfael/blob/main/app/lib.js), and the per-channel transport plumbing in [app/bridge/bridge-core.js](https://github.com/maximilliangrand/urfael/blob/main/app/bridge/bridge-core.js).

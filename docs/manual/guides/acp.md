@@ -49,4 +49,4 @@ Deliberate limits, stated plainly:
 
 The protocol translation and the no-port guarantee are unit-tested and benchmark-frozen. The one remaining step is a live round-trip in a real ACP editor (Zed), which is the human acceptance gate, separate from the green automated suite.
 
-The full engineering writeup lives at [docs/ACP.md](https://github.com/Grandillionaire/urfael/blob/main/docs/ACP.md).
+The full engineering writeup lives at [docs/ACP.md](https://github.com/maximilliangrand/urfael/blob/main/docs/ACP.md).

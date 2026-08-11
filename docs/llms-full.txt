@@ -1,6 +1,6 @@
 # Urfael — full documentation
 
-Every page of the Urfael manual, concatenated for machine reading. Source: https://github.com/Grandillionaire/urfael
+Every page of the Urfael manual, concatenated for machine reading. Source: https://github.com/maximilliangrand/urfael
 
 
 
@@ -66,7 +66,7 @@ brew install ffmpeg whisper-cpp coreutils
 This is the recommended path because the installer is read-it-first friendly. It never auto-installs heavy software and never enables anything risky on your behalf.
 
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git && cd urfael
+git clone https://github.com/maximilliangrand/urfael.git && cd urfael
 ./install.sh        # checks deps, fetches the speech model, scaffolds your vault, writes config templates
 urfael setup        # onboarding wizard: subscription (default), an API key, or a local model
 cd app && npm start # the Console opens
@@ -77,7 +77,7 @@ cd app && npm start # the Console opens
 If you prefer a one-liner, a bootstrap clones the repo and runs `install.sh` for you. It is deliberately short so you can read it first.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
+curl -fsSL https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.sh | bash
 ```
 
 ## Path 2: the packaged desktop app
@@ -101,7 +101,7 @@ The `~/Urfael` vault and `~/Urfael-memory` repo are yours. They are kept separat
 
 ## Next
 
-The full setup detail (voice tiers, persona, Obsidian registration, connectors, bridges, Linux units) is in [SETUP.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/docs/SETUP.md). To start the daemon and say something, go to [start/quickstart.md](start/quickstart.md).
+The full setup detail (voice tiers, persona, Obsidian registration, connectors, bridges, Linux units) is in [SETUP.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/docs/SETUP.md). To start the daemon and say something, go to [start/quickstart.md](start/quickstart.md).
 
 
 ================================================================================
@@ -220,9 +220,9 @@ Several people can use one Urfael, each a sandboxed principal through the same f
 
 ## Where to go next
 
-You now know the shape of the whole system. For the security reasoning behind these defaults, read [security/model.md](security/model.md). For the engineering, the [Threat Model](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md) and the [Security Benchmark](https://github.com/Grandillionaire/urfael/blob/main/docs/SECURITY-BENCHMARK.md) lay out the attack classes and what the latest run resisted.
+You now know the shape of the whole system. For the security reasoning behind these defaults, read [security/model.md](security/model.md). For the engineering, the [Threat Model](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md) and the [Security Benchmark](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md) lay out the attack classes and what the latest run resisted.
 
-One honesty note worth repeating: macOS is the best-tested target, Linux is newer, and the live relay of the Matrix, Signal, and WhatsApp bridges is reviewed but not yet exercised against real accounts. See [What's lightly tested](https://github.com/Grandillionaire/urfael/blob/main/README.md#whats-lightly-tested) before you lean on those paths.
+One honesty note worth repeating: macOS is the best-tested target, Linux is newer, and the live relay of the Matrix, Signal, and WhatsApp bridges is reviewed but not yet exercised against real accounts. See [What's lightly tested](https://github.com/maximilliangrand/urfael/blob/main/README.md#whats-lightly-tested) before you lean on those paths.
 
 
 ================================================================================
@@ -286,7 +286,7 @@ did you mean  urfael remind  ?
 
 The threshold is deliberately strict (distance one, with transpositions counted as one mistake). A real one-word question like `urfael "weather"` still reaches the brain untouched, and the suggestion always prints the escape hatch for forcing the word through as a literal question. `urfael help <something-unknown>` is more generous (it nudges within two edits) because you already signalled you are looking for a command.
 
-The dispatcher that backs all of this lives in [`app/cli.js`](https://github.com/Grandillionaire/urfael/blob/main/app/cli.js), with the command graph in [`app/registry.js`](https://github.com/Grandillionaire/urfael/blob/main/app/registry.js).
+The dispatcher that backs all of this lives in [`app/cli.js`](https://github.com/maximilliangrand/urfael/blob/main/app/cli.js), with the command graph in [`app/registry.js`](https://github.com/maximilliangrand/urfael/blob/main/app/registry.js).
 
 
 ================================================================================
@@ -332,7 +332,7 @@ Type `/` and a palette floats above the prompt and filters as you type, the way 
 - `/usage` shows today, last 7 days, and last 30 days. Token counts are exact; the dollar figure is an estimate, never asserted as fact. See [features/overview.md](features/overview.md).
 - `/stop` aborts a running turn, `/help` lists the whole palette, `/clear` and `/quit` do what they say.
 
-The full source is at [app/tui.js](https://github.com/Grandillionaire/urfael/blob/main/app/tui.js).
+The full source is at [app/tui.js](https://github.com/maximilliangrand/urfael/blob/main/app/tui.js).
 
 ## The web dashboard (`urfael dashboard`)
 
@@ -486,7 +486,7 @@ See [channels/overview.md](channels/overview.md).
 
 The brain is a local daemon reachable only through a `0600` unix socket and never opens a TCP port; the topology is one-way, so nothing reaches in. Default **Fortress** mode keeps remote turns read-only with no egress, and you opt into **Full** mode deliberately. Security-critical paths ship with adversarial regression tests, and `npm run security` attacks the running daemon: the latest run resisted 11 of 11 attack classes across 101 checks. Real-world scale is still small, and the docs say so on purpose.
 
-See [security/model.md](security/model.md). The full Threat Model and benchmark are summarised in [security/threat-model.md](security/threat-model.md), with the source documents at [docs/THREAT-MODEL.md](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md) and [docs/SECURITY-BENCHMARK.md](https://github.com/Grandillionaire/urfael/blob/main/docs/SECURITY-BENCHMARK.md).
+See [security/model.md](security/model.md). The full Threat Model and benchmark are summarised in [security/threat-model.md](security/threat-model.md), with the source documents at [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md) and [docs/SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md).
 
 ## Where to go next
 
@@ -631,7 +631,7 @@ The ledger (`app/learn.js`) is a JSON file with atomic writes and a fail-closed 
 
 Only `trusted` lessons reach active recall, strongest first. That is the difference from writing every distilled note straight into a frozen snapshot: a wrong or unsafe lesson is meant to be caught before it reaches a future turn, and a lesson that keeps surfacing without helping is meant to fade.
 
-Read the ledger in full at [app/learn.js](https://github.com/Grandillionaire/urfael/blob/main/app/learn.js) and the assembler at [app/memctx.js](https://github.com/Grandillionaire/urfael/blob/main/app/memctx.js).
+Read the ledger in full at [app/learn.js](https://github.com/maximilliangrand/urfael/blob/main/app/learn.js) and the assembler at [app/memctx.js](https://github.com/maximilliangrand/urfael/blob/main/app/memctx.js).
 
 ## Related
 
@@ -709,7 +709,7 @@ urfael hub publish <file>                # print the registry index entry (with 
 
 The scanner is a heuristic. Pattern matching cannot catch every malicious skill, and it will sometimes flag a benign one. So do not treat a clean scan as a guarantee. The real guarantee is the layer behind it: the full body is previewed before you confirm, nothing is written without your yes, and the brain never executes a skill. It is markdown the brain reads, stored `0600` and never marked executable. The scan is the loud first opinion; you are the decision.
 
-For the full implementation, see [app/skillhub.js on GitHub](https://github.com/Grandillionaire/urfael/blob/main/app/skillhub.js).
+For the full implementation, see [app/skillhub.js on GitHub](https://github.com/maximilliangrand/urfael/blob/main/app/skillhub.js).
 
 
 ================================================================================
@@ -732,7 +732,7 @@ urfael connect add github      # preview, scan, masked secret prompt, confirm, t
 
 ## The bundled registry
 
-The curated set ships in [config/connectors.json](https://github.com/Grandillionaire/urfael/blob/main/config/connectors.json): GitHub, GitLab, local git, filesystem, Sentry, Linear, Atlassian, Postgres, SQLite, Notion, Slack, Stripe, AWS, the search engines, several vector stores, and more. Point `URFAEL_CONNECTORS_INDEX` at your own JSON (same schema) to replace it.
+The curated set ships in [config/connectors.json](https://github.com/maximilliangrand/urfael/blob/main/config/connectors.json): GitHub, GitLab, local git, filesystem, Sentry, Linear, Atlassian, Postgres, SQLite, Notion, Slack, Stripe, AWS, the search engines, several vector stores, and more. Point `URFAEL_CONNECTORS_INDEX` at your own JSON (same schema) to replace it.
 
 The parser is fail-soft. A malformed or hostile registry can only ever yield fewer connectors, never a malformed command. Each entry is validated and dropped if it is not shaped right: the id is forced to kebab case, the transport must be one of `npx`, `uvx`, `http`, or `sse`, an `npx`/`uvx` package must be a bare package token with no shell metacharacters, and an `http`/`sse` url must be `https` or an explicit loopback host. Secret env names must match `^[A-Z][A-Z0-9_]*$`, so a registry cannot smuggle a flag in where a key name is expected.
 
@@ -764,7 +764,7 @@ This path is frozen as a security benchmark check (class 9), so a future change 
 
 ## Read the code
 
-The connector logic is pure and unit-tested: it parses the registry, builds the argv, masks secrets, and produces the preview, while the actual spawn and the no-echo prompt live in the CLI. Read it at [app/connectors.js](https://github.com/Grandillionaire/urfael/blob/main/app/connectors.js).
+The connector logic is pure and unit-tested: it parses the registry, builds the argv, masks secrets, and produces the preview, while the actual spawn and the no-echo prompt live in the CLI. Read it at [app/connectors.js](https://github.com/maximilliangrand/urfael/blob/main/app/connectors.js).
 
 ## Related
 
@@ -830,7 +830,7 @@ Install runs six gates: fetch, static scan, sha-pin, signature verify, capabilit
 - Signing is ed25519 with trust on first use plus a sha pin. That is more than the broken registries had, but not a full provenance attestation chain. The first install of a new publisher is a human-judgement moment.
 - A plugin tool's result can still carry prompt injection back to the brain. Untrusted framing and owner-turns-only bound this risk; they do not eliminate it. It is shared by all MCP tooling.
 
-The full engineering account, including the manifest schema, the broker transport, and the test matrix, is in the repository: [docs/PLUGINS.md](https://github.com/Grandillionaire/urfael/blob/main/docs/PLUGINS.md).
+The full engineering account, including the manifest schema, the broker transport, and the test matrix, is in the repository: [docs/PLUGINS.md](https://github.com/maximilliangrand/urfael/blob/main/docs/PLUGINS.md).
 
 
 ================================================================================
@@ -897,7 +897,7 @@ The pure orchestration (the speaker gate, the speech shaping, the listen/think/s
 
 - The default voice tier installs with `brew install ffmpeg whisper-cpp` on macOS (Linux: `ffmpeg` plus `espeak-ng`, and build whisper.cpp).
 - Configurable values (`SAY_VOICE`, `SAY_RATE`, `TTS_PROVIDER`, `STT_PROVIDER`, `WHISPER_MODEL`, `KOKORO_VOICE`, `WAKE_KEYWORD`) live in `~/.claude/urfael/bridge.env` and several are settable from Settings.
-- Full voice setup, including the Kokoro and ElevenLabs tiers, is in [SETUP.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/docs/SETUP.md).
+- Full voice setup, including the Kokoro and ElevenLabs tiers, is in [SETUP.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/docs/SETUP.md).
 
 See also start/quickstart.md to get the Console running, and features/memory.md for how spoken turns are archived and recalled like any other.
 
@@ -982,7 +982,7 @@ The loader is fail-soft. Rules it applies:
 
 A hostile authored prompt does not get you anything. The safety clause is still force-appended in code, under whatever you wrote.
 
-For the full implementation, see [app/personas.js on GitHub](https://github.com/Grandillionaire/urfael/blob/main/app/personas.js).
+For the full implementation, see [app/personas.js on GitHub](https://github.com/maximilliangrand/urfael/blob/main/app/personas.js).
 
 
 ================================================================================
@@ -1055,7 +1055,7 @@ A hook's action is weaker than a chat message. `notify` pushes the payload to yo
 
 The honest edges: exposing the loopback port to the internet is your decision and your own tunnel (`cloudflared`, `ngrok`, `ssh -R`); Urfael will not do it for you. Triggers are single-flight with the cron sandbox, so a flood of events cannot fork-bomb the brain. An `ask` while a brain run is already going is accepted (`202`) but its run is skipped rather than queued; `notify` always delivers. Every fire is written to the audit trail as a `webhook` principal.
 
-Full detail, including the `relay` two-way channel, is in [docs/HOOKS.md](https://github.com/Grandillionaire/urfael/blob/main/docs/HOOKS.md).
+Full detail, including the `relay` two-way channel, is in [docs/HOOKS.md](https://github.com/maximilliangrand/urfael/blob/main/docs/HOOKS.md).
 
 ## Related
 
@@ -1098,7 +1098,7 @@ urfael model route --for cost       # recommend the best provider for a priority
 
 `urfael model use` shows a preview first: the target endpoint, the model each tier maps to, the proxy hint, and any secret it needs. A `key`-auth provider prompts for the secret with no echo. Nothing is written until you confirm. The switch then writes `provider.env` (mode `0600`) and restarts the daemon so every spawn re-sources it. Live turns, chat, cron, and the heartbeat all move to the new backend, not just the foreground.
 
-The curated registry ships in [config/providers.json](https://github.com/Grandillionaire/urfael/blob/main/config/providers.json) with **30 named providers**: Claude (native, Bedrock, Vertex), OpenAI, Azure, Gemini, xAI Grok, GitHub Copilot, OpenRouter, DeepSeek, Mistral, Groq, Cerebras, Fireworks, Together, Perplexity, NVIDIA NIM, Novita, Hugging Face, Qwen, Kimi, GLM, MiniMax, the local servers (Ollama, LM Studio, vLLM, llama.cpp, Jan), and the proxies (claude-code-router, LiteLLM). OpenRouter alone reaches 300+ models on one key, so the total reach matches the broadest agents, while staying honest that reach is not hosting. Point `URFAEL_PROVIDERS_INDEX` at your own JSON (same schema) to replace it.
+The curated registry ships in [config/providers.json](https://github.com/maximilliangrand/urfael/blob/main/config/providers.json) with **30 named providers**: Claude (native, Bedrock, Vertex), OpenAI, Azure, Gemini, xAI Grok, GitHub Copilot, OpenRouter, DeepSeek, Mistral, Groq, Cerebras, Fireworks, Together, Perplexity, NVIDIA NIM, Novita, Hugging Face, Qwen, Kimi, GLM, MiniMax, the local servers (Ollama, LM Studio, vLLM, llama.cpp, Jan), and the proxies (claude-code-router, LiteLLM). OpenRouter alone reaches 300+ models on one key, so the total reach matches the broadest agents, while staying honest that reach is not hosting. Point `URFAEL_PROVIDERS_INDEX` at your own JSON (same schema) to replace it.
 
 ## Routing: the right provider for the job
 
@@ -1129,7 +1129,7 @@ The safety harness is unchanged by the provider switch. Allowlisting, the read-o
 
 Native, non-CLI provider support is not a goal. It would mean dropping the `claude`-CLI harness that keeps Urfael fast, free on your plan, and on the right side of Anthropic's terms.
 
-For a fully local, air-gapped setup (Ollama / LM Studio / vLLM via that same proxy, plus the already-local voice), see [guides/local-gpu.md](guides/local-gpu.md). The provider engine itself is pure and unit-tested; read it at [app/providers.js](https://github.com/Grandillionaire/urfael/blob/main/app/providers.js).
+For a fully local, air-gapped setup (Ollama / LM Studio / vLLM via that same proxy, plus the already-local voice), see [guides/local-gpu.md](guides/local-gpu.md). The provider engine itself is pure and unit-tested; read it at [app/providers.js](https://github.com/maximilliangrand/urfael/blob/main/app/providers.js).
 
 ## Related
 
@@ -1220,7 +1220,7 @@ So a generative UI, even one shaped by a poisoned input, cannot become an XSS or
 
 ## Honest status
 
-The protocol and the validator are shipped, unit-tested, and benchmark-frozen. Live rendering of A2UI blocks in the web dashboard and the Console is the next increment; the safe schema is the foundation it builds on. Read the validator at [app/a2ui.js](https://github.com/Grandillionaire/urfael/blob/main/app/a2ui.js).
+The protocol and the validator are shipped, unit-tested, and benchmark-frozen. Live rendering of A2UI blocks in the web dashboard and the Console is the next increment; the safe schema is the foundation it builds on. Read the validator at [app/a2ui.js](https://github.com/maximilliangrand/urfael/blob/main/app/a2ui.js).
 
 ## Related
 
@@ -1302,7 +1302,7 @@ The pure parsing and allowlist logic for every channel is unit-tested. The live 
 - For Fortress versus Full and how to widen remote reach safely, see [security/modes.md](security/modes.md).
 - For multiple allowlisted people per channel and the role rules, see [security/team.md](security/team.md).
 
-The allowlist and the sandbox profiles are defined in [app/lib.js](https://github.com/Grandillionaire/urfael/blob/main/app/lib.js), and the per-channel transport plumbing in [app/bridge/bridge-core.js](https://github.com/Grandillionaire/urfael/blob/main/app/bridge/bridge-core.js).
+The allowlist and the sandbox profiles are defined in [app/lib.js](https://github.com/maximilliangrand/urfael/blob/main/app/lib.js), and the per-channel transport plumbing in [app/bridge/bridge-core.js](https://github.com/maximilliangrand/urfael/blob/main/app/bridge/bridge-core.js).
 
 
 ================================================================================
@@ -1443,7 +1443,7 @@ The one thing that matters for security: pairing always enrolls a `guest`, and n
 
 ## Going deeper
 
-The full per-token instructions, including the privileged Discord intent, the Slack scopes, Gmail app passwords, and the WhatsApp tunnel, are in `config/bridge.env.example` and in [docs/SETUP.md](https://github.com/Grandillionaire/urfael/blob/main/docs/SETUP.md). The roles, the audit trail, and the multi-user reasoning are in [docs/TEAM-MODE.md](https://github.com/Grandillionaire/urfael/blob/main/docs/TEAM-MODE.md). To see who reached the brain and under which profile, run `urfael audit`.
+The full per-token instructions, including the privileged Discord intent, the Slack scopes, Gmail app passwords, and the WhatsApp tunnel, are in `config/bridge.env.example` and in [docs/SETUP.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SETUP.md). The roles, the audit trail, and the multi-user reasoning are in [docs/TEAM-MODE.md](https://github.com/maximilliangrand/urfael/blob/main/docs/TEAM-MODE.md). To see who reached the brain and under which profile, run `urfael audit`.
 
 
 ================================================================================
@@ -1493,7 +1493,7 @@ Multiple people can use one instance, each a sandboxed principal through the sam
 
 `npm run security` boots the real daemon and dashboard and attacks them the way self-hosted agents were attacked in the wild: network exposure, prompt-injection key exfil, malicious skills, runaway autonomous turns, DoS, and more. The latest run resists 11 of 11 attack classes across 101 checks. Several controls are also frozen as adversarial regression tests under `app/test/*.test.js`, so a refactor cannot quietly reopen a closed hole.
 
-This is a personal tool with a small user base, so it has had far less adversarial scrutiny than a large deployment. We say so plainly. The threat model also states the residual risks Urfael does not cover (a host already compromised, a sandbox you widen yourself, the model provider you point at). Read the full version in [Threat model and benchmark](security/threat-model.md), or the full file on GitHub at [docs/THREAT-MODEL.md](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md).
+This is a personal tool with a small user base, so it has had far less adversarial scrutiny than a large deployment. We say so plainly. The threat model also states the residual risks Urfael does not cover (a host already compromised, a sandbox you widen yourself, the model provider you point at). Read the full version in [Threat model and benchmark](security/threat-model.md), or the full file on GitHub at [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md).
 
 
 ================================================================================
@@ -1548,7 +1548,7 @@ These hold structurally and are asserted by `npm run security`:
 
 ## Further reading
 
-The full engineering writeup, including the per-tool comparison table and the reasoning behind excluding remote writes, lives in [docs/MODES.md](https://github.com/Grandillionaire/urfael/blob/main/docs/MODES.md) on GitHub. See also [start/quickstart.md](start/quickstart.md) to get the daemon running.
+The full engineering writeup, including the per-tool comparison table and the reasoning behind excluding remote writes, lives in [docs/MODES.md](https://github.com/maximilliangrand/urfael/blob/main/docs/MODES.md) on GitHub. See also [start/quickstart.md](start/quickstart.md) to get the daemon running.
 
 
 ================================================================================
@@ -1629,7 +1629,7 @@ Honest scope: a seal proves authorship and integrity of the record at a moment. 
 
 The kernel, roster, daemon scoping, audit, and seal are unit-tested and benchmark-verified. The live relay of each bridge is not exercised by the test suite, since it needs real accounts (the same paths the e2e harness skips). The bridge changes mirror the verified Telegram reference and are syntax- and sandbox-checked.
 
-For the full engineering write-up, see the [Improvement Plan threat model](https://github.com/Grandillionaire/urfael/blob/main/docs/TEAM-MODE.md). Related manual pages: [reference/cli.md](reference/cli.md), [start/quickstart.md](start/quickstart.md), and [start/learning-path.md](start/learning-path.md).
+For the full engineering write-up, see the [Improvement Plan threat model](https://github.com/maximilliangrand/urfael/blob/main/docs/TEAM-MODE.md). Related manual pages: [reference/cli.md](reference/cli.md), [start/quickstart.md](start/quickstart.md), and [start/learning-path.md](start/learning-path.md).
 
 
 ================================================================================
@@ -1644,7 +1644,7 @@ Most "secure" claims in this space are adjectives. Urfael ships a command instea
 npm run security
 ```
 
-This boots the real daemon and the opt-in dashboard, then attacks them across ten real-world attack classes and prints a pass/fail table. The current pass count is printed when the benchmark runs, so read the table rather than a number quoted here. The test is one you can read: it lives at [`app/test/security-benchmark.js`](https://github.com/Grandillionaire/urfael/blob/main/app/test/security-benchmark.js).
+This boots the real daemon and the opt-in dashboard, then attacks them across ten real-world attack classes and prints a pass/fail table. The current pass count is printed when the benchmark runs, so read the table rather than a number quoted here. The test is one you can read: it lives at [`app/test/security-benchmark.js`](https://github.com/maximilliangrand/urfael/blob/main/app/test/security-benchmark.js).
 
 ## Why a benchmark and not an adjective
 
@@ -1675,7 +1675,7 @@ This is not a claim that Urfael is unbreakable. Nothing is. The threat model sta
 
 ## Further reading
 
-The honest version of what Urfael protects, who it protects against, and what it does not defend lives in [docs/THREAT-MODEL.md](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md). The full scorecard, with the in-the-wild incident for each class, lives in [docs/SECURITY-BENCHMARK.md](https://github.com/Grandillionaire/urfael/blob/main/docs/SECURITY-BENCHMARK.md). For the read-only vs web-reach tradeoff that classes 3 and 6 rely on, see [security/modes.md](security/modes.md). To get the daemon running first, see [start/quickstart.md](start/quickstart.md).
+The honest version of what Urfael protects, who it protects against, and what it does not defend lives in [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md). The full scorecard, with the in-the-wild incident for each class, lives in [docs/SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md). For the read-only vs web-reach tradeoff that classes 3 and 6 rely on, see [security/modes.md](security/modes.md). To get the daemon running first, see [start/quickstart.md](start/quickstart.md).
 
 
 ================================================================================
@@ -1689,7 +1689,7 @@ Urfael's daemon and CLI are plain Node, so they run under [Termux](https://termu
 ```bash
 # in Termux
 pkg install nodejs git ffmpeg
-git clone https://github.com/Grandillionaire/urfael && cd urfael/app
+git clone https://github.com/maximilliangrand/urfael && cd urfael/app
 npm install
 node cli.js setup
 ```
@@ -1774,7 +1774,7 @@ Check your mode with `urfael status`. Switch any time by setting or unsetting `A
 
 ## Full guide
 
-The engineering doc covers the proxy setup in detail, the NVIDIA NIM path, where to put the env vars for the LaunchAgent or systemd unit, and the security reasoning: [docs/LOCAL-GPU.md](https://github.com/Grandillionaire/urfael/blob/main/docs/LOCAL-GPU.md).
+The engineering doc covers the proxy setup in detail, the NVIDIA NIM path, where to put the env vars for the LaunchAgent or systemd unit, and the security reasoning: [docs/LOCAL-GPU.md](https://github.com/maximilliangrand/urfael/blob/main/docs/LOCAL-GPU.md).
 
 
 ================================================================================
@@ -1832,7 +1832,7 @@ Deliberate limits, stated plainly:
 
 The protocol translation and the no-port guarantee are unit-tested and benchmark-frozen. The one remaining step is a live round-trip in a real ACP editor (Zed), which is the human acceptance gate, separate from the green automated suite.
 
-The full engineering writeup lives at [docs/ACP.md](https://github.com/Grandillionaire/urfael/blob/main/docs/ACP.md).
+The full engineering writeup lives at [docs/ACP.md](https://github.com/maximilliangrand/urfael/blob/main/docs/ACP.md).
 
 
 ================================================================================
@@ -1889,7 +1889,7 @@ The credential handling is the load-bearing part. Urfael never mounts your whole
 - The container runs as root, which maps cleanly to your host user on macOS Docker Desktop. On a Linux host you may want `--user` with a writable HOME.
 - Full capability mode (`URFAEL_YOLO=1`) gives the agent an unrestricted shell. Run that only in a VM, container, or throwaway account.
 
-The rationale (why only the auth files, why network-none is the default, the threat class this closes) is documented as Class 6 of the security benchmark. The script itself is the most honest reference: [goal-loop.sh](https://github.com/Grandillionaire/urfael/blob/main/vault-template/_urfael/goal-loop.sh).
+The rationale (why only the auth files, why network-none is the default, the threat class this closes) is documented as Class 6 of the security benchmark. The script itself is the most honest reference: [goal-loop.sh](https://github.com/maximilliangrand/urfael/blob/main/vault-template/_urfael/goal-loop.sh).
 
 ## Related
 
@@ -1943,7 +1943,7 @@ The full trust-boundary table and the residual risks Urfael does not cover are i
 
 This is a summary. The complete five-minute walkthrough, including the system diagram, the module map, the data-and-security flow of one remote message, and the test and benchmark story, is in the repository:
 
-[ARCHITECTURE.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/ARCHITECTURE.md)
+[ARCHITECTURE.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/ARCHITECTURE.md)
 
 
 ================================================================================
@@ -1952,14 +1952,14 @@ This is a summary. The complete five-minute walkthrough, including the system di
 
 # Contributing
 
-Urfael is a personal AI assistant on Claude Code. Issues, ideas, and pull requests are welcome. This page summarises what to run before you open a PR and the conventions the codebase holds to. The full guide lives in [CONTRIBUTING.md](https://github.com/Grandillionaire/urfael/blob/main/CONTRIBUTING.md).
+Urfael is a personal AI assistant on Claude Code. Issues, ideas, and pull requests are welcome. This page summarises what to run before you open a PR and the conventions the codebase holds to. The full guide lives in [CONTRIBUTING.md](https://github.com/maximilliangrand/urfael/blob/main/CONTRIBUTING.md).
 
 ## Dev setup
 
 The engine lives in `app/` (the Electron overlay, the `daemon.js` brain, and `voice.js`). Vault-side logic (commands, hooks, scripts) is in `vault-template/_urfael/`.
 
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git && cd urfael
+git clone https://github.com/maximilliangrand/urfael.git && cd urfael
 cd app && npm install
 ```
 
@@ -2930,7 +2930,7 @@ Urfael runs on a flat-rate subscription, so there is nothing to meter. The cost 
 
 ## Where these live
 
-`urfael setup` writes the auth and recall and mode choices into `~/.claude/urfael/provider.env`. Anything else you can export in your shell or add to the service unit (launchd plist on macOS, the `systemd --user` unit on Linux). The full first-run path is in [start/quickstart.md](start/quickstart.md). The setup wizard source is at [app/setup.js](https://github.com/Grandillionaire/urfael/blob/main/app/setup.js).
+`urfael setup` writes the auth and recall and mode choices into `~/.claude/urfael/provider.env`. Anything else you can export in your shell or add to the service unit (launchd plist on macOS, the `systemd --user` unit on Linux). The full first-run path is in [start/quickstart.md](start/quickstart.md). The setup wizard source is at [app/setup.js](https://github.com/maximilliangrand/urfael/blob/main/app/setup.js).
 
 
 ================================================================================
@@ -2982,7 +2982,7 @@ Be honest: it is young. Every feature is verified end-to-end by an in-repo harne
 
 What that does not buy you is scale. This is a personal tool. The live relay of the Matrix, Signal, and WhatsApp bridges has not been exercised against real accounts (their parsing and allowlist logic is unit-tested). It is security-tested, not battle-tested at scale. That is the one thing only time and users add.
 
-For the full security writeup, see [SECURITY-BENCHMARK.md](https://github.com/Grandillionaire/urfael/blob/main/docs/SECURITY-BENCHMARK.md) and the [Threat Model](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md).
+For the full security writeup, see [SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md) and the [Threat Model](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md).
 
 
 ================================================================================
@@ -3076,4 +3076,4 @@ A note on 500s: the only dependency here is the local daemon. A transient dashbo
 
 ## Still stuck
 
-`urfael doctor` is the canonical health read and the one to quote when reporting a problem. For the full command surface see the [CLI reference](reference/cli.md). For the security reasoning behind the allowlist, the loopback binds, and the read-only sandbox, read [SECURITY.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/SECURITY.md).
+`urfael doctor` is the canonical health read and the one to quote when reporting a problem. For the full command surface see the [CLI reference](reference/cli.md). For the security reasoning behind the allowlist, the loopback binds, and the read-only sandbox, read [SECURITY.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/SECURITY.md).

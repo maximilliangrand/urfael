@@ -14,7 +14,7 @@ urfael connect add github      # preview, scan, masked secret prompt, confirm, t
 
 ## The bundled registry
 
-The curated set ships in [config/connectors.json](https://github.com/Grandillionaire/urfael/blob/main/config/connectors.json): GitHub, GitLab, local git, filesystem, Sentry, Linear, Atlassian, Postgres, SQLite, Notion, Slack, Stripe, AWS, the search engines, several vector stores, and more. Point `URFAEL_CONNECTORS_INDEX` at your own JSON (same schema) to replace it.
+The curated set ships in [config/connectors.json](https://github.com/maximilliangrand/urfael/blob/main/config/connectors.json): GitHub, GitLab, local git, filesystem, Sentry, Linear, Atlassian, Postgres, SQLite, Notion, Slack, Stripe, AWS, the search engines, several vector stores, and more. Point `URFAEL_CONNECTORS_INDEX` at your own JSON (same schema) to replace it.
 
 The parser is fail-soft. A malformed or hostile registry can only ever yield fewer connectors, never a malformed command. Each entry is validated and dropped if it is not shaped right: the id is forced to kebab case, the transport must be one of `npx`, `uvx`, `http`, or `sse`, an `npx`/`uvx` package must be a bare package token with no shell metacharacters, and an `http`/`sse` url must be `https` or an explicit loopback host. Secret env names must match `^[A-Z][A-Z0-9_]*$`, so a registry cannot smuggle a flag in where a key name is expected.
 
@@ -46,7 +46,7 @@ This path is frozen as a security benchmark check (class 9), so a future change 
 
 ## Read the code
 
-The connector logic is pure and unit-tested: it parses the registry, builds the argv, masks secrets, and produces the preview, while the actual spawn and the no-echo prompt live in the CLI. Read it at [app/connectors.js](https://github.com/Grandillionaire/urfael/blob/main/app/connectors.js).
+The connector logic is pure and unit-tested: it parses the registry, builds the argv, masks secrets, and produces the preview, while the actual spawn and the no-echo prompt live in the CLI. Read it at [app/connectors.js](https://github.com/maximilliangrand/urfael/blob/main/app/connectors.js).
 
 ## Related
 

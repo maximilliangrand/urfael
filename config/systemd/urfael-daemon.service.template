@@ -3,7 +3,7 @@
 #   systemctl --user enable --now urfael-daemon
 [Unit]
 Description=Urfael brain daemon (always-on, headless)
-Documentation=https://github.com/Grandillionaire/urfael
+Documentation=https://github.com/maximilliangrand/urfael
 After=default.target
 
 [Service]

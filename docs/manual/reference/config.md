@@ -119,4 +119,4 @@ Urfael runs on a flat-rate subscription, so there is nothing to meter. The cost 
 
 ## Where these live
 
-`urfael setup` writes the auth and recall and mode choices into `~/.claude/urfael/provider.env`. Anything else you can export in your shell or add to the service unit (launchd plist on macOS, the `systemd --user` unit on Linux). The full first-run path is in [start/quickstart.md](start/quickstart.md). The setup wizard source is at [app/setup.js](https://github.com/Grandillionaire/urfael/blob/main/app/setup.js).
+`urfael setup` writes the auth and recall and mode choices into `~/.claude/urfael/provider.env`. Anything else you can export in your shell or add to the service unit (launchd plist on macOS, the `systemd --user` unit on Linux). The full first-run path is in [start/quickstart.md](start/quickstart.md). The setup wizard source is at [app/setup.js](https://github.com/maximilliangrand/urfael/blob/main/app/setup.js).

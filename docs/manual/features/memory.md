@@ -53,7 +53,7 @@ The ledger (`app/learn.js`) is a JSON file with atomic writes and a fail-closed 
 
 Only `trusted` lessons reach active recall, strongest first. That is the difference from writing every distilled note straight into a frozen snapshot: a wrong or unsafe lesson is meant to be caught before it reaches a future turn, and a lesson that keeps surfacing without helping is meant to fade.
 
-Read the ledger in full at [app/learn.js](https://github.com/Grandillionaire/urfael/blob/main/app/learn.js) and the assembler at [app/memctx.js](https://github.com/Grandillionaire/urfael/blob/main/app/memctx.js).
+Read the ledger in full at [app/learn.js](https://github.com/maximilliangrand/urfael/blob/main/app/learn.js) and the assembler at [app/memctx.js](https://github.com/maximilliangrand/urfael/blob/main/app/memctx.js).
 
 ## Related
 

@@ -72,4 +72,4 @@ Honest scope: a seal proves authorship and integrity of the record at a moment. 
 
 The kernel, roster, daemon scoping, audit, and seal are unit-tested and benchmark-verified. The live relay of each bridge is not exercised by the test suite, since it needs real accounts (the same paths the e2e harness skips). The bridge changes mirror the verified Telegram reference and are syntax- and sandbox-checked.
 
-For the full engineering write-up, see the [Improvement Plan threat model](https://github.com/Grandillionaire/urfael/blob/main/docs/TEAM-MODE.md). Related manual pages: [reference/cli.md](reference/cli.md), [start/quickstart.md](start/quickstart.md), and [start/learning-path.md](start/learning-path.md).
+For the full engineering write-up, see the [Improvement Plan threat model](https://github.com/maximilliangrand/urfael/blob/main/docs/TEAM-MODE.md). Related manual pages: [reference/cli.md](reference/cli.md), [start/quickstart.md](start/quickstart.md), and [start/learning-path.md](start/learning-path.md).

@@ -12,19 +12,32 @@ const up = require('../updater.js');
 // ---------- isOfficialRemote: only the one official repo, any URL form ----------
 test('isOfficialRemote accepts the official repo in https/ssh/.git forms, rejects everything else', () => {
   for (const ok of [
-    'https://github.com/Grandillionaire/urfael',
-    'https://github.com/Grandillionaire/urfael.git',
-    'git@github.com:Grandillionaire/urfael.git',
-    'HTTPS://GitHub.com/grandillionaire/URFAEL',
+    'https://github.com/maximilliangrand/urfael',
+    'https://github.com/maximilliangrand/urfael.git',
+    'git@github.com:maximilliangrand/urfael.git',
+    'HTTPS://GitHub.com/maximilliangrand/URFAEL',
   ]) assert.strictEqual(up.isOfficialRemote(ok), true, 'should accept: ' + ok);
   for (const bad of [
     'https://github.com/attacker/urfael',
-    'https://github.com/Grandillionaire/urfael-evil',
-    'https://evil.com/Grandillionaire/urfael',
-    'https://github.com.evil.com/Grandillionaire/urfael',
-    'https://gitlab.com/Grandillionaire/urfael',
+    'https://github.com/maximilliangrand/urfael-evil',
+    'https://evil.com/maximilliangrand/urfael',
+    'https://github.com.evil.com/maximilliangrand/urfael',
+    'https://gitlab.com/maximilliangrand/urfael',
     '', null, undefined, 'urfael',
   ]) assert.strictEqual(up.isOfficialRemote(bad), false, 'should reject: ' + bad);
+});
+
+// ---------- the VACATED namespace is not the trust anchor ----------
+// The author's GitHub username was renamed away from `Grandillionaire`, and GitHub releases a renamed username for
+// re-registration. Whoever claims it could publish `Grandillionaire/urfael` — so the old namespace must NEVER satisfy
+// the official-remote gate, or `urfael update` would fast-forward an attacker's commits into a running install.
+test('isOfficialRemote REJECTS the vacated Grandillionaire namespace (squattable = never a self-update source)', () => {
+  for (const bad of [
+    'https://github.com/Grandillionaire/urfael',
+    'https://github.com/Grandillionaire/urfael.git',
+    'git@github.com:Grandillionaire/urfael.git',
+    'https://github.com/Grandillionaire/urfael-skills',
+  ]) assert.strictEqual(up.isOfficialRemote(bad), false, 'should reject the vacated namespace: ' + bad);
 });
 
 // ---------- compareVersions ----------
@@ -82,7 +95,7 @@ test('runGitUpdate REFUSES an app install (no git checkout)', async () => {
 });
 
 test('runGitUpdate REFUSES a dirty tree even on the official origin', async () => {
-  const dir = tmpRepo('git@github.com:Grandillionaire/urfael.git');
+  const dir = tmpRepo('git@github.com:maximilliangrand/urfael.git');
   fs.writeFileSync(path.join(dir, 'dirty'), 'y');   // uncommitted change
   const r = await up.runGitUpdate(dir);
   assert.strictEqual(r.ok, false);

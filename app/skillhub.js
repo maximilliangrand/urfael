@@ -404,7 +404,7 @@ function promptYesNo(question) {
 // "the app store with a security guarantee." The registry is a plain JSON index in a curated git repo; set
 // URFAEL_HUB_INDEX to point at yours (default below). A poisoned listing is still caught by the scanner; a
 // swapped payload at a listed URL is caught by the sha256 pin.
-const DEFAULT_INDEX = 'https://raw.githubusercontent.com/Grandillionaire/urfael-skills/main/index.json';
+const DEFAULT_INDEX = 'https://raw.githubusercontent.com/maximilliangrand/urfael-skills/main/index.json';
 function hubIndexUrl() { return process.env.URFAEL_HUB_INDEX || DEFAULT_INDEX; }
 
 // Parse + validate a registry index. Pure, fail-soft: [] on junk; drops any entry without a safe slug or an

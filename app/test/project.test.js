@@ -4,8 +4,8 @@ const assert = require('node:assert');
 const p = require('../project');
 
 test('idFor prefers the git remote (so the same repo shares one memory across clones)', () => {
-  assert.equal(p.idFor('/anywhere', 'git@github.com:Grandillionaire/urfael.git'), 'grandillionaire-urfael');
-  assert.equal(p.idFor('/elsewhere', 'https://github.com/Grandillionaire/urfael'), 'grandillionaire-urfael');
+  assert.equal(p.idFor('/anywhere', 'git@github.com:maximilliangrand/urfael.git'), 'maximilliangrand-urfael');
+  assert.equal(p.idFor('/elsewhere', 'https://github.com/maximilliangrand/urfael'), 'maximilliangrand-urfael');
 });
 
 test('idFor falls back to basename + a path hash (no collision on same basename)', () => {

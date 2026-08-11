@@ -76,3 +76,44 @@ test('urfael code: checkpoint captures the tree, rewind restores tracked files a
     try { fs.rmSync(rootDir, { recursive: true, force: true }); } catch {}
   }
 });
+
+// REGRESSION: rewind used to run a bare `git reset` after the checkout, which resets the WHOLE index to HEAD. A
+// developer who had carefully staged one hunk (`git add -p`) lost it the moment they rewound — the staged blob was
+// left unreferenced, with no commit, no ref, and no reflog entry to get it back. The restore now goes through a temp
+// index, so the real index is byte-for-byte what it was.
+test('urfael rewind leaves the git index EXACTLY as it was (staged work is never destroyed)', { skip: GIT ? false : 'git not installed' }, () => {
+  const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'urfael-rewind-idx-'));
+  const home = path.join(rootDir, 'home'); fs.mkdirSync(home);
+  const repo = path.join(rootDir, 'repo'); fs.mkdirSync(repo);
+  const env = { ...process.env, HOME: home, USERPROFILE: home, URFAEL_MEMORY_DIR: 'Urfael-memory' };
+  delete env.ELECTRON_RUN_AS_NODE;
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { stdio: ['ignore', 'pipe', 'ignore'], env }).toString();
+  const cli = (...a) => execFileSync('node', [CLI, ...a], { stdio: ['ignore', 'pipe', 'ignore'], env, timeout: 30000 }).toString();
+
+  try {
+    git('init', '-q');
+    git('config', 'core.autocrlf', 'false');
+    git('config', 'user.email', 'test@urfael.local'); git('config', 'user.name', 'Urfael Test');
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'v1\n');
+    git('add', '-A'); git('commit', '-q', '-m', 'init');
+
+    // stage v2 (the `git add -p` situation), then keep editing the working tree to v3
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'v2-staged\n');
+    git('add', 'a.txt');
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'v3-worktree\n');
+    assert.equal(git('status', '--short').trim(), 'MM a.txt', 'precondition: staged v2 + worktree v3');
+
+    const cp = (cli('code', 'task', '--no-run', '--dir', repo).match(/checkpoint (\S+)/) || [])[1];
+    assert.ok(cp, 'code printed a checkpoint id');
+    assert.equal(git('show', ':a.txt'), 'v2-staged\n', 'checkpointing does not disturb the index');
+
+    fs.writeFileSync(path.join(repo, 'a.txt'), 'v4\n');
+    cli('rewind', cp, '--yes', '--dir', repo);
+
+    assert.equal(git('show', ':a.txt'), 'v2-staged\n', 'the staged blob SURVIVED the rewind');
+    assert.equal(fs.readFileSync(path.join(repo, 'a.txt'), 'utf8'), 'v3-worktree\n', 'the working tree is back at the snapshot');
+    assert.equal(git('status', '--short').trim(), 'MM a.txt', 'index and worktree are both exactly as the snapshot left them');
+  } finally {
+    try { fs.rmSync(rootDir, { recursive: true, force: true }); } catch {}
+  }
+});

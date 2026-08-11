@@ -5,7 +5,7 @@ Urfael's daemon and CLI are plain Node, so they run under [Termux](https://termu
 ```bash
 # in Termux
 pkg install nodejs git ffmpeg
-git clone https://github.com/Grandillionaire/urfael && cd urfael/app
+git clone https://github.com/maximilliangrand/urfael && cd urfael/app
 npm install
 node cli.js setup
 ```

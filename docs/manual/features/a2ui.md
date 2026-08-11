@@ -29,7 +29,7 @@ So a generative UI, even one shaped by a poisoned input, cannot become an XSS or
 
 ## Honest status
 
-The protocol and the validator are shipped, unit-tested, and benchmark-frozen. Live rendering of A2UI blocks in the web dashboard and the Console is the next increment; the safe schema is the foundation it builds on. Read the validator at [app/a2ui.js](https://github.com/Grandillionaire/urfael/blob/main/app/a2ui.js).
+The protocol and the validator are shipped, unit-tested, and benchmark-frozen. Live rendering of A2UI blocks in the web dashboard and the Console is the next increment; the safe schema is the foundation it builds on. Read the validator at [app/a2ui.js](https://github.com/maximilliangrand/urfael/blob/main/app/a2ui.js).
 
 ## Related
 

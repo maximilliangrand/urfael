@@ -6,8 +6,8 @@
       "slug": "inbox-triage",
       "title": "Inbox triage",
       "description": "Summarize unread mail into a 3-bullet brief and draft replies (never sends).",
-      "url": "https://raw.githubusercontent.com/Grandillionaire/urfael-skills/main/skills/inbox-triage.md",
-      "author": "Grandillionaire",
+      "url": "https://raw.githubusercontent.com/maximilliangrand/urfael-skills/main/skills/inbox-triage.md",
+      "author": "maximilliangrand",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "tags": ["email", "productivity"]
     },
@@ -15,8 +15,8 @@
       "slug": "daily-brief",
       "title": "Daily brief",
       "description": "Pull today's calendar + open tasks into a spoken morning brief.",
-      "url": "https://raw.githubusercontent.com/Grandillionaire/urfael-skills/main/skills/daily-brief.md",
-      "author": "Grandillionaire",
+      "url": "https://raw.githubusercontent.com/maximilliangrand/urfael-skills/main/skills/daily-brief.md",
+      "author": "maximilliangrand",
       "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
       "tags": ["calendar", "routine"]
     }

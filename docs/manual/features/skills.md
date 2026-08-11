@@ -63,4 +63,4 @@ urfael hub publish <file>                # print the registry index entry (with 
 
 The scanner is a heuristic. Pattern matching cannot catch every malicious skill, and it will sometimes flag a benign one. So do not treat a clean scan as a guarantee. The real guarantee is the layer behind it: the full body is previewed before you confirm, nothing is written without your yes, and the brain never executes a skill. It is markdown the brain reads, stored `0600` and never marked executable. The scan is the loud first opinion; you are the decision.
 
-For the full implementation, see [app/skillhub.js on GitHub](https://github.com/Grandillionaire/urfael/blob/main/app/skillhub.js).
+For the full implementation, see [app/skillhub.js on GitHub](https://github.com/maximilliangrand/urfael/blob/main/app/skillhub.js).

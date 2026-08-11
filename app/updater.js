@@ -4,7 +4,7 @@
 // SECURITY POSTURE (self-updating code is the single most blast-radius-sensitive thing an agent can do):
 //   - NEVER silent. The owner is notified and must confirm (the daemon's confirm gate); the brain can propose an
 //     update but can never apply one on its own.
-//   - A source-install update ONLY fast-forwards the EXISTING OFFICIAL remote (github.com/Grandillionaire/urfael).
+//   - A source-install update ONLY fast-forwards the EXISTING OFFICIAL remote (github.com/maximilliangrand/urfael).
 //     A non-official origin is REFUSED. A dirty working tree is REFUSED. The brain cannot change the remote.
 //   - The desktop app (no git checkout) is NOT self-updated here — a notarized in-app updater is required for that.
 //     We only REPORT the new version + the official download URL. (Stub until electron-updater + notarization land.)
@@ -14,7 +14,7 @@ const { execFile } = require('child_process');
 const https = require('https');
 const path = require('path');
 
-const OFFICIAL = 'Grandillionaire/urfael';
+const OFFICIAL = 'maximilliangrand/urfael';
 const RELEASES_URL = 'https://github.com/' + OFFICIAL + '/releases/latest';
 
 // ---- pure helpers (unit-tested) -----------------------------------------------------------------------------
@@ -23,7 +23,7 @@ const RELEASES_URL = 'https://github.com/' + OFFICIAL + '/releases/latest';
 function isOfficialRemote(url) {
   if (typeof url !== 'string') return false;
   const u = url.trim().toLowerCase().replace(/\.git$/, '');
-  return /(^|[/@.])github\.com[/:]grandillionaire\/urfael$/.test(u);
+  return /(^|[/@.])github\.com[/:]maximilliangrand\/urfael$/.test(u);
 }
 
 // compareVersions(a,b): -1 | 0 | 1. Tolerant of a leading 'v' and missing parts ('1.2' vs '1.2.0').
@@ -107,7 +107,14 @@ function runGitUpdate(root) {
     git(root, ['rev-parse', '--is-inside-work-tree'], (e) => {
       if (e) return resolve({ ok: false, error: 'this is an app install (no git checkout) — download the new build from ' + RELEASES_URL });
       git(root, ['remote', 'get-url', 'origin'], (e2, origin) => {
-        if (e2 || !isOfficialRemote(String(origin || ''))) return resolve({ ok: false, error: 'refused: origin is not the official Urfael repo' });
+        // An origin still pointing at the pre-rename `Grandillionaire` namespace is refused like any other fork, and
+        // told WHY: that username was vacated and is re-registrable, so fast-forwarding it would pull whoever claims it.
+        if (e2 || !isOfficialRemote(String(origin || ''))) {
+          const old = /github\.com[/:]grandillionaire\/urfael(\.git)?$/i.test(String(origin || '').trim());
+          return resolve({ ok: false, error: old
+            ? 'refused: this clone still points at the OLD github.com/Grandillionaire/urfael (that username was vacated and can be re-registered by anyone). Run: git remote set-url origin ' + 'https://github.com/' + OFFICIAL + '.git'
+            : 'refused: origin is not the official Urfael repo' });
+        }
         git(root, ['status', '--porcelain'], (e3, st) => {
           if (String(st || '').trim()) return resolve({ ok: false, error: 'refused: there are local changes — commit or stash them first' });
           git(root, ['rev-parse', '--abbrev-ref', 'HEAD'], (e4, br) => {

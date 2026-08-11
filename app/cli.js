@@ -258,7 +258,7 @@ function readStdinAdapter(maxBytes) {
   if (cmd === 'update' || cmd === 'upgrade') {
     const root = path.join(__dirname, '..');
     try { execFileSync('git', ['-C', root, 'rev-parse', '--is-inside-work-tree'], { stdio: 'ignore' }); }
-    catch { console.error('✗ not a git checkout, so there is nothing to update. Reinstall from https://github.com/Grandillionaire/urfael'); process.exit(1); }
+    catch { console.error('✗ not a git checkout, so there is nothing to update. Reinstall from https://github.com/maximilliangrand/urfael'); process.exit(1); }
     process.stdout.write(dim('checking for updates…\n'));
     try { execFileSync('git', ['-C', root, 'fetch', '--quiet', 'origin'], { stdio: ['ignore', 'ignore', 'inherit'], timeout: 60000 }); }
     catch { console.error('✗ could not reach the remote (offline?)'); process.exit(1); }
@@ -474,9 +474,19 @@ function readStdinAdapter(maxBytes) {
       const inSnap = new Set(gitc(['ls-tree', '-r', '--name-only', target.sha]).split('\n').filter(Boolean));
       const nowFiles = new Set(gitc(['ls-files']).split('\n').concat(gitc(['ls-files', '--others', '--exclude-standard']).split('\n')).filter(Boolean));
       const kept = [...nowFiles].filter((f) => !inSnap.has(f));
-      try { execFileSync('git', ['-C', root, 'checkout', target.sha, '--', '.'], { stdio: ['ignore', 'ignore', 'inherit'] }); }
-      catch (e) { console.error('✗ rewind failed: ' + ((e && e.message) || e)); process.exit(1); }
-      if (hasHead()) { try { execFileSync('git', ['-C', root, 'reset', '-q'], { stdio: 'ignore' }); } catch {} }   // unstage, so only the working tree differs (the index is left as it was)
+      // Restore through a TEMP index (the same trick snapshot() uses), so the REAL index is never touched and your
+      // staged-but-uncommitted work survives. `git checkout <sha> -- .` would write the snapshot into the live index,
+      // and the `git reset` that used to follow it then collapsed the index to HEAD — silently destroying a careful
+      // `git add -p` staging with no commit, no ref, and no reflog entry to recover it from. checkout-index writes
+      // exactly the snapshot's paths into the working tree (leading dirs and all) and leaves every other file alone,
+      // so files created since the snapshot are still KEPT.
+      const ridx = path.join(os.tmpdir(), 'urfael-rwidx-' + process.pid + '-' + target.id);
+      const renv = { ...process.env, GIT_INDEX_FILE: ridx }; delete renv.ELECTRON_RUN_AS_NODE;
+      try {
+        execFileSync('git', ['-C', root, 'read-tree', target.sha], { env: renv, stdio: ['ignore', 'ignore', 'inherit'] });
+        execFileSync('git', ['-C', root, 'checkout-index', '-a', '-f'], { env: renv, stdio: ['ignore', 'ignore', 'inherit'] });
+      } catch (e) { console.error('✗ rewind failed: ' + ((e && e.message) || e)); process.exit(1); }
+      finally { try { fs.rmSync(ridx, { force: true }); } catch {} }
       console.log(gold('✓ restored to ' + target.id));
       if (kept.length) console.log(dim('  ' + kept.length + ' file(s) created since the snapshot were KEPT (not deleted): ') + kept.slice(0, 8).join(', ') + (kept.length > 8 ? ' …' : ''));
       if (backSha) console.log(dim('  undo this rewind:  ') + gold('urfael rewind ' + back));

@@ -1,13 +1,13 @@
 # Contributing
 
-Urfael is a personal AI assistant on Claude Code. Issues, ideas, and pull requests are welcome. This page summarises what to run before you open a PR and the conventions the codebase holds to. The full guide lives in [CONTRIBUTING.md](https://github.com/Grandillionaire/urfael/blob/main/CONTRIBUTING.md).
+Urfael is a personal AI assistant on Claude Code. Issues, ideas, and pull requests are welcome. This page summarises what to run before you open a PR and the conventions the codebase holds to. The full guide lives in [CONTRIBUTING.md](https://github.com/maximilliangrand/urfael/blob/main/CONTRIBUTING.md).
 
 ## Dev setup
 
 The engine lives in `app/` (the Electron overlay, the `daemon.js` brain, and `voice.js`). Vault-side logic (commands, hooks, scripts) is in `vault-template/_urfael/`.
 
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git && cd urfael
+git clone https://github.com/maximilliangrand/urfael.git && cd urfael
 cd app && npm install
 ```
 

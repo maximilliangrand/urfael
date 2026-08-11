@@ -261,7 +261,7 @@ async function notifyAll(text) {
 const EXPERIMENTAL = new Set(['matrix', 'signal', 'whatsapp', 'discord-voice', 'termux']);
 function warnExperimental(channel) {
   if (!EXPERIMENTAL.has(channel)) return;
-  try { process.stderr.write('\n  [!] ' + channel + ' is EXPERIMENTAL: code-complete and unit-tested, but not yet certified against live accounts, so it may not work end-to-end yet. Please report what you hit at https://github.com/Grandillionaire/urfael/issues\n\n'); } catch {}
+  try { process.stderr.write('\n  [!] ' + channel + ' is EXPERIMENTAL: code-complete and unit-tested, but not yet certified against live accounts, so it may not work end-to-end yet. Please report what you hit at https://github.com/maximilliangrand/urfael/issues\n\n'); } catch {}
 }
 
 module.exports = { JDIR, SOCK, ENVF, TEAMF, AUDIT, WAKEF, loadEnv, loadRoster, resolvePrincipal, tryPair, audit, askDaemon, notifyDaemon, stripSpoken, TokenBucket, httpsJson, telegramSend, discordDM, qqSend, slackApi, slackPost, imessageSend, notifyAll, httpsDownload, transcribeLocal, EXPERIMENTAL, warnExperimental, idleSuspendGate, touchWake, wakeMtime };

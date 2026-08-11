@@ -64,7 +64,7 @@ A hook's action is weaker than a chat message. `notify` pushes the payload to yo
 
 The honest edges: exposing the loopback port to the internet is your decision and your own tunnel (`cloudflared`, `ngrok`, `ssh -R`); Urfael will not do it for you. Triggers are single-flight with the cron sandbox, so a flood of events cannot fork-bomb the brain. An `ask` while a brain run is already going is accepted (`202`) but its run is skipped rather than queued; `notify` always delivers. Every fire is written to the audit trail as a `webhook` principal.
 
-Full detail, including the `relay` two-way channel, is in [docs/HOOKS.md](https://github.com/Grandillionaire/urfael/blob/main/docs/HOOKS.md).
+Full detail, including the `relay` two-way channel, is in [docs/HOOKS.md](https://github.com/maximilliangrand/urfael/blob/main/docs/HOOKS.md).
 
 ## Related
 

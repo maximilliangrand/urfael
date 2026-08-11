@@ -4,7 +4,7 @@
 #   systemctl --user enable --now urfael-morningbrief.timer
 [Unit]
 Description=Urfael morning brief (prepare + speak today's brief)
-Documentation=https://github.com/Grandillionaire/urfael
+Documentation=https://github.com/maximilliangrand/urfael
 
 [Service]
 Type=oneshot

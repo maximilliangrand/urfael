@@ -37,7 +37,7 @@ Type `/` and a palette floats above the prompt and filters as you type, the way 
 - `/usage` shows today, last 7 days, and last 30 days. Token counts are exact; the dollar figure is an estimate, never asserted as fact. See [features/overview.md](features/overview.md).
 - `/stop` aborts a running turn, `/help` lists the whole palette, `/clear` and `/quit` do what they say.
 
-The full source is at [app/tui.js](https://github.com/Grandillionaire/urfael/blob/main/app/tui.js).
+The full source is at [app/tui.js](https://github.com/maximilliangrand/urfael/blob/main/app/tui.js).
 
 ## The web dashboard (`urfael dashboard`)
 

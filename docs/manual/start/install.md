@@ -21,7 +21,7 @@ brew install ffmpeg whisper-cpp coreutils
 You do not need to install anything first. Open Terminal (on a Mac: press ⌘-Space, type `Terminal`, Enter) and paste this one line:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
+curl -fsSL https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.sh | bash
 ```
 
 It installs the prerequisites for you (on macOS via Homebrew, which it installs if missing; on Linux via apt/dnf/pacman) — Node, git, ffmpeg, and Claude Code — downloads Urfael, sets it up, walks you through connecting your Claude account, and offers to open the app. That is the whole install. (You may be asked for your Mac password once, when Homebrew installs.)
@@ -33,7 +33,7 @@ Prefer to click? On a Mac, download the repo as a ZIP (green **Code** button on 
 Prefer to see every step? This is the same thing by hand. `install.sh` is read-it-first friendly — it never enables anything risky.
 
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git urfael-src && cd urfael-src
+git clone https://github.com/maximilliangrand/urfael.git urfael-src && cd urfael-src
 ./install.sh        # checks deps, fetches the speech model, scaffolds your vault, writes config templates
 urfael setup        # onboarding wizard: subscription (default), an API key, or a local model
 cd app && npm start # the Console opens
@@ -46,7 +46,7 @@ cd app && npm start # the Console opens
 You do not need to install anything first, and you do not need to be technical. **Copy this one line, paste it into PowerShell, and press Enter:**
 
 ```powershell
-irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex
+irm https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.ps1 | iex
 ```
 
 To open PowerShell: press the Windows key, type `PowerShell`, and click it. That one line installs the prerequisites for you (Node, git, ffmpeg, and Claude Code, via Windows' built-in `winget`), downloads Urfael, sets it up, walks you through connecting your Claude account, and offers to open the app. That is the whole install.
@@ -58,7 +58,7 @@ You will sign into Claude once during setup (a browser opens — sign in with yo
 <details><summary>Doing it by hand (for developers)</summary>
 
 ```powershell
-git clone https://github.com/Grandillionaire/urfael.git urfael-src; cd urfael-src
+git clone https://github.com/maximilliangrand/urfael.git urfael-src; cd urfael-src
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -Guided   # -Guided auto-installs prerequisites + runs setup
 ```
 
@@ -88,4 +88,4 @@ The `~/Urfael` vault and `~/Urfael-memory` repo are yours. They are kept separat
 
 ## Next
 
-The full setup detail (voice tiers, persona, Obsidian registration, connectors, bridges, Linux units) is in [SETUP.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/docs/SETUP.md). To start the daemon and say something, go to [start/quickstart.md](start/quickstart.md).
+The full setup detail (voice tiers, persona, Obsidian registration, connectors, bridges, Linux units) is in [SETUP.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/docs/SETUP.md). To start the daemon and say something, go to [start/quickstart.md](start/quickstart.md).

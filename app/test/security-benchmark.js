@@ -375,12 +375,31 @@ async function main() {
   const vaultSettings = fs.readFileSync(path.join(APP, '..', 'vault-template', '_urfael', 'settings.json'), 'utf8');
   check('the vault DENIES the agent reading credential stores (~/.claude, ~/.ssh, ~/.aws)', /"deny"/.test(vaultSettings) && /Read\(~\/\.claude\/\*\*\)/.test(vaultSettings) && /Read\(~\/\.ssh\/\*\*\)/.test(vaultSettings), 'permissions.deny — beats the permission mode');
   check('the vault DENIES WRITING to ~/.claude + dotfiles + LaunchAgents (no settings-rewrite / RCE / persistence)', /Write\(~\/\.claude\/\*\*\)/.test(vaultSettings) && /Write\(~\/\.zshrc\)/.test(vaultSettings) && /Write\(~\/Library\/LaunchAgents\/\*\*\)/.test(vaultSettings), 'write-deny: the credential-deny rules can\'t be rewritten away');
+  // The read-deny list drifted below its own Write/Edit twin and below the code mirror in engine/tools.js: ~/.config
+  // was write-denied but READ-allowed, so ~/.config/gh/hosts.yml (a live GitHub OAuth token in plaintext, the most
+  // common credential on a dev machine) was readable by an injected Full-mode or heartbeat turn. Assert symmetry.
+  check('the vault read-deny covers the WHOLE of ~/.config + the other common credential stores',
+    /Read\(~\/\.config\/\*\*\)/.test(vaultSettings) && /Read\(~\/\.kube\/\*\*\)/.test(vaultSettings)
+    && /Read\(~\/\.docker\/\*\*\)/.test(vaultSettings) && /Read\(~\/\.pgpass\)/.test(vaultSettings)
+    && /Read\(~\/\.terraform\.d\/\*\*\)/.test(vaultSettings),
+    '~/.config (gh OAuth token), ~/.kube, ~/.docker, ~/.pgpass, ~/.terraform.d — read-denied, matching the Write/Edit denies');
+  check('the vault DENIES WRITING to the Urfael source checkout (no rewrite-the-daemon escalation)',
+    /Write\(~\/urfael-src\/\*\*\)/.test(vaultSettings) && /Edit\(~\/urfael-src\/\*\*\)/.test(vaultSettings),
+    'the documented clone path get.sh/get.ps1 use — an injected turn cannot patch the daemon it restarts under');
   const daemonSrc = fs.readFileSync(path.join(APP, 'daemon.js'), 'utf8');
   // The warm-session turn machinery (the brain spawn) was extracted to session.js as a PURE MOVE; the spawn-shape
   // invariants below are asserted against BOTH files so a moat regression is caught wherever the spawn now lives.
   const sessionSrc = fs.readFileSync(path.join(APP, 'session.js'), 'utf8');
   const hbBlock = daemonSrc.slice(daemonSrc.indexOf('async function heartbeat'), daemonSrc.indexOf('function distill'));
   check('the heartbeat (reads untrusted email) has NO egress tool', hbBlock.includes('--disallowedTools') && hbBlock.includes('WebFetch') && hbBlock.includes('WebSearch') && hbBlock.includes("'Bash'"), 'WebFetch/WebSearch/Bash disallowed');
+  // ...and NO write tool, and none of the daemon's env. Asserting only the three egress flags used to leave
+  // Write/Edit/NotebookEdit/Task reachable on the one turn built to ingest attacker text (escalation: rewrite the
+  // Urfael checkout the daemon restarts from, which the vault deny-list cannot cover), and `...process.env` handed
+  // the child every bridge/API secret the daemon holds.
+  check('the heartbeat also has NO write tool and NO daemon secrets',
+    hbBlock.includes("'Write'") && hbBlock.includes("'Edit'") && hbBlock.includes("'NotebookEdit'") && hbBlock.includes("'Task'")
+    && /env: scopedEnv\(\)/.test(hbBlock) && !/env: \{ \.\.\.process\.env/.test(hbBlock),
+    'Write/Edit/NotebookEdit/Task disallowed; spawned with scopedEnv(), never process.env');
   check('the cron sandbox is read/fetch-only (no Write/Edit/Bash), and a DELEGATED background job inherits the spawning turn\'s scope (untrusted → NO egress, fail-closed)',
     /CRON_ALLOWED_TOOLS = 'Read,Grep,Glob,WebFetch,WebSearch'/.test(daemonSrc)
     && (() => {

@@ -133,4 +133,4 @@ The one thing that matters for security: pairing always enrolls a `guest`, and n
 
 ## Going deeper
 
-The full per-token instructions, including the privileged Discord intent, the Slack scopes, Gmail app passwords, and the WhatsApp tunnel, are in `config/bridge.env.example` and in [docs/SETUP.md](https://github.com/Grandillionaire/urfael/blob/main/docs/SETUP.md). The roles, the audit trail, and the multi-user reasoning are in [docs/TEAM-MODE.md](https://github.com/Grandillionaire/urfael/blob/main/docs/TEAM-MODE.md). To see who reached the brain and under which profile, run `urfael audit`.
+The full per-token instructions, including the privileged Discord intent, the Slack scopes, Gmail app passwords, and the WhatsApp tunnel, are in `config/bridge.env.example` and in [docs/SETUP.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SETUP.md). The roles, the audit trail, and the multi-user reasoning are in [docs/TEAM-MODE.md](https://github.com/maximilliangrand/urfael/blob/main/docs/TEAM-MODE.md). To see who reached the brain and under which profile, run `urfael audit`.

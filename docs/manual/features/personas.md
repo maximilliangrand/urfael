@@ -74,4 +74,4 @@ The loader is fail-soft. Rules it applies:
 
 A hostile authored prompt does not get you anything. The safety clause is still force-appended in code, under whatever you wrote.
 
-For the full implementation, see [app/personas.js on GitHub](https://github.com/Grandillionaire/urfael/blob/main/app/personas.js).
+For the full implementation, see [app/personas.js on GitHub](https://github.com/maximilliangrand/urfael/blob/main/app/personas.js).

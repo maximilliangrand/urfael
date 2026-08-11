@@ -85,4 +85,4 @@ A note on 500s: the only dependency here is the local daemon. A transient dashbo
 
 ## Still stuck
 
-`urfael doctor` is the canonical health read and the one to quote when reporting a problem. For the full command surface see the [CLI reference](reference/cli.md). For the security reasoning behind the allowlist, the loopback binds, and the read-only sandbox, read [SECURITY.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/SECURITY.md).
+`urfael doctor` is the canonical health read and the one to quote when reporting a problem. For the full command surface see the [CLI reference](reference/cli.md). For the security reasoning behind the allowlist, the loopback binds, and the read-only sandbox, read [SECURITY.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/SECURITY.md).
