@@ -122,7 +122,7 @@ The brain is a local daemon reachable only through a `0600` unix socket, and **i
 > **Prerequisites, stated honestly:** a [Claude Code](https://claude.com/claude-code) subscription (Pro or Max), signed in. macOS on Apple Silicon or Intel is the primary, best-tested target; **Linux is supported but newer**. [Obsidian](https://obsidian.md) with its Local REST API plugin for the vault. Docker only if you want sandboxed autonomous coding.
 
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git urfael-src && cd urfael-src   # NOT ~/urfael: on macOS it collides with the ~/Urfael vault
+git clone https://github.com/maximilliangrand/urfael.git urfael-src && cd urfael-src   # NOT ~/urfael: on macOS it collides with the ~/Urfael vault
 ./install.sh        # checks deps, fetches the local speech model (checksum-pinned), scaffolds your vault, no keys
 urfael setup        # onboarding wizard: subscription (default), an API key, or a local model
 cd app && npm start # the Console opens
@@ -131,7 +131,7 @@ cd app && npm start # the Console opens
 **On Windows (native beta), you don't install anything first.** Open PowerShell (Windows key → type `PowerShell` → click) and paste one line — it installs Node, git, ffmpeg and Claude Code for you, then sets everything up and opens the app:
 
 ```powershell
-irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex
+irm https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.ps1 | iex
 ```
 
 Prefer clicking? Download the ZIP and double-click **`install-windows.cmd`**. WSL also works (the source path above, unchanged). Full detail in the [Windows install guide](docs/manual/start/install.md).
@@ -139,7 +139,7 @@ Prefer clicking? Download the ZIP and double-click **`install-windows.cmd`**. WS
 **Nothing installed yet? One line does everything.** The `get.sh` bootstrap installs the prerequisites for you (Node, git, ffmpeg, Claude Code — via Homebrew on macOS, apt/dnf/pacman on Linux), clones Urfael, runs the guided install, and walks you through setup. On a Mac you can also download the ZIP and double-click **`install-mac.command`**.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
+curl -fsSL https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.sh | bash
 ```
 
 On brand for a tool whose whole pitch is *don't pipe untrusted scripts to a shell*: the one-liner is a convenience, and `get.sh` is deliberately short so you can read it first (`curl -fsSL …/get.sh | less`). It installs nothing risky itself; it only fetches the source and hands off to `install.sh`. The clone-and-read path above is identical and is the recommended one.

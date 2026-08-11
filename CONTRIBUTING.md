@@ -12,7 +12,7 @@ and PRs are all welcome.
 
 ## Dev setup
 ```bash
-git clone https://github.com/Grandillionaire/urfael.git && cd urfael
+git clone https://github.com/maximilliangrand/urfael.git && cd urfael
 cd app && npm install
 npm test             # 1390 unit tests (fast, pure modules: lib, council, personas, seal, audit-chain, registry, recall, …); no credentials, ~0.5s
 npm run security     # 11/11 attack classes · 125/125 checks — boots a REAL daemon + dashboard and attacks them
