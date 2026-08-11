@@ -57,6 +57,27 @@ Point your service (or your tunnel) at that URL, sending the secret as the **`X-
 - `--action notify | ask` (default `ask`).
 - `--deliver notify | silent | push` (default `notify`; `push` skips speaking, `silent` logs only).
 - Receiver port: `URFAEL_HOOKS_PORT` (default `7718`).
+- Allowed `Host` headers: `URFAEL_HOOKS_ALLOWED_HOSTS` (comma-separated; `127.0.0.1` and `localhost` are always allowed).
+
+### Tunnels and the `Host` header
+
+The receiver has an anti-DNS-rebinding **`Host` allowlist**. That matters the moment you put a tunnel in front of
+it, because most tunnels forward the *original* Host, which is the tunnel's public hostname — not `127.0.0.1`. If
+you skip this step, every request comes back `400 {"error":"host not allowed …"}` even with a correct secret (the
+receiver also prints the refused Host once to stderr, so `urfael hooks` tells you exactly what to allow).
+
+Pick one of the two:
+
+```bash
+# 1) name your tunnel hostname (works with every tunnel)
+URFAEL_HOOKS_ALLOWED_HOSTS=hooks.example.com urfael hooks
+cloudflared tunnel --url http://127.0.0.1:7718        # forwards Host: hooks.example.com
+
+# 2) or make the tunnel rewrite the Host to loopback
+ngrok http 7718 --host-header=rewrite                  # ngrok rewrites Host: 127.0.0.1
+```
+
+`ssh -R 7718:127.0.0.1:7718 …` forwards whatever the client sent, so allowlist the hostname your senders use.
 
 Every fire is written to the audit trail (`urfael audit`) as a `webhook` principal, so you can see exactly which
 hook ran and when. Triggers are single-flight with the cron sandbox — a flood of events can't fork-bomb the brain.

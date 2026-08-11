@@ -44,4 +44,4 @@ Check your mode with `urfael status`. Switch any time by setting or unsetting `A
 
 ## Full guide
 
-The engineering doc covers the proxy setup in detail, the NVIDIA NIM path, where to put the env vars for the LaunchAgent or systemd unit, and the security reasoning: [docs/LOCAL-GPU.md](https://github.com/Grandillionaire/urfael/blob/main/docs/LOCAL-GPU.md).
+The engineering doc covers the proxy setup in detail, the NVIDIA NIM path, where to put the env vars for the LaunchAgent or systemd unit, and the security reasoning: [docs/LOCAL-GPU.md](https://github.com/maximilliangrand/urfael/blob/main/docs/LOCAL-GPU.md).

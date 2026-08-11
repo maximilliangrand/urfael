@@ -38,4 +38,4 @@ The full trust-boundary table and the residual risks Urfael does not cover are i
 
 This is a summary. The complete five-minute walkthrough, including the system diagram, the module map, the data-and-security flow of one remote message, and the test and benchmark story, is in the repository:
 
-[ARCHITECTURE.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/ARCHITECTURE.md)
+[ARCHITECTURE.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/ARCHITECTURE.md)

@@ -7,7 +7,7 @@ const path = require('path');
 
 const MANUAL = path.join(__dirname, '..');
 const DOCS = path.join(MANUAL, '..');
-const RAW = 'https://raw.githubusercontent.com/Grandillionaire/urfael/main/docs/manual/';
+const RAW = 'https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/';
 const SITE = 'https://urfael.vercel.app/manual/#/';
 
 // parse the sidebar into sections of { title, links: [{title, file}] }
@@ -59,7 +59,7 @@ fs.writeFileSync(path.join(DOCS, 'llms.txt'), idx.join('\n'));
 const full = [];
 full.push('# Urfael — full documentation');
 full.push('');
-full.push('Every page of the Urfael manual, concatenated for machine reading. Source: https://github.com/Grandillionaire/urfael');
+full.push('Every page of the Urfael manual, concatenated for machine reading. Source: https://github.com/maximilliangrand/urfael');
 full.push('');
 const order = [];
 for (const s of sections) for (const l of s.links) order.push(l.file === '/' ? 'README.md' : l.file);

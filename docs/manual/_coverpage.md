@@ -12,4 +12,4 @@
 - The full CLI reference, FAQ, and troubleshooting
 
 [Get started](start/quickstart.md)
-[GitHub](https://github.com/Grandillionaire/urfael)
+[GitHub](https://github.com/maximilliangrand/urfael)

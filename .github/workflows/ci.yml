@@ -38,6 +38,13 @@ jobs:
           FUZZ_ITERS: '6000'
       - name: SSRF red-team (differential, loopback)
         run: npm run redteam
+      # The desktop shell renders model output and its contextBridge/preload boundary is the renderer↔main trust
+      # line, so a stale Electron is a real hole, not a lint nit — this project shipped ten majors behind (33.x
+      # against 43.x, with advisories sitting exactly on context isolation and ASAR integrity) purely because
+      # nothing watched. One leg only: the advisory database is the same everywhere.
+      - name: no high-severity advisory in the runtime shell
+        if: runner.os == 'Linux' && matrix.node == 24
+        run: npm audit --audit-level=high
       # Parse-check EVERY PowerShell installer on the real Windows runtime. get.ps1 and the -Guided path are not
       # executed by the smoke below (they'd hit the network / winget), so this is what guards their SYNTAX — a
       # parse error in the one-line bootstrap would otherwise ship unnoticed (nobody on the team runs Windows).

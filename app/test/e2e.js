@@ -16,15 +16,22 @@ const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 
 const APP = path.join(__dirname, '..');
-const JDIR = path.join(os.homedir(), '.claude', 'urfael');
-const SOCK = path.join(JDIR, 'daemon.sock');
 const HOME = os.homedir();
+// The harness gets its OWN state dir (URFAEL_STATE_DIR, honoured by daemon.js and ipc.js) instead of the shared
+// ~/.claude/urfael. Sharing it meant every log assertion below read a file the owner's real always-on daemon had
+// been writing for weeks: on the author's machine a check could pass on ambient state alone and fail on any clean
+// machine. Isolated, an assertion can only be satisfied by the daemon THIS run started.
+const JDIR = path.join(HOME, '.claude', 'urfael-e2e');
+const SOCK = path.join(JDIR, 'daemon.sock');
 const VAULT_DIR = 'urfael-e2e-vault';
 const MEM_DIR = 'urfael-e2e-memory';
 const VAULT = path.join(HOME, VAULT_DIR);
 const MEM = path.join(HOME, MEM_DIR);
 const FAST = process.env.FAST === '1';
-const env = { ...process.env, URFAEL_VAULT_DIR: VAULT_DIR, URFAEL_MEMORY_DIR: MEM_DIR };
+// URFAEL_HEARTBEAT_QUIET_MINS=0: the heartbeat backs off for 10 minutes after any local turn, and this harness
+// converses throughout — so with the default quiet window the heartbeat is suppressed for the WHOLE run and the
+// check below could never pass on its own merits.
+const env = { ...process.env, URFAEL_VAULT_DIR: VAULT_DIR, URFAEL_MEMORY_DIR: MEM_DIR, URFAEL_STATE_DIR: JDIR, URFAEL_HEARTBEAT_QUIET_MINS: '0' };
 
 const results = [];
 const rec = (name, status, note) => { results.push({ name, status, note: note || '' }); const m = { pass: '✓', fail: '✗', skip: '·' }[status]; process.stdout.write(`  ${m} ${name}${note ? '  — ' + note : ''}\n`); };
@@ -32,6 +39,7 @@ const ok = (n, c, note) => rec(n, c ? 'pass' : 'fail', note);
 const skip = (n, why) => rec(n, 'skip', why);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const sect = (s) => process.stdout.write(`\n${s}\n`);
+const readLog = () => { try { return fs.readFileSync(path.join(JDIR, 'urfael.log'), 'utf8'); } catch { return ''; } };   // THIS run's log only (isolated JDIR)
 
 // ---- unix-socket HTTP helpers ----
 function sock(method, p, body) {
@@ -73,8 +81,9 @@ function startDaemon() {
 }
 
 async function main() {
-  // fresh scratch env
+  // fresh scratch env — including the harness's own state dir, so no run inherits the previous run's log either
   try { execFileSync('pkill', ['-f', 'urfael-src/app/daemon.js'], { stdio: 'ignore' }); } catch {}
+  fs.rmSync(JDIR, { recursive: true, force: true }); fs.mkdirSync(JDIR, { recursive: true, mode: 0o700 });
   try { fs.unlinkSync(SOCK); } catch {}
   fs.rmSync(VAULT, { recursive: true, force: true }); fs.rmSync(MEM, { recursive: true, force: true });
   fs.mkdirSync(path.join(VAULT, '_urfael', 'skills'), { recursive: true }); fs.mkdirSync(path.join(MEM, 'sessions'), { recursive: true });
@@ -127,7 +136,7 @@ async function main() {
   const rep = await sock('POST', '/remind', { text: 'daily standup', inMins: 600, repeat: 'daily' });
   ok('remind recurring scheduled', rep.json && rep.json.repeat === 'daily');
   await sleep(22000); // scheduler tick is 20s
-  const logTxt = (() => { try { return fs.readFileSync(path.join(JDIR, 'urfael.log'), 'utf8'); } catch { return ''; } })();
+  const logTxt = readLog();
   ok('reminder FIRES (notification + spoken)', /"ev":"reminder_fire"/.test(logTxt), 'you should have heard/seen it');
   const list = await sock('GET', '/reminders');
   ok('reminders list', Array.isArray(list.json));
@@ -150,7 +159,14 @@ async function main() {
   const jl = await sock('GET', '/jobs'); ok('jobs list', Array.isArray(jl.json));
 
   if (FAST) skip('heartbeat fires', 'FAST=1');
-  else { sect('── heartbeat ───────────────────────────────────'); ok('heartbeat ran (HEARTBEAT_OK silence)', /"ev":"heartbeat_(ok|alert)"/.test((() => { try { return fs.readFileSync(path.join(JDIR, 'urfael.log'), 'utf8'); } catch { return ''; } })()), 'opt-in, 1-min interval'); }
+  else {
+    sect('── heartbeat ───────────────────────────────────');
+    // Wait for the CONDITION (a heartbeat line in THIS run's log), not a fixed sleep: the tick is 60s and the beat is
+    // skipped while the warm session is busy, so give it up to three ticks before calling it a failure.
+    const beat = () => /"ev":"heartbeat_(ok|alert)"/.test(readLog());
+    for (let i = 0; i < 36 && !beat(); i++) await sleep(5000);
+    ok('heartbeat ran (HEARTBEAT_OK silence)', beat(), 'opt-in, 1-min interval');
+  }
 
   sect('── CLI ─────────────────────────────────────────');
   ok('urfael health', /"ok":true/.test(cli('health').out));

@@ -48,7 +48,7 @@ The credential handling is the load-bearing part. Urfael never mounts your whole
 - The container runs as root, which maps cleanly to your host user on macOS Docker Desktop. On a Linux host you may want `--user` with a writable HOME.
 - Full capability mode (`URFAEL_YOLO=1`) gives the agent an unrestricted shell. Run that only in a VM, container, or throwaway account.
 
-The rationale (why only the auth files, why network-none is the default, the threat class this closes) is documented as Class 6 of the security benchmark. The script itself is the most honest reference: [goal-loop.sh](https://github.com/Grandillionaire/urfael/blob/main/vault-template/_urfael/goal-loop.sh).
+The rationale (why only the auth files, why network-none is the default, the threat class this closes) is documented as Class 6 of the security benchmark. The script itself is the most honest reference: [goal-loop.sh](https://github.com/maximilliangrand/urfael/blob/main/vault-template/_urfael/goal-loop.sh).
 
 ## Related
 

@@ -1,5 +1,5 @@
 # get.ps1 — one-line Urfael bootstrap for native Windows. Paste this into PowerShell:
-#   irm https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.ps1 | iex
+#   irm https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.ps1 | iex
 #
 # It installs the prerequisites for you (Node, git — via winget, built into Windows 10/11), clones Urfael to
 # ~\urfael-src, and runs the GUIDED installer (which installs the rest: ffmpeg, Claude Code, the app + Electron
@@ -27,14 +27,14 @@ Ensure 'OpenJS.NodeJS.LTS' 'Node.js (LTS)' { Have 'node' } 'https://nodejs.org'
 $dest = Join-Path $HOME 'urfael-src'
 if (Test-Path (Join-Path $dest '.git')) {
   $origin = git -C $dest remote get-url origin 2>$null
-  if ($origin -notmatch 'Grandillionaire/urfael') { Write-Host "  x  $dest exists but is not the official Urfael repo - move it aside and re-run."; exit 1 }
+  if ($origin -notmatch 'maximilliangrand/urfael') { Write-Host "  x  $dest exists but is not the official Urfael repo - move it aside and re-run."; exit 1 }
   Write-Host "  >  updating existing clone at $dest"
   git -C $dest pull --ff-only origin main
 } elseif (Test-Path $dest) {
   Write-Host "  x  $dest exists and is not a git clone - remove it and re-run:  rmdir /s /q `"$dest`""; exit 1
 } else {
   Write-Host "  >  cloning Urfael to $dest"
-  git clone --depth 1 https://github.com/Grandillionaire/urfael.git $dest
+  git clone --depth 1 https://github.com/maximilliangrand/urfael.git $dest
 }
 # hand off to the GUIDED installer — it installs ffmpeg + Claude Code + app deps, then runs setup + offers launch.
 powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $dest 'install.ps1') -Guided

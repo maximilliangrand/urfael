@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Urfael one-line bootstrap — clones (or updates) the repo over HTTPS and hands off to ./install.sh.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Grandillionaire/urfael/main/get.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.sh | bash
 #
 # This is a CONVENIENCE for parity with one-line installers. It is short on purpose so you can read it
 # (and you should — piping any script to a shell is a trust decision). It installs NOTHING risky itself:
@@ -10,7 +10,7 @@
 # ./install.sh by hand (see the README). Override the target dir with URFAEL_DIR, the source with URFAEL_REPO.
 set -euo pipefail
 
-REPO_URL="${URFAEL_REPO:-https://github.com/Grandillionaire/urfael.git}"
+REPO_URL="${URFAEL_REPO:-https://github.com/maximilliangrand/urfael.git}"
 # The clone MUST NOT be '~/urfael': macOS default APFS is case-insensitive, so '~/urfael' and the '~/Urfael'
 # vault that install.sh scaffolds are the SAME directory — the clone would masquerade as the vault and the
 # real vault would never be created (silently). 'urfael-src' matches get.ps1 and the case guard install.sh

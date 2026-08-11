@@ -4,4 +4,4 @@
 - [Features](features/overview.md)
 - [CLI reference](reference/cli.md)
 - [Security](security/model.md)
-- [GitHub](https://github.com/Grandillionaire/urfael)
+- [GitHub](https://github.com/maximilliangrand/urfael)

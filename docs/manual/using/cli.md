@@ -55,4 +55,4 @@ did you mean  urfael remind  ?
 
 The threshold is deliberately strict (distance one, with transpositions counted as one mistake). A real one-word question like `urfael "weather"` still reaches the brain untouched, and the suggestion always prints the escape hatch for forcing the word through as a literal question. `urfael help <something-unknown>` is more generous (it nudges within two edits) because you already signalled you are looking for a command.
 
-The dispatcher that backs all of this lives in [`app/cli.js`](https://github.com/Grandillionaire/urfael/blob/main/app/cli.js), with the command graph in [`app/registry.js`](https://github.com/Grandillionaire/urfael/blob/main/app/registry.js).
+The dispatcher that backs all of this lives in [`app/cli.js`](https://github.com/maximilliangrand/urfael/blob/main/app/cli.js), with the command graph in [`app/registry.js`](https://github.com/maximilliangrand/urfael/blob/main/app/registry.js).

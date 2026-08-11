@@ -6,7 +6,7 @@ Most "secure" claims in this space are adjectives. Urfael ships a command instea
 npm run security
 ```
 
-This boots the real daemon and the opt-in dashboard, then attacks them across ten real-world attack classes and prints a pass/fail table. The current pass count is printed when the benchmark runs, so read the table rather than a number quoted here. The test is one you can read: it lives at [`app/test/security-benchmark.js`](https://github.com/Grandillionaire/urfael/blob/main/app/test/security-benchmark.js).
+This boots the real daemon and the opt-in dashboard, then attacks them across ten real-world attack classes and prints a pass/fail table. The current pass count is printed when the benchmark runs, so read the table rather than a number quoted here. The test is one you can read: it lives at [`app/test/security-benchmark.js`](https://github.com/maximilliangrand/urfael/blob/main/app/test/security-benchmark.js).
 
 ## Why a benchmark and not an adjective
 
@@ -37,4 +37,4 @@ This is not a claim that Urfael is unbreakable. Nothing is. The threat model sta
 
 ## Further reading
 
-The honest version of what Urfael protects, who it protects against, and what it does not defend lives in [docs/THREAT-MODEL.md](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md). The full scorecard, with the in-the-wild incident for each class, lives in [docs/SECURITY-BENCHMARK.md](https://github.com/Grandillionaire/urfael/blob/main/docs/SECURITY-BENCHMARK.md). For the read-only vs web-reach tradeoff that classes 3 and 6 rely on, see [security/modes.md](security/modes.md). To get the daemon running first, see [start/quickstart.md](start/quickstart.md).
+The honest version of what Urfael protects, who it protects against, and what it does not defend lives in [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md). The full scorecard, with the in-the-wild incident for each class, lives in [docs/SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md). For the read-only vs web-reach tradeoff that classes 3 and 6 rely on, see [security/modes.md](security/modes.md). To get the daemon running first, see [start/quickstart.md](start/quickstart.md).

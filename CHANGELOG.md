@@ -269,5 +269,5 @@ Discord voice, the native webhook channels, and the Termux host are code-complet
 
 Initial Urfael: the unix-socket brain daemon, the CLI and TUI, the vault and git-backed memory, local voice, the channel bridges, the fail-closed security model, the Ledger of Record and Sovereign Seal, the skill hub, connectors, plugins, the Council, and the runnable security benchmark.
 
-[0.6.0]: https://github.com/Grandillionaire/urfael/releases/tag/v0.6.0
-[0.1.0]: https://github.com/Grandillionaire/urfael/releases/tag/v0.1.0
+[0.6.0]: https://github.com/maximilliangrand/urfael/releases/tag/v0.6.0
+[0.1.0]: https://github.com/maximilliangrand/urfael/releases/tag/v0.1.0

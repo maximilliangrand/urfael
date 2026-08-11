@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
-const { isPrivateHost } = require('./lib');   // single-sourced SSRF guard — shared with the relay + skill-hub egress
+const { isPrivateHost, resolveAndVetHost } = require('./lib');   // single-sourced SSRF guard — shared with the relay + skill-hub egress
 
 // Char + count budgets, mirroring memctx's bounded-block philosophy: a poisoned or huge @-target can never balloon a
 // turn. Per-ref caps bound each source; maxTotalChars bounds the whole injected block; maxRefs bounds the count.
@@ -154,7 +154,10 @@ function resolveDiff(o) {
 
 // validateUrl(raw) -> { ok, url } | { ok:false, reason }. https-ONLY + isPrivateHost — the SAME guard the relay uses.
 // Denies http://, and any loopback / RFC1918 / link-local (incl. 169.254.169.254 cloud metadata) / CGNAT host, in any
-// spelling. This is the SSRF wall and it runs BEFORE any socket is opened.
+// spelling. This is the SSRF wall and it runs BEFORE any socket is opened. It is deliberately SYNCHRONOUS, so it can
+// only judge a LITERAL: `169.254.169.254.nip.io` is a public-looking NAME and passes here. The second half of the
+// guard — resolve every A/AAAA answer, re-check it, and pin the socket to the vetted ip — lives in defaultFetch(),
+// which is the only place a socket is actually opened.
 function validateUrl(raw) {
   let u;
   try { u = new URL(String(raw || '')); } catch { return { ok: false, reason: 'invalid url' }; }
@@ -165,6 +168,10 @@ function validateUrl(raw) {
 
 // Default https fetcher: https-only, re-validates every redirect hop against the SSRF guard, text-ish content only,
 // byte-capped. Injectable via opts.fetchImpl for tests so no unit test ever touches the network.
+// The literal wall (validateUrl) is only half the guard: the hostname is then RESOLVED, every answer re-checked, and
+// the socket PINNED to the vetted ip with servername/Host preserved — so `https://169.254.169.254.nip.io/` and any
+// other public-looking name with a private A record is refused before a byte leaves, and a DNS rebind between the
+// check and the connect has nothing to re-aim. opts.resolveHost injects the resolver so tests stay offline.
 function defaultFetch(rawUrl, o, depth) {
   const d = depth || 0;
   const maxBytes = opt(o, 'maxUrlBytes');
@@ -173,31 +180,40 @@ function defaultFetch(rawUrl, o, depth) {
     const v = validateUrl(rawUrl);
     if (!v.ok) return resolve({ ok: false, reason: v.reason });
     if (d > 3) return resolve({ ok: false, reason: 'too many redirects' });
-    let https; try { https = require('https'); } catch { return resolve({ ok: false, reason: 'no https' }); }
-    let req;
-    try {
-      req = https.request({
-        hostname: v.url.hostname, port: v.url.port || 443, path: (v.url.pathname || '/') + (v.url.search || ''),
-        method: 'GET', timeout, headers: { 'User-Agent': 'urfael-refs', Accept: 'text/plain, text/markdown, application/json' },
-      }, (res) => {
-        const code = res.statusCode || 0;
-        if (code >= 300 && code < 400 && res.headers.location) {   // re-validate the hop through the SAME guard
-          res.resume();
-          let next; try { next = new URL(res.headers.location, v.url).toString(); } catch { return resolve({ ok: false, reason: 'bad redirect' }); }
-          return resolve(defaultFetch(next, o, d + 1));
-        }
-        if (code !== 200) { res.resume(); return resolve({ ok: false, reason: 'http ' + code }); }
-        const ct = String(res.headers['content-type'] || '').toLowerCase();
-        if (ct && !/^(?:text\/|application\/(?:json|xml|xhtml))/i.test(ct)) { res.resume(); return resolve({ ok: false, reason: 'refusing content-type "' + ct + '"' }); }
-        let n = 0; const chunks = [];
-        res.on('data', (c) => { n += c.length; if (n > maxBytes) { try { req.destroy(); } catch {} return; } chunks.push(c); });
-        res.on('end', () => resolve({ ok: true, body: Buffer.concat(chunks).slice(0, maxBytes).toString('utf8') }));
-        res.on('error', () => resolve({ ok: false, reason: 'stream error' }));
-      });
-    } catch { return resolve({ ok: false, reason: 'request failed' }); }
-    req.on('error', () => resolve({ ok: false, reason: 'network error' }));
-    req.on('timeout', () => { try { req.destroy(); } catch {} resolve({ ok: false, reason: 'timeout' }); });
-    try { req.end(); } catch { resolve({ ok: false, reason: 'request failed' }); }
+    // resolveAndVetHost never rejects (it fails closed to {ok:false}); the .catch is belt-and-braces so this
+    // promise can never be left unsettled — every path through the fetcher must produce a value, never a throw.
+    resolveAndVetHost(v.url.hostname, o && o.resolveHost).then((vet) => {
+      if (!vet.ok) return resolve({ ok: false, reason: vet.reason });
+      connect(vet.ip);
+    }).catch(() => resolve({ ok: false, reason: 'request failed' }));
+    // the socket is opened against the VETTED ip, never the name — servername + Host keep TLS and vhosting correct.
+    function connect(pinIp) {
+      let https; try { https = require('https'); } catch { return resolve({ ok: false, reason: 'no https' }); }
+      let req;
+      try {
+        req = https.request({
+          host: pinIp, servername: v.url.hostname, port: v.url.port || 443, path: (v.url.pathname || '/') + (v.url.search || ''),
+          method: 'GET', timeout, headers: { Host: v.url.hostname, 'User-Agent': 'urfael-refs', Accept: 'text/plain, text/markdown, application/json' },
+        }, (res) => {
+          const code = res.statusCode || 0;
+          if (code >= 300 && code < 400 && res.headers.location) {   // re-validate the hop through the SAME guard
+            res.resume();
+            let next; try { next = new URL(res.headers.location, v.url).toString(); } catch { return resolve({ ok: false, reason: 'bad redirect' }); }
+            return resolve(defaultFetch(next, o, d + 1));
+          }
+          if (code !== 200) { res.resume(); return resolve({ ok: false, reason: 'http ' + code }); }
+          const ct = String(res.headers['content-type'] || '').toLowerCase();
+          if (ct && !/^(?:text\/|application\/(?:json|xml|xhtml))/i.test(ct)) { res.resume(); return resolve({ ok: false, reason: 'refusing content-type "' + ct + '"' }); }
+          let n = 0; const chunks = [];
+          res.on('data', (c) => { n += c.length; if (n > maxBytes) { try { req.destroy(); } catch {} return; } chunks.push(c); });
+          res.on('end', () => resolve({ ok: true, body: Buffer.concat(chunks).slice(0, maxBytes).toString('utf8') }));
+          res.on('error', () => resolve({ ok: false, reason: 'stream error' }));
+        });
+      } catch { return resolve({ ok: false, reason: 'request failed' }); }
+      req.on('error', () => resolve({ ok: false, reason: 'network error' }));
+      req.on('timeout', () => { try { req.destroy(); } catch {} resolve({ ok: false, reason: 'timeout' }); });
+      try { req.end(); } catch { resolve({ ok: false, reason: 'request failed' }); }
+    }
   });
 }
 

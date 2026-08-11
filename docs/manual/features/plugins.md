@@ -51,4 +51,4 @@ Install runs six gates: fetch, static scan, sha-pin, signature verify, capabilit
 - Signing is ed25519 with trust on first use plus a sha pin. That is more than the broken registries had, but not a full provenance attestation chain. The first install of a new publisher is a human-judgement moment.
 - A plugin tool's result can still carry prompt injection back to the brain. Untrusted framing and owner-turns-only bound this risk; they do not eliminate it. It is shared by all MCP tooling.
 
-The full engineering account, including the manifest schema, the broker transport, and the test matrix, is in the repository: [docs/PLUGINS.md](https://github.com/Grandillionaire/urfael/blob/main/docs/PLUGINS.md).
+The full engineering account, including the manifest schema, the broker transport, and the test matrix, is in the repository: [docs/PLUGINS.md](https://github.com/maximilliangrand/urfael/blob/main/docs/PLUGINS.md).

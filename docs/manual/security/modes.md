@@ -46,4 +46,4 @@ These hold structurally and are asserted by `npm run security`:
 
 ## Further reading
 
-The full engineering writeup, including the per-tool comparison table and the reasoning behind excluding remote writes, lives in [docs/MODES.md](https://github.com/Grandillionaire/urfael/blob/main/docs/MODES.md) on GitHub. See also [start/quickstart.md](start/quickstart.md) to get the daemon running.
+The full engineering writeup, including the per-tool comparison table and the reasoning behind excluding remote writes, lives in [docs/MODES.md](https://github.com/maximilliangrand/urfael/blob/main/docs/MODES.md) on GitHub. See also [start/quickstart.md](start/quickstart.md) to get the daemon running.

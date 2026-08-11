@@ -42,6 +42,6 @@ Several people can use one Urfael, each a sandboxed principal through the same f
 
 ## Where to go next
 
-You now know the shape of the whole system. For the security reasoning behind these defaults, read [security/model.md](security/model.md). For the engineering, the [Threat Model](https://github.com/Grandillionaire/urfael/blob/main/docs/THREAT-MODEL.md) and the [Security Benchmark](https://github.com/Grandillionaire/urfael/blob/main/docs/SECURITY-BENCHMARK.md) lay out the attack classes and what the latest run resisted.
+You now know the shape of the whole system. For the security reasoning behind these defaults, read [security/model.md](security/model.md). For the engineering, the [Threat Model](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md) and the [Security Benchmark](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md) lay out the attack classes and what the latest run resisted.
 
-One honesty note worth repeating: macOS is the best-tested target, Linux is newer, and the live relay of the Matrix, Signal, and WhatsApp bridges is reviewed but not yet exercised against real accounts. See [What's lightly tested](https://github.com/Grandillionaire/urfael/blob/main/README.md#whats-lightly-tested) before you lean on those paths.
+One honesty note worth repeating: macOS is the best-tested target, Linux is newer, and the live relay of the Matrix, Signal, and WhatsApp bridges is reviewed but not yet exercised against real accounts. See [What's lightly tested](https://github.com/maximilliangrand/urfael/blob/main/README.md#whats-lightly-tested) before you lean on those paths.

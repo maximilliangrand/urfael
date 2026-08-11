@@ -1014,6 +1014,33 @@ function isPrivateHost(h) {
   return false;
 }
 
+// resolveAndVetHost(host, lookup) -> Promise<{ ok:true, ip } | { ok:false, reason }>. isPrivateHost() above is a
+// LITERAL classifier: a bare NAME is not private by inspection, so it returns false by design and the contract is
+// that a caller which is about to CONNECT resolves the name and re-checks every answer. Anything less is the
+// nip.io hole — `https://169.254.169.254.nip.io/` has a perfectly public-looking hostname and an A record for the
+// cloud-metadata address. It also returns the ip to PIN the socket to (host: ip + servername/Host preserved), so a
+// rebind between the check and the connect cannot re-aim the request at a different address than the one vetted.
+// FAIL-CLOSED: an empty/failed answer is a refusal, and ONE private ip in a mixed answer refuses the whole set.
+// The resolver is injectable so tests never touch the network. This is the shared implementation the outbound
+// paths use (skillhub's fetchMd and the plugin egress broker carry their own copies of the same recipe).
+function resolveAndVetHost(host, lookup) {
+  const h = String(host || '');
+  const resolve = typeof lookup === 'function' ? lookup : (name) => new Promise((res) => {
+    require('dns').lookup(name, { all: true }, (err, addrs) => res(err ? [] : (addrs || []).map((a) => a.address)));
+  });
+  return Promise.resolve()
+    .then(() => resolve(h))
+    .then((addrs) => {
+      const net = require('net');
+      const ips = (Array.isArray(addrs) ? addrs : []).map(String).filter((x) => net.isIP(x) !== 0);
+      if (!ips.length) return { ok: false, reason: 'could not resolve host: ' + h };
+      const bad = ips.find((ip) => isPrivateHost(ip));
+      if (bad) return { ok: false, reason: 'host resolves to a private/loopback ip (SSRF): ' + h + ' → ' + bad };
+      return { ok: true, ip: ips[0] };
+    })
+    .catch(() => ({ ok: false, reason: 'could not resolve host: ' + h }));
+}
+
 const HOOK_ACTIONS = ['ask', 'notify', 'relay'];
 // Normalize a hook spec from POST /hooks → { name, action, deliver, replyUrl?, replyAuth? } | null (fail-closed).
 function normalizeHook(spec) {
@@ -1388,4 +1415,4 @@ async function resolvePromptText({ argv = [], readFile, readStdin, stdinIsTTY, m
   return text;
 }
 
-module.exports = { atomicWriteJSON, resolvePromptText, classifyError, fallbackModelFor, MODELS, tierOf, classifyModel, normPinModel, capModel, routeOverride, budgetLimits, budgetState, turnCostEst, rollupUsage, segmentSentences, resolveProfile, delegateScope, narrowScope, scopedEnv, profileFor, buildRoster, resolvePrincipal, TEAM_CHANNELS, CHANNEL_MATURITY, addPrincipal, removePrincipal, normalizeReminder, normalizeCron, normalizeJobAction, normalizeScript, normalizeWatch, watchFireArgs, reapOrphanPids, pidStartMarker, pidStartMarkerAsync, stillOursProbe, makePidLedger, CHAIN_MAX, makeCronGate, dedupePending, nextOccurrence, parseCron, nextCronTime, parseDays, nextDaysTime, buildHeartbeatPrompt, HOOK_ACTIONS, normalizeHook, hashHookSecret, hookSecretOk, isPrivateHost, quarantineCorrupt, newPairCode, redeemPairCode, editDistance, suggestCommand, sparkline, parseModelDirective, parsePersonaDirective, parseCouncilDirective, moaGate, asyncCouncilGate, envOn, parseSimplexEvent };
+module.exports = { atomicWriteJSON, resolvePromptText, classifyError, fallbackModelFor, MODELS, tierOf, classifyModel, normPinModel, capModel, routeOverride, budgetLimits, budgetState, turnCostEst, rollupUsage, segmentSentences, resolveProfile, delegateScope, narrowScope, scopedEnv, profileFor, buildRoster, resolvePrincipal, TEAM_CHANNELS, CHANNEL_MATURITY, addPrincipal, removePrincipal, normalizeReminder, normalizeCron, normalizeJobAction, normalizeScript, normalizeWatch, watchFireArgs, reapOrphanPids, pidStartMarker, pidStartMarkerAsync, stillOursProbe, makePidLedger, CHAIN_MAX, makeCronGate, dedupePending, nextOccurrence, parseCron, nextCronTime, parseDays, nextDaysTime, buildHeartbeatPrompt, HOOK_ACTIONS, normalizeHook, hashHookSecret, hookSecretOk, isPrivateHost, resolveAndVetHost, quarantineCorrupt, newPairCode, redeemPairCode, editDistance, suggestCommand, sparkline, parseModelDirective, parsePersonaDirective, parseCouncilDirective, moaGate, asyncCouncilGate, envOn, parseSimplexEvent };

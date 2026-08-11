@@ -46,6 +46,7 @@ function defaultDenyGlobs() {
   return [
     H('.claude'), H('.ssh'), H('.aws'), H('.gnupg'), H('.config/gcloud'),
     H('.netrc'), H('.npmrc'), H('.git-credentials'),
+    H('.kube'), H('.docker'), H('.pgpass'), H('.terraform.d'),
     H('.zshrc'), H('.zprofile'), H('.bashrc'), H('.bash_profile'), H('.profile'), H('.zshenv'),
     H('.config'), H('Library/LaunchAgents'), H('Library/LaunchDaemons'),
     H('bin'), H('.local/bin'),

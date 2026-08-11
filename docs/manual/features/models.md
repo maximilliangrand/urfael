@@ -28,7 +28,7 @@ urfael model route --for cost       # recommend the best provider for a priority
 
 `urfael model use` shows a preview first: the target endpoint, the model each tier maps to, the proxy hint, and any secret it needs. A `key`-auth provider prompts for the secret with no echo. Nothing is written until you confirm. The switch then writes `provider.env` (mode `0600`) and restarts the daemon so every spawn re-sources it. Live turns, chat, cron, and the heartbeat all move to the new backend, not just the foreground.
 
-The curated registry ships in [config/providers.json](https://github.com/Grandillionaire/urfael/blob/main/config/providers.json) with **30 named providers**: Claude (native, Bedrock, Vertex), OpenAI, Azure, Gemini, xAI Grok, GitHub Copilot, OpenRouter, DeepSeek, Mistral, Groq, Cerebras, Fireworks, Together, Perplexity, NVIDIA NIM, Novita, Hugging Face, Qwen, Kimi, GLM, MiniMax, the local servers (Ollama, LM Studio, vLLM, llama.cpp, Jan), and the proxies (claude-code-router, LiteLLM). OpenRouter alone reaches 300+ models on one key, so the total reach matches the broadest agents, while staying honest that reach is not hosting. Point `URFAEL_PROVIDERS_INDEX` at your own JSON (same schema) to replace it.
+The curated registry ships in [config/providers.json](https://github.com/maximilliangrand/urfael/blob/main/config/providers.json) with **30 named providers**: Claude (native, Bedrock, Vertex), OpenAI, Azure, Gemini, xAI Grok, GitHub Copilot, OpenRouter, DeepSeek, Mistral, Groq, Cerebras, Fireworks, Together, Perplexity, NVIDIA NIM, Novita, Hugging Face, Qwen, Kimi, GLM, MiniMax, the local servers (Ollama, LM Studio, vLLM, llama.cpp, Jan), and the proxies (claude-code-router, LiteLLM). OpenRouter alone reaches 300+ models on one key, so the total reach matches the broadest agents, while staying honest that reach is not hosting. Point `URFAEL_PROVIDERS_INDEX` at your own JSON (same schema) to replace it.
 
 ## Routing: the right provider for the job
 
@@ -59,7 +59,7 @@ The safety harness is unchanged by the provider switch. Allowlisting, the read-o
 
 Native, non-CLI provider support is not a goal. It would mean dropping the `claude`-CLI harness that keeps Urfael fast, free on your plan, and on the right side of Anthropic's terms.
 
-For a fully local, air-gapped setup (Ollama / LM Studio / vLLM via that same proxy, plus the already-local voice), see [guides/local-gpu.md](guides/local-gpu.md). The provider engine itself is pure and unit-tested; read it at [app/providers.js](https://github.com/Grandillionaire/urfael/blob/main/app/providers.js).
+For a fully local, air-gapped setup (Ollama / LM Studio / vLLM via that same proxy, plus the already-local voice), see [guides/local-gpu.md](guides/local-gpu.md). The provider engine itself is pure and unit-tested; read it at [app/providers.js](https://github.com/maximilliangrand/urfael/blob/main/app/providers.js).
 
 ## Related
 

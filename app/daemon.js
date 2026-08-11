@@ -40,7 +40,7 @@ const crypto = require('crypto');
     }
   } catch {}
 })();
-const { MODELS, classifyError, fallbackModelFor, classifyModel, normPinModel, capModel, routeOverride, budgetLimits, budgetState, rollupUsage, segmentSentences, resolveProfile, delegateScope, narrowScope, scopedEnv: libScopedEnv, profileFor, normalizeHook, hashHookSecret, hookSecretOk, isPrivateHost, buildHeartbeatPrompt, addPrincipal, TEAM_CHANNELS, newPairCode, redeemPairCode, parseModelDirective, parsePersonaDirective, parseCouncilDirective, moaGate, asyncCouncilGate, envOn, watchFireArgs, makeCronGate, dedupePending, makePidLedger } = require('./lib');
+const { MODELS, classifyError, fallbackModelFor, classifyModel, normPinModel, capModel, routeOverride, budgetLimits, budgetState, rollupUsage, segmentSentences, resolveProfile, delegateScope, narrowScope, scopedEnv: libScopedEnv, profileFor, normalizeHook, hashHookSecret, hookSecretOk, isPrivateHost, resolveAndVetHost, buildHeartbeatPrompt, addPrincipal, TEAM_CHANNELS, newPairCode, redeemPairCode, parseModelDirective, parsePersonaDirective, parseCouncilDirective, moaGate, asyncCouncilGate, envOn, watchFireArgs, makeCronGate, dedupePending, makePidLedger } = require('./lib');
 const personas = require('./personas');
 const selfset = require('./self-settings');   // self-rewrite pillar: parse+validate+audit cosmetic self-settings (allowlist-gated)
 const recall = require('./recall');
@@ -1568,13 +1568,19 @@ function postReply(url, auth, text) {
     const u = new URL(url);
     if (u.protocol !== 'https:' && u.protocol !== 'http:') return;
     if (isPrivateHost(u.hostname)) { logEvent({ ev: 'relay_blocked', why: 'private_host' }); return; } // SSRF: never POST to loopback/RFC1918/metadata, even if a corrupt registry slipped one in
-    const body = JSON.stringify({ text: String(text || '(no reply)').slice(0, 3500) });
-    const mod = u.protocol === 'https:' ? require('https') : require('http');
-    const headers = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) };
-    if (auth) headers.Authorization = auth;
-    const req = mod.request({ hostname: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80), path: (u.pathname || '/') + (u.search || ''), method: 'POST', headers, timeout: 15000 }, (res) => res.resume());
-    req.on('error', () => {}); req.on('timeout', () => { try { req.destroy(); } catch {} });
-    req.end(body);
+    // isPrivateHost is a LITERAL check, so it alone would let `http://127.0.0.1.nip.io:7777/` through — a public
+    // -looking NAME with a loopback A record. Resolve it, re-check every answer, and PIN the socket to the vetted
+    // ip (servername + Host preserved) exactly as the skill-hub fetcher does, so a rebind has nothing to re-aim.
+    resolveAndVetHost(u.hostname).then((vet) => {
+      if (!vet.ok) { logEvent({ ev: 'relay_blocked', why: 'private_host_resolved' }); return; }
+      const body = JSON.stringify({ text: String(text || '(no reply)').slice(0, 3500) });
+      const mod = u.protocol === 'https:' ? require('https') : require('http');
+      const headers = { Host: u.hostname, 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) };
+      if (auth) headers.Authorization = auth;
+      const req = mod.request({ host: vet.ip, servername: u.hostname, port: u.port || (u.protocol === 'https:' ? 443 : 80), path: (u.pathname || '/') + (u.search || ''), method: 'POST', headers, timeout: 15000 }, (res) => res.resume());
+      req.on('error', () => {}); req.on('timeout', () => { try { req.destroy(); } catch {} });
+      req.end(body);
+    }).catch(() => {});
   } catch {}
 }
 // Shared post-completion: release the single-flight (draining one deferred fire, if any), deliver the result, then
@@ -1837,6 +1843,11 @@ function deliverWatch(w, meta) {
 // outside active hours, so Urfael never talks over you or pipes up at 3am.
 const HB_MINS = Math.max(0, parseInt(process.env.URFAEL_HEARTBEAT_MINS, 10) || 0);
 const HB_HOURS = process.env.URFAEL_HEARTBEAT_HOURS || '8-23';
+// How long after your last local turn the heartbeat stays quiet, so it never talks over a live conversation.
+// 10 minutes is the default and the right value for daily use; it is a knob because a run that converses
+// continuously (the e2e harness) would otherwise suppress the heartbeat for its entire duration and could never
+// observe it. Explicit 0 = no quiet window. Unset → 10.
+const HB_QUIET_MS = (() => { const v = parseInt(process.env.URFAEL_HEARTBEAT_QUIET_MINS, 10); return (Number.isFinite(v) ? Math.max(0, v) : 10) * 60000; })();
 const PREDICT_ON = process.env.URFAEL_PREDICT === '1';  // opt-in: the heartbeat also acts on USER.md "likely next" predictions (surface-only)
 let lastBeat = 0, lastLocalTurn = 0, beating = false;
 
@@ -1860,22 +1871,29 @@ async function heartbeat() {
   if (!HB_MINS || beating) return;
   const now = Date.now();
   if (now - lastBeat < HB_MINS * 60000 || !hoursOk()) return;
-  if (now - lastLocalTurn < 10 * 60000) return;                       // owner active recently — stay quiet
+  if (now - lastLocalTurn < HB_QUIET_MS) return;                      // owner active recently — stay quiet
   const s = sessions.get(providerSessions.sessionKey(MODELS.sonnet, ''));   // the legacy warm sonnet bucket (providerId '')
   if (s && (s.current || s.queue.length)) return;                     // session busy — try next tick
   lastBeat = now; beating = true;
   const prompt = buildHeartbeatPrompt({ predictive: PREDICT_ON }); // opt-in: also prepare ripe USER.md "likely next" predictions (surface only)
-  // The heartbeat reads UNTRUSTED content (email/calendar), so it runs as a sandboxed one-shot with NO egress
-  // tool — WebFetch/WebSearch/Bash are disallowed (Claude Code deny removes them entirely), and the vault
-  // settings.json denies reading the credential stores. So an injected "read a secret and send it out" has
-  // neither a secret to read nor a channel to send it. MCP connectors (calendar/email) stay available (no
-  // --strict-mcp-config) so it can still do its job. The reply still reaches only YOU (notifyOwner).
+  // The heartbeat reads UNTRUSTED content (email/calendar) — it is the one spawn DESIGNED to ingest attacker-supplied
+  // text — so it runs as a sandboxed READ-ONLY one-shot: no egress tool (WebFetch/WebSearch/Bash) and, just as
+  // importantly, NO WRITE tool (Write/Edit/NotebookEdit/Task). Claude Code's deny removes them entirely, so an injected
+  // "rewrite the daemon you run under" has no file tool to do it with — acceptEdits is not a cwd jail, and the vault
+  // settings.json cannot deny a path it does not know about (an Urfael source checkout lives wherever the owner cloned it).
+  // Task is denied too: a sub-agent would otherwise inherit a fresh, unrestricted tool set.
+  // The vault settings.json denies reading the credential stores, and scopedEnv() (NOT the daemon's full process.env)
+  // means the child never even sees the daemon's bridge/API secrets. MCP connectors (calendar/email) stay available
+  // (no --strict-mcp-config) so it can still do its job — connector secrets live in the MCP server config, not in this
+  // env — which is a real, owner-chosen egress surface and the reason the write/read denies above have to hold.
+  // The reply still reaches only YOU (notifyOwner).
   const args = ['-p', prompt, '--model', MODELS.sonnet, '--permission-mode', 'acceptEdits', '--output-format', 'json',
-    '--disallowedTools', 'WebFetch', '--disallowedTools', 'WebSearch', '--disallowedTools', 'Bash'];
+    '--disallowedTools', 'WebFetch', '--disallowedTools', 'WebSearch', '--disallowedTools', 'Bash',
+    '--disallowedTools', 'Write', '--disallowedTools', 'Edit', '--disallowedTools', 'NotebookEdit', '--disallowedTools', 'Task'];
   let out = '';
   try {
     const reply = await new Promise((resolve) => {
-      const p = spawn(CLAUDE_BIN, CLAUDE_PRE.concat(args), { cwd: VAULT, env: { ...process.env, URFAEL_OVERLAY: '1' }, stdio: ['ignore', 'pipe', 'ignore'] });
+      const p = spawn(CLAUDE_BIN, CLAUDE_PRE.concat(args), { cwd: VAULT, env: scopedEnv(), stdio: ['ignore', 'pipe', 'ignore'] });
       p.stdout.on('data', (d) => { out += d.toString(); if (out.length > 2000000) out = out.slice(-2000000); });
       const t = setTimeout(() => { try { p.kill('SIGKILL'); } catch {} }, 120000);
       p.on('exit', () => { clearTimeout(t); let r = ''; try { const j = JSON.parse(out); r = typeof j.result === 'string' ? j.result : ''; } catch {} resolve(r.trim()); });
@@ -3366,9 +3384,27 @@ probe.on('timeout', () => { probe.destroy(); listen(); });
 probe.end();
 function shutdown() { try { persistRecallIndex(); } catch {} if (councilAbort) { try { councilAbort(); } catch {} } try { stopAllBrokerds(); } catch {} for (const s of sessions.values()) { try { s.proc && s.proc.kill('SIGKILL'); } catch {} } for (const p of inflightScoped) { try { p.kill('SIGKILL'); } catch {} } try { fs.unlinkSync(SOCK); } catch {} process.exit(0); }
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
-// RESILIENCE: the daemon is the always-on brain; a single unguarded callback throw (a render glitch, a malformed
-// inbound message, a timer that hits a bad state) must NOT take it down and disconnect every surface. Log it loudly
-// to the audit + telemetry and KEEP RUNNING. This is the daemon analogue of the caretFor lesson: an uncaught throw
-// in any of the dozens of timer/stream/socket callbacks should degrade to one logged error, not a dead brain.
-process.on('uncaughtException', (e) => { try { logEvent({ ev: 'daemon_uncaught', err: String((e && e.stack) || e).slice(0, 800) }); } catch {} });
-process.on('unhandledRejection', (e) => { try { logEvent({ ev: 'daemon_unhandled_rejection', err: String((e && (e.stack || e.message)) || e).slice(0, 800) }); } catch {} });
+// RESILIENCE, THE SUPERVISED WAY. These handlers used to log the throw and KEEP RUNNING — which sounds resilient and
+// is the opposite. An exception can unwind out of a handler that already mutated shared state (a half-registered
+// `sessions` entry, a child still in `inflightScoped`, a partially written jobstore record, a cron single-flight
+// never released), and the daemon would then serve every later request against that torn state indefinitely, with no
+// crash, no restart, and nothing visible but one line in urfael.log. Worse, BOTH supervisors restart on a NONZERO
+// exit only (systemd `Restart=on-failure`, launchd `KeepAlive/SuccessfulExit=false`), so swallowing the error
+// guaranteed the one event that would have produced a clean address space could never happen.
+// For the process that holds the 0600 socket and arbitrates every permission decision, the correct shape is: log it
+// loudly, REAP the children so none are orphaned, release the socket, and exit(1) — let the supervisor restart us
+// clean. (The recall index is deliberately NOT persisted here: it is a rebuildable cache, and writing it from
+// unknown-state memory would persist the corruption across the restart.)
+let dying = false;
+function fatal(ev, e) {
+  if (dying) return; dying = true;                                     // a throw inside this handler must not recurse
+  try { logEvent({ ev, err: String((e && (e.stack || e.message)) || e).slice(0, 800) }); } catch {}   // appendFileSync — already flushed
+  try { if (councilAbort) councilAbort(); } catch {}
+  try { stopAllBrokerds(); } catch {}
+  for (const s of sessions.values()) { try { s.proc && s.proc.kill('SIGKILL'); } catch {} }
+  for (const p of inflightScoped) { try { p.kill('SIGKILL'); } catch {} }
+  try { fs.unlinkSync(SOCK); } catch {}
+  process.exit(1);
+}
+process.on('uncaughtException', (e) => fatal('daemon_uncaught', e));
+process.on('unhandledRejection', (e) => fatal('daemon_unhandled_rejection', e));

@@ -58,6 +58,6 @@ The pure orchestration (the speaker gate, the speech shaping, the listen/think/s
 
 - The default voice tier installs with `brew install ffmpeg whisper-cpp` on macOS (Linux: `ffmpeg` plus `espeak-ng`, and build whisper.cpp).
 - Configurable values (`SAY_VOICE`, `SAY_RATE`, `TTS_PROVIDER`, `STT_PROVIDER`, `WHISPER_MODEL`, `KOKORO_VOICE`, `WAKE_KEYWORD`) live in `~/.claude/urfael/bridge.env` and several are settable from Settings.
-- Full voice setup, including the Kokoro and ElevenLabs tiers, is in [SETUP.md on GitHub](https://github.com/Grandillionaire/urfael/blob/main/docs/SETUP.md).
+- Full voice setup, including the Kokoro and ElevenLabs tiers, is in [SETUP.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/docs/SETUP.md).
 
 See also start/quickstart.md to get the Console running, and features/memory.md for how spoken turns are archived and recalled like any other.
