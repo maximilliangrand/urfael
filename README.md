@@ -14,7 +14,7 @@ It listens and speaks locally, sandboxes every autonomous action fail-closed, al
 [![Linux](https://img.shields.io/badge/Linux-newer-3a2d18?style=flat-square)](#install)
 [![No API key to start](https://img.shields.io/badge/API_key-not_required-7a5c28?style=flat-square)](#voice)
 [![No inbound port](https://img.shields.io/badge/inbound_port-none-2ea44f?style=flat-square)](#security)
-[![Security benchmark](https://img.shields.io/badge/security_benchmark-10%2F10_attack_classes-2ea44f?style=flat-square)](docs/SECURITY-BENCHMARK.md)
+[![Security benchmark](https://img.shields.io/badge/security_benchmark-11%2F11_attack_classes-2ea44f?style=flat-square)](docs/SECURITY-BENCHMARK.md)
 [![License](https://img.shields.io/badge/license-MIT-9a7434?style=flat-square)](LICENSE)
 
 <br/>
