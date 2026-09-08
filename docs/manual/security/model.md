@@ -1,44 +1,23 @@
-# The security model
+# Security model
 
-Self-hosted agents got owned in 2026 because they listened where attackers could reach them and ran untrusted content with real power. Urfael inverts both. This page is the moat in plain terms. Every claim matches what the code does, and where a control is opt-in or off by default, it says so.
+The daemon endpoint uses local IPC: a `0600` Unix socket on macOS/Linux and a token-authenticated named pipe on Windows. It does not listen on TCP.
 
-## The brain has no port
+Optional dashboard and API services open token-gated TCP listeners on `127.0.0.1`. Webhook, WhatsApp, and PSTN receivers also open loopback listeners, using per-hook secrets or provider signatures and sender checks. Local processes can reach these ports. User-configured tunnels or proxies can make them externally reachable.
 
-The brain is a local Node daemon. It speaks to every surface (mic, Console, CLI, TUI, orb) over a single UNIX socket at `$JDIR/daemon.sock`, mode `0600` so only your user can connect. There is no TCP port on the brain. A network scanner finds nothing, because nothing is listening on the network.
+## Remote turns
 
-The topology is one-way. Urfael reaches out: it drives your local `claude` login as warm subprocesses, and the chat bridges poll their APIs outbound. Nothing reaches in.
+Bridges check the sender against the configured roster before invoking the model. Profile resolution fails closed for unknown profiles. Default Fortress mode offers read/search tools without shell, write, or web access; Full mode adds web tools for remote owner/member turns. Scoped sessions use strict MCP configuration, and credential-deny rules restrict sensitive paths.
 
-Three HTTP surfaces are opt-in and bind `127.0.0.1` only: the web dashboard (`urfael dashboard`), the OpenAI-compatible API (`urfael serve`), and the webhook receiver. Each is loopback-only and token or secret gated: reachable from your own machine, not from the LAN or the internet. The genuinely inbound surfaces (the optional WhatsApp bridge and the webhook receiver) are opt-in, HMAC or per-hook-secret verified, and tunnel-it-yourself. Neither opens a port on your behalf.
+Messages are framed as untrusted data. This helps separate instructions from content but does not guarantee immunity to prompt injection. Tool restrictions cannot prevent every harmful response or disclosure of readable data. See [Fortress vs Full](modes.md) and [team mode](team.md).
 
-## Allowlisted before the brain, then sandboxed
+## Autonomous work and integrations
 
-Every message from a chat channel (Telegram, Discord, Slack, iMessage, Email, Matrix, Signal, WhatsApp) is checked against your id and dropped plus audited otherwise, before a single token reaches the model.
+The goal loop has execution caps and cancellation, but it can run on the host. Select Docker explicitly for its network and mount isolation, or SSH for execution on another host. `URFAEL_YOLO=1` enables unrestricted shell access and requires a deliberately isolated environment if untrusted input is involved.
 
-A message that passes the allowlist still runs in a read-only sandbox. The profile resolution in `app/lib.js` (`resolveProfile` / `profileFor`) is fail-closed: any unknown or non-string profile name resolves to the most restricted `untrusted` profile, never `local`. A remote turn gets Read, Grep, and Glob over your vault only. No write, no shell, no network egress. The message text is wrapped in a nonce-framed envelope marked as untrusted data, not instructions.
+Connectors and plugins carry their own authority. Static scans, previews, and consent hashes help review an installation; they do not prove code is safe. Brain-tools-only plugin servers can run as ordinary local processes with owner privileges. Read the [residual risks](../../THREAT-MODEL.md).
 
-The result: an injected "read a secret and POST it out" has nothing to read and nowhere to send. The containment is structural, not prompt-engineered.
+## Evidence
 
-## Autonomous work runs throwaway
+The project maintains unit regressions, fuzzing, SSRF tests, and manual live-daemon harnesses. They are self-authored checks, not an independent security audit. The security source has 11 groups and 128 check call sites; this is not a newly verified pass count. The live security and end-to-end harnesses are excluded from credential-free CI.
 
-The `/goal` loop can edit and commit code on its own. It runs with iteration, wall-clock, and stale caps, a kill switch, and never pushes. Beyond a trusted local repo, run it sandboxed:
-
-- `--sandbox docker`: a throwaway container, `--network none`, with only your `claude` auth files staged in. Your `bridge.env` and any API keys are never mounted.
-- `--sandbox ssh`: a remote box, again with no secrets mounted.
-
-Supervise the first run. Full capability mode (`URFAEL_YOLO=1`) gives the agent an unrestricted shell that also reads untrusted web and email; run that only in a VM, container, or throwaway account.
-
-## The vault denies the credential stores
-
-The spawned `claude` subprocess runs against a vault whose permissions deny reading `~/.claude` and `~/.ssh` outright. This is a hard boundary that holds even in YOLO mode: the agent cannot read your credential stores no matter what it is asked to do.
-
-## Secure by default
-
-Urfael ships in Fortress mode. No unrestricted shell, no computer-use, remote turns read-only with no egress. You turn power on deliberately. Opting into Full mode widens remote owner and member turns to web reach while keeping no-shell, no-bypass, framing, and the credential-deny in place, so even Full mode stays contained. See [Fortress vs Full](security/modes.md).
-
-Multiple people can use one instance, each a sandboxed principal through the same fail-closed kernel, where a role can only narrow access, never escalate. `urfael audit` gives an auditor the who, when, and what. See [Team mode](security/team.md).
-
-## Proof, not adjectives
-
-`npm run security` boots the real daemon and dashboard and attacks them the way self-hosted agents were attacked in the wild: network exposure, prompt-injection key exfil, malicious skills, runaway autonomous turns, DoS, and more. The latest run resists 11 of 11 attack classes across 128 checks. Several controls are also frozen as adversarial regression tests under `app/test/*.test.js`, so a refactor cannot quietly reopen a closed hole.
-
-This is a personal tool with a small user base, so it has had far less adversarial scrutiny than a large deployment. We say so plainly. The threat model also states the residual risks Urfael does not cover (a host already compromised, a sandbox you widen yourself, the model provider you point at). Read the full version in [Threat model and benchmark](security/threat-model.md), or the full file on GitHub at [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md).
+See [benchmark scope and limitations](threat-model.md) before interpreting or running the tests.

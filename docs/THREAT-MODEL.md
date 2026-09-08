@@ -1,46 +1,47 @@
-# Urfael Threat Model
+# Urfael threat model
 
-The honest version: what Urfael protects, who it protects against, what it does *not* defend, and how each
-control is verified. Paired with the runnable [Security Benchmark](SECURITY-BENCHMARK.md) (`npm run security`).
+This describes intended controls and residual risks, supported by project-maintained tests. It is not an independent security assessment. The [benchmark](SECURITY-BENCHMARK.md) documents what the self-authored harness actually checks.
 
-## What we're protecting (assets)
+## Assets
 
-1. **Your machine** — the host Urfael runs on, and everything on it.
-2. **Your secrets** — the vault, `~/.claude/urfael/*.env` (bridge tokens, optional API keys), your `claude` login.
-3. **Your Claude subscription** — used only for your own ordinary use; never bundled, pooled, or proxied for others.
-4. **Your trust** — that Urfael does what it says and tells you what it doesn't know.
+The host and its files, vault and memory, provider credentials, bridge/API tokens, and the integrity of responses and audit records.
 
 ## Trust boundaries
 
-| Zone | Trust | Reaches |
-|---|---|---|
-| **The owner** — you, at the mic / Console / CLI | Full | the daemon over a `0600` unix socket (no port) |
-| **The brain** — warm `claude` sessions | Acts as you, with the permission mode you set | the vault, your tools/MCP, your `claude` login |
-| **Remote channels** — Telegram/Discord/Slack/iMessage/Email/Matrix/Signal/WhatsApp | **Untrusted** until allowlisted to your id; then **sandboxed read-only** | read + search the vault only — no shell, write, or network egress |
-| **Untrusted content** — email bodies, web pages, calendar entries, foreign skills, anything the agent reads | **Hostile by assumption** | nothing directly; framed as data, never instructions |
-| **The network** (LAN / internet) | **Hostile** | nothing — the daemon opens no port; opt-in dashboard/API are loopback-only |
+| Zone | Authority and exposure |
+|---|---|
+| Local owner | Can reach daemon IPC and enable powerful tools; processes running as the owner share much of that authority |
+| Daemon endpoint | `0600` Unix socket on macOS/Linux; authenticated named pipe on Windows; no core TCP listener |
+| Dashboard / API | Optional token-gated TCP listeners on `127.0.0.1` |
+| Webhook / WhatsApp / PSTN receivers | Optional loopback TCP listeners; per-hook secrets or provider signatures and sender checks; external delivery requires a user-configured tunnel/proxy |
+| Remote senders | Allowlisted before model use; Fortress read-only profile by default; Full mode adds web tools for owner/member turns |
+| Model and connectors | Receive the data provided to them and act through configured permissions |
+| Untrusted content | May contain prompt injection, malicious code, or sensitive data; framing does not make it harmless |
 
-## Adversaries & controls
+Loopback is a binding choice, not absence of an attack surface. Local clients can connect, and tunnels/proxies change external reachability. Authentication still matters. Outbound provider and bridge connections also carry data across the host boundary.
 
-- **A network attacker / worm** scanning for exposed agents → there's nothing to find: the brain is a unix socket; the opt-in HTTP surfaces bind `127.0.0.1` only and are token-gated. *(Benchmark class 1, 2, 5.)*
-- **A prompt injector** hiding instructions in an email/web page/calendar invite the agent reads → remote turns run a read-only profile with no egress tool, content is nonce-framed as untrusted, and the sender allowlist can't be spoofed or coerced. *(Class 3.)*
-- **A malicious skill author** (the poisoned-registry failure) → skills are scanned, previewed, never auto-installed when flagged, never executed; install refuses SSRF; migration scans foreign skills too. *(Class 4.)*
-- **A runaway / injected autonomous turn** with a shell → it runs in a Docker sandbox that mounts only the claude auth files (never your secret store) and is network-isolated by default; the goal loop is iteration/wall/stale-capped and never pushes. *(Class 6.)*
-- **A local process without the token** trying to drive the dashboard/API → constant-time token, loopback-only, Host-allowlisted; rate-limited; no path from the URL. *(Class 2, 5.)*
-- **A misconfiguration** exposing more than intended → fail-closed defaults: unknown channels get the most-restricted profile; the unrestricted shell is opt-in and logged. *(Class 7.)*
+## Adversaries and controls
+
+- **Network attacker:** local IPC for the core endpoint; loopback binding and authentication for optional HTTP services. Verify every enabled service and proxy, not just the daemon process.
+- **Prompt injector or unauthorized sender:** provider verification where applicable, sender allowlists, restricted tool profiles, strict MCP configuration, credential-deny rules, and untrusted-data framing.
+- **Malicious skill/plugin author:** static scans, capability previews, consent and hash checks. Static analysis is heuristic; some plugin processes run with owner privileges, as described below.
+- **Runaway autonomous work:** iteration/time caps and cancellation. Docker network and mount restrictions apply when Docker is explicitly selected; host execution and SSH have different boundaries.
+- **Malformed or excessive requests:** input validation, body limits, and rate controls on covered endpoints. Regression tests exercise selected cases, not all possible denial-of-service behavior.
 
 ## What we do NOT defend against (residual risk — stated, not hidden)
 
 - **A compromised host.** If malware already runs as you, it can read the same `0600` files Urfael uses. Urfael shrinks blast radius; it is not a rootkit detector.
 - **`URFAEL_YOLO=1`.** Opt-in unrestricted-shell mode is, by design, an unrestricted shell that also reads untrusted web/email. The docs say in every relevant place: run it only in a VM / container / throwaway account.
-- **A widened sandbox.** If you add `WebFetch`/`Write` to the remote profile (documented as an opt-in widening) you re-open an egress/write path. The default is closed; widen deliberately.
-- **The model itself.** Urfael structurally prevents an injected instruction from *acting* (no egress, no shell on untrusted turns), but it can't guarantee the model never produces wrong text. The containment is structural, not behavioral.
-- **The connectors you enable.** Calendar/Gmail/desktop MCPs you turn on carry their own permissions; Urfael drafts email and never sends, but you own what you connect.
-- **The model provider you point at.** The sandbox is harness-enforced, so it holds whatever model answers — but the provider *processing* a turn inherently sees that turn. A **fully-local** model (Ollama/LM Studio on your box) means nothing leaves the machine; a **remote** proxy/provider (OpenRouter, a hosted endpoint) sees your prompts, exactly as using that API directly would. The sandbox stops the *agent* from exfiltrating beyond the turn; it can't unsee what you send it. Choose the provider accordingly.
+- **A widened sandbox.** Full mode adds web tools to remote owner/member turns. Custom profile edits or additional capabilities can introduce further egress or write paths. The default is closed; widen deliberately.
+- **The model itself.** Tool restrictions limit what a model can do; they do not guarantee that it ignores prompt injection or avoids disclosing readable data in an allowed reply.
+- **The connectors you enable.** Calendar/Gmail/desktop MCPs you turn on carry their own permissions; the email bridge is draft-only, but other connectors may have send or write permissions.
+- **The model provider you point at.** The provider processing a turn receives its content. A local model can keep inference on your machine, but enabled bridges, connectors, or cloud voice can still send data out. A remote proxy or provider receives your prompts as it would through direct API use. Tool restrictions do not hide the turn from its provider, and their effectiveness depends on the configured execution path.
 - **A brain-tools-only plugin's server process.** A plugin that requests *only* LLM-visible tools (no fs/net/exec/secret grant) is spawned as a plain local stdio process, not inside the Docker cell — the cell confines a host-reaching grant, not the tool server itself. It has no *granted* capabilities, but the server code runs with your privileges, like any program you launch. Installing one is a trust decision; the capability preview labels it "not sandboxed" so the choice is explicit. Host-reaching plugins (fs/net/exec/secret) always run in the `--network none` cell or refuse to enable.
 - **Install-time plugin signature verification.** Install today is static-scan + capability preview + consent, and the consented manifest is sha-pinned so a post-consent edit is refused at enable. Verifying a publisher's ed25519 signature *at install* (the primitive ships and is tested) is not yet wired into the install path; until it is, the first install of a publisher is a human-judgement moment, and tamper-evidence across the network depends on the registry sha-pin, not a signature check.
 - **Scale.** This is a personal tool with a small user base — far less adversarial scrutiny than a 100k-deployment project. We say so plainly.
 
 ## Verification
 
-Every control above maps to a check in `npm run security` (the [benchmark](SECURITY-BENCHMARK.md)) and/or a frozen regression test under `app/test/*.test.js` (allowlist bypass, IMAP injection, SSRF, malware scan, fail-closed profiles, DoS). Several of those tests were written *from* findings of Urfael's own internal adversarial review — the holes were found and closed, then nailed shut so a refactor can't reopen them.
+The repository includes unit regressions, fuzzing, SSRF tests, and manual live harnesses. Some checks call enforcement functions; others inspect source text or issue live requests. The security benchmark source defines 11 groups and 128 check call sites. This count is not evidence of a passing run or complete coverage of this threat model.
+
+See [benchmark limitations](SECURITY-BENCHMARK.md) and [CI configuration](../.github/workflows/ci.yml). A second model used for task verification is separate from the authoring model, but does not constitute an independent security audit.

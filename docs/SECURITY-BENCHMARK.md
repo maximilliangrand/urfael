@@ -1,46 +1,49 @@
-# The Urfael Security Benchmark
+# Urfael security benchmark
 
-> Most "secure" claims in this space are adjectives. This one is a command:
->
-> ```bash
-> npm run security
-> ```
->
-> It boots the real daemon and dashboard and attacks them the way the wild did — then prints a pass/fail
-> table. As of the latest run: **11/11 real-world attack classes resisted · 128/128 checks passed.**
+This is a **self-authored regression harness**, not an independent audit, penetration test, or certification. It combines live daemon/dashboard requests, direct calls to modules, and assertions about source text. A passing check supports the particular condition tested; it does not prove that a whole attack class is prevented.
 
-Self-hosted AI agents were not compromised hypothetically in 2026. Public reporting documented real ones:
+## Running it
 
-- **A one-click RCE in a widely used agent** leaked its gateway auth token over a WebSocket, then drove the agent.
-- **Exposed agent gateways were found in the tens of thousands**, reachable from the open internet.
-- **A popular skill registry was caught serving stealers** and token-exfiltration payloads.
-- **Private-key exfiltration via a single poisoned email** delivered to a linked inbox.
+From the repository's `app/` directory:
 
-Urfael was designed against exactly these. The benchmark proves it, defense by defense, with the test you can read in [`app/test/security-benchmark.js`](../app/test/security-benchmark.js).
+```bash
+npm run security
+```
 
-## The scorecard
+Read [the harness](../app/test/security-benchmark.js) first. It starts a real daemon and dashboard, uses your local `~/.claude/urfael` state and socket, replaces test vault data, and removes the dashboard token during setup. It can interfere with an existing instance and may consume turns through your authenticated Claude Code login. Use a disposable test account/environment with the required credentials and platform tools.
 
-| # | Attack class | What happened in the wild | Urfael's answer | Proven by |
-|---|---|---|---|---|
-| 1 | **Network exposure** | Agent gateways reachable from the internet, reported in the tens of thousands | The brain listens on a **unix socket only** — zero TCP ports. The opt-in dashboard/API bind `127.0.0.1` only. | `lsof` shows 0 TCP listeners for the daemon; socket is `0600` |
-| 2 | **Auth-token leak → RCE** | A one-click RCE leaked a gateway token to a malicious page | Tokens are **constant-time compared**, **never logged**, stored `0600`; cross-origin `Host` rejected (anti-rebinding); no token in any URL | wrong/empty/rebind requests → 401/400; token never appears in stdout |
-| 3 | **Prompt-injection exfiltration** | A poisoned email made the agent leak a private key | Remote turns run a **read-only profile** (Read/Grep/Glob — no shell, no write, **no network-egress tool**), nonce-framed; the vault **denies the agent reading credential stores** (a hard boundary that beats even YOLO); the heartbeat (which reads untrusted email) has **no egress tool**; the cron sandbox is read/fetch-only. So an injected "read a secret and send it out" has nothing to read and nowhere to send | 9 coercion attempts → `untrusted`; forged `From:` blocked; `permissions.deny` on `~/.claude`/`~/.ssh`; heartbeat disallows WebFetch/Search/Bash |
-| 4 | **Poisoned skill / supply chain** | A popular skill registry was caught serving malware | Skills are **previewed + statically scanned** before install (curl\|sh, reverse shells, persistence into shell-rc / cron / agent-identity files, LLM base-url hijack, install-lifecycle hooks, `--dangerously-skip-permissions`, exfil URLs, hidden unicode), **never auto-installed when flagged**, **never executed**; one obfuscation layer is **decoded and re-scanned** so a base64- or `\xNN`-wrapped payload is judged on its real bytes instead of read as clean text; install refuses SSRF redirects; migrated foreign skills are scanned too | the scanner + `installFromUrl` SSRF guard + `--force` can't bypass the malware gate |
-| 5 | **Unauthenticated DoS / crash-loop** | A malformed request that crashes a restarted service is a remote no-auth DoS (we caught one in our *own* review) | Malformed input → 401/400, **not a crash**; bodies capped; rate-limited; no filesystem path from the URL | malformed cookie → 401, process survives; traversal → 404 |
-| 6 | **Secret theft by a runaway agent** | An agent with a shell + your secrets is one injection from reading them | The Docker sandbox **stages only the claude auth files** (never `bridge.env` / API keys) and is **`--network none`** by default; and across *every* spawned session the vault `permissions.deny` blocks reading the credential stores outright | the goal-loop never mounts `~/.claude`; the vault denies `Read(~/.claude/**)` etc. (beats the permission mode) |
-| 7 | **Insecure defaults** | Some agents ship the unrestricted shell on by default | The unrestricted shell is **off by default** (opt-in + logged); default mode is not bypass; an unknown channel gets the **most-restricted** profile | YOLO off; unknown channel → `untrusted` |
-| 8 | **Inbound event trigger → escalation** | Hermes-class agents accept inbound webhooks; an unauthenticated or over-powered trigger turns "an event arrived" into RCE/exfil | The receiver binds **`127.0.0.1` only** (no daemon port); each hook needs its own **256-bit secret** (sha256-hashed, **constant-time**); a missing hook is checked against a dummy hash (**no enumeration**); the `ask` action runs **no-egress** (Read/Grep/Glob — no web/shell/write), payload framed UNTRUSTED, result to the owner only | wrong/unknown secret → 401; list never leaks the secret; `ask` allowlist is `Read,Grep,Glob`; secret stored hashed |
-| 9 | **Correctness & craft regressions** | The subtler failure is silent quality rot — a new feature that quietly widens real power, or a "secure" surface that stops verifying its own claims | New surfaces must keep their guarantees: a **persona is a voice overlay only** (its immutable safety clause is appended in code, so an authored "you have root" persona can't strip it, and no authored persona can shadow a built-in), a **Council worker can only NARROW** its tools (never gains Write/Edit/Bash) and the council is **local-only + single-flight + reaped on shutdown**, a typo is **caught before it spends a turn**, and an **optional connector** is an owner-only power that refuses a plaintext-http remote, masks the secret you type (passed as an `execFile` argv, never a shell line, so no `~/.zsh_history` leak), and loads on no sandboxed turn. Each is frozen as a regression so a future commit can't silently undo it | `personas.overlayFor` always carries `SAFETY_CLAUSE`; `intersectTools` ⊆ the read-only floor; `/council` refuses a remote channel + clamps agents; did-you-mean intercepts a near-miss before the brain; `connectors.parse` drops a plain-http remote, `buildAddArgs` keeps the secret in the argv, every connector is `--strict-mcp-config`-gated |
-| 10 | **Plugin loader** | OpenClaw and Hermes load plugins as in-process code with broad host power | A plugin is loaded as **DATA** (never `require()`d), runs only as a **capability-scoped MCP server** inside the `--network none` Docker cell, and is **sha-pinned at consent** and re-checked at enable, so a manifest edited *after* you consented (widening caps, swapping `entry.cmd`) is refused. Attaches to **owner turns only**; sandboxed turns stay `--strict-mcp-config` | loaded-as-data (no `require`); `integrityOk` refuses an edited manifest fail-closed; host-reaching needs the cell; owner-turns-only |
-| 11 | **Native engine** | Rival agents run the default terminal backend directly on the host, unconfined (per Hermes' own `SECURITY.md`); Urfael's optional native engine (Ollama / OpenAI-compatible + Anthropic API, for offline/local-model use) must **inherit** the fail-closed moat, not bypass it | The native toolset is **fail-closed**: allowlist-root + **deny-first** credential globs (the code mirror of the vault `permissions.deny`) + **realpath** anti-symlink-escape; **shell is off** unless the owner opts in *and* injects a vault-cwd runner. The adapters are **HTTPS-or-loopback only**, refuse credentials-in-URL, and **never follow a redirect**. The flat-rate subscription stays the CLI engine (no key); an API engine **fails closed without its key**. A summarizer outage **preserves the context window** (fail-safe abort) | no-root ⇒ every file op denied; a symlink/`..` escape is refused on the resolved path; `~/.ssh` refused even if a root is mis-set to `$HOME`; `exec_shell` absent by default; `endpointFor` drops a plain-http remote + creds-in-URL; `buildEngine` returns null for the subscription and `needsSecret` without a key; a throwing summarizer returns the same message array unchanged |
+`npm run security` and `npm run e2e` are manual live harnesses. Neither runs in [CI](../.github/workflows/ci.yml). CI runs `npm test`, bounded `npm run fuzz`, and `npm run redteam`, plus dependency and Windows installer checks.
 
-## Why this is the differentiator
+## Counts and results
 
-OpenClaw and Hermes optimize for reach — channel count, model count, star count. None of the three ships a runnable proof that it resists the attacks that have actually compromised agents in the wild. Urfael does, because it was built blast-radius-first:
+At this documentation revision, the source contains **11 `attackClass(...)` groups and 128 `check(...)` call sites** inside `main()`. Earlier documentation reported ten groups or 125 checks; those descriptions were stale. The unit runner separately enumerates `test/*.test.js`; its runtime summary is the place to obtain unit-test totals.
 
-- **The topology is one-way.** Urfael reaches *out* (to your `claude` login, to chat APIs it polls). Nothing reaches *in*. There is no gateway to expose, no token to leak over a socket, no DM endpoint to spray.
-- **Untrusted content is structurally contained,** not prompt-engineered into safety. A remote message physically cannot run a shell or hit the network, so "read a secret and POST it somewhere" has no egress to use.
-- **The supply chain is guilty until proven innocent.** A skill is inert markdown that gets scanned and shown to you before it's stored, and is never executed. Hermes and OpenClaw also scan a plugin at install, and Urfael now matches their shell- and JavaScript-idiom coverage; what is unique here is that Urfael **decodes one obfuscation layer and re-scans the result**, so a dropper hidden inside a base64 or `\xNN` blob is judged on its real bytes rather than passing as clean text, and it returns a **capability summary + severity verdict** (`block` / `review` / `clean`) instead of a bare allow/deny. The honest bound: this is a heuristic static gate over one decode layer, not a sandboxed taint analysis, and the real guarantee is the layer behind it (preview + sha-pin + never-execute), which holds even if a sample slips the scanner.
-- **The tests are adversarial and frozen.** Each defense above ships with a regression test built from a real finding (several from Urfael's own internal red-team), so a refactor can't silently reopen a hole.
+These are source counts, not a verified 128/128 passing run. No new live result is asserted here. For a reproducible result, retain the command's full output, exit status, commit SHA, OS, Node version, and relevant configuration. The harness computes its final totals from the rows it actually executes.
 
-This is not a claim that Urfael is unbreakable — nothing is, and we keep a [`What's lightly tested`](../README.md#whats-lightly-tested) section on purpose. It is a claim that the specific, documented ways self-hosted agents got owned in 2026 are closed here, and that you can verify it in one command. See the formal [Threat Model](THREAT-MODEL.md) for the boundaries and the residual risks we *don't* cover.
+## Coverage map
+
+| Group | Checks target |
+|---|---|
+| 1. Network exposure | Daemon startup, Unix socket mode, state permissions, and process TCP listener inspection |
+| 2. Token handling | Dashboard token storage and request authentication/Host handling |
+| 3. Prompt-injection exfiltration | Restricted profiles, credential-deny configuration, framing, and related integrity controls |
+| 4. Skill supply chain | Static scanning, preview/install constraints, and SSRF guards |
+| 5. Denial of service | Selected malformed requests, request limits, and process survival |
+| 6. Runaway autonomous work | Sandbox configuration, secret staging, and goal-loop controls |
+| 7. Defaults | Opt-in power and fail-closed profile resolution |
+| 8. Inbound triggers | Webhook authentication, normalization, and restricted triggered actions |
+| 9. Correctness regressions | CLI behavior, personas, council tool restrictions, and connector configuration |
+| 10. Plugin loader | Manifest handling, capability validation, consent integrity, and plugin attachment boundaries |
+| 11. Native engine | File-tool confinement, default shell denial, adapter validation, and engine routing |
+
+The group labels include correctness checks as well as security checks. Incident descriptions in the source explain author motivation; this document does not independently verify those incidents or compare other projects' security.
+
+## Boundaries and limitations
+
+- **Network scope:** the core daemon uses local IPC. Opt-in dashboard, API, webhook, WhatsApp, and PSTN services open loopback TCP listeners. A user-configured tunnel or proxy can expose those listeners externally. A daemon-only listener check does not cover the whole installation.
+- **Probe limitations:** the listener check uses `lsof` and treats a nonzero exit as no listeners. A missing or failing tool can therefore produce a misleading pass. Source-pattern assertions also do not establish runtime behavior.
+- **Permission scope:** Fortress remote turns have no web/shell tools; Full mode deliberately adds web reach for remote owner/member turns. These checks do not establish safety for every model, prompt, connector, or user-modified configuration.
+- **Supply chain:** static scanning is heuristic. Host-reaching plugins require the Docker cell, but brain-tools-only plugin servers can run as ordinary local processes. Consent-time hashes do not independently authenticate a publisher; install-time signature verification is not wired into the install path.
+- **Audit scope:** this suite is maintained by the project itself. Passing it neither establishes independent scrutiny nor guarantees absence of vulnerabilities. Live provider integrations, OS isolation, and production deployment behavior need separate evaluation.
+
+See the [threat model](THREAT-MODEL.md) for residual risks and [README limitations](../README.md#whats-lightly-tested) for maturity notes.
