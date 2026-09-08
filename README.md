@@ -87,6 +87,7 @@ The security benchmark source defines **11 groups and 128 `check(...)` call site
 
 ## What's lightly tested
 
+- The channel maturity map classifies Matrix, Signal, WhatsApp, QQ, SimpleX, PSTN phone, Mattermost, Google Chat, SMS, DingTalk, Home Assistant, BlueBubbles, Feishu, and WeCom as code-complete, with live-account validation still outstanding. See the [channel guide](docs/manual/channels/overview.md).
 - The live harnesses cover selected scenarios, not every feature or integration. Parsing and allowlist tests do not certify operation against real provider accounts.
 - Linux and native Windows need more hardware and operational testing. CI coverage does not replace desktop or voice testing on those systems.
 - This is a personal project with limited deployment experience. No independent security audit is documented here.

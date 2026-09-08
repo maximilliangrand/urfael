@@ -22,19 +22,19 @@ These are source counts, not a verified 128/128 passing run. No new live result 
 
 ## Coverage map
 
-| Group | Checks target |
-|---|---|
-| 1. Network exposure | Daemon startup, Unix socket mode, state permissions, and process TCP listener inspection |
-| 2. Token handling | Dashboard token storage and request authentication/Host handling |
-| 3. Prompt-injection exfiltration | Restricted profiles, credential-deny configuration, framing, and related integrity controls |
-| 4. Skill supply chain | Static scanning, preview/install constraints, and SSRF guards |
-| 5. Denial of service | Selected malformed requests, request limits, and process survival |
-| 6. Runaway autonomous work | Sandbox configuration, secret staging, and goal-loop controls |
-| 7. Defaults | Opt-in power and fail-closed profile resolution |
-| 8. Inbound triggers | Webhook authentication, normalization, and restricted triggered actions |
-| 9. Correctness regressions | CLI behavior, personas, council tool restrictions, and connector configuration |
-| 10. Plugin loader | Manifest handling, capability validation, consent integrity, and plugin attachment boundaries |
-| 11. Native engine | File-tool confinement, default shell denial, adapter validation, and engine routing |
+| # | Group | Checks target |
+|---|---|---|
+| 1 | Network exposure | Daemon startup, Unix socket mode, state permissions, and process TCP listener inspection |
+| 2 | Token handling | Dashboard token storage and request authentication/Host handling |
+| 3 | Prompt-injection exfiltration | Restricted profiles, credential-deny configuration, framing, and related integrity controls |
+| 4 | Skill supply chain | Static scanning, preview/install constraints, and SSRF guards |
+| 5 | Denial of service | Selected malformed requests, request limits, and process survival |
+| 6 | Runaway autonomous work | Sandbox configuration, secret staging, and goal-loop controls |
+| 7 | Defaults | Opt-in power and fail-closed profile resolution |
+| 8 | Inbound triggers | Webhook authentication, normalization, and restricted triggered actions |
+| 9 | Correctness regressions | CLI behavior, personas, council tool restrictions, and connector configuration |
+| 10 | Plugin loader | Manifest handling, capability validation, consent integrity, and plugin attachment boundaries |
+| 11 | Native engine | File-tool confinement, default shell denial, adapter validation, and engine routing |
 
 The group labels include correctness checks as well as security checks. Incident descriptions in the source explain author motivation; this document does not independently verify those incidents or compare other projects' security.
 
