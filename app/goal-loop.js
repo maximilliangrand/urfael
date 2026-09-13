@@ -203,6 +203,8 @@ async function main(argv) {
       if (cancelled) return finish('stopped', 'cancelled');
       let parsed; try { parsed = JSON.parse(r.out); } catch {}
       if (r.rc !== 0 || !parsed || parsed.is_error === true || typeof parsed.result !== 'string') {
+        log('\nWorker attempt failed (exit ' + r.rc + ', valid result: ' +
+          !!(parsed && parsed.is_error !== true && typeof parsed.result === 'string') + ').\n' + (r.tail || '').slice(-4096) + '\n');
         save({ errors: state.errors + 1 });
         if (state.errors >= 2) return finish('failed', 'worker failed repeatedly or returned invalid output');
         continue;

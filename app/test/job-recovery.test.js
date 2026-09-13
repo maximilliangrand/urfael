@@ -207,6 +207,8 @@ test('repeated nonzero provider exits persist failure, never completion', { time
   f.release();
   const { id } = await start(f, spec('nonzero'));
   assert.equal((await f.terminal(id)).state, 'failed');
+  const log = fs.readFileSync(path.join(f.jobs, id + '.progress.json.log'), 'utf8');
+  assert.match(log, /Worker attempt failed \(exit 1, valid result: false\)/);
 });
 
 test('asynchronous supervisor spawn failure persists an error and releases its claim', { timeout: 30000 }, async (t) => {

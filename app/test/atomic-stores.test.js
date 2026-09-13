@@ -8,6 +8,7 @@
 const os = require('os');
 const path = require('path');
 const fs = require('fs');
+const vm = require('vm');
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'urfael-atomic-home-'));
 process.env.HOME = TMP_HOME;
 process.env.USERPROFILE = TMP_HOME;
@@ -37,6 +38,21 @@ function captureErr(fn) {
   console.error = (...a) => lines.push(a.join(' '));
   try { fn(); } finally { console.error = orig; }
   return lines;
+}
+
+// Run the real writer with only its platform, rename syscall, and monotonic wait clock replaced.
+// Each test gets a separate module instance: no process.platform/fs mutations leak to other stores,
+// and a simulated Windows lock can exhaust its deadline without sleeping on the test host.
+function writerWithRenameFaults(platform, rename) {
+  let elapsed = 0;
+  const waits = [], module = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../lib'), 'utf8'), {
+    module, console, process: { platform, pid: process.pid, env: {} },
+    require: (name) => name === 'fs' ? { ...fs, renameSync: rename }
+      : name === 'perf_hooks' ? { performance: { now: () => elapsed } } : require(name),
+    Atomics: { wait: (_array, _index, _value, ms) => { waits.push(ms); elapsed += ms; return 'timed-out'; } },
+  }, { filename: require.resolve('../lib') });
+  return { write: module.exports.atomicWriteJSON, waits, elapsed: () => elapsed };
 }
 
 // ── 1. atomicWriteJSON: round-trip + owner-only mode, no sidecar left behind ──
@@ -100,6 +116,67 @@ test('atomicWriteJSON: a failed serialize leaves the PRIOR file intact (never tr
   assert.equal(fs.readFileSync(f, 'utf8'), before, 'the prior store is byte-identical — the failed write never touched it');
   assert.deepEqual(JSON.parse(fs.readFileSync(f, 'utf8')), good, 'and still parses to the full prior contents (not truncated)');
   assert.deepEqual(siblings(f), ['durable.json'], 'the failed write left no half-written .tmp-* sidecar');
+});
+
+test('atomicWriteJSON: transient Windows rename locks retry the same completed file without removing the old store', () => {
+  wipe();
+  const f = path.join(JDIR, 'locked.json');
+  const before = '{"state":"running"}\n', after = { state: 'stopped', iterations: 3 };
+  fs.writeFileSync(f, before);
+  const sources = [], failures = ['EPERM', 'EACCES', 'EBUSY'];
+  let serializations = 0;
+  const writer = writerWithRenameFaults('win32', (source, target) => {
+    sources.push(source);
+    assert.equal(target, f);
+    assert.equal(fs.readFileSync(target, 'utf8'), before, 'readers retain the original store during every failed rename');
+    assert.deepEqual(JSON.parse(fs.readFileSync(source, 'utf8')), after, 'the pending file is already complete before retry');
+    if (failures.length) throw Object.assign(new Error('simulated Windows sharing violation'), { code: failures.shift() });
+    return fs.renameSync(source, target);
+  });
+  assert.equal(writer.write(f, { toJSON() { serializations++; return after; } }), f);
+  assert.equal(serializations, 1, 'a retry must not serialize or create a new generation');
+  assert.equal(sources.length, 4, 'all three transient rename errors are retried');
+  assert.equal(new Set(sources).size, 1, 'every attempt reuses the same closed temporary file');
+  assert.ok(writer.waits.length > 0 && writer.elapsed() <= 500, 'retry waits are bounded');
+  assert.deepEqual(JSON.parse(fs.readFileSync(f, 'utf8')), after);
+  assert.deepEqual(siblings(f), ['locked.json'], 'success leaves only the committed store');
+});
+
+test('atomicWriteJSON: a persistent Windows lock reaches its deadline, preserves the prior store and cleans the temp', () => {
+  wipe();
+  const f = path.join(JDIR, 'persistent-lock.json');
+  const before = '{"state":"running"}\n';
+  fs.writeFileSync(f, before);
+  const failure = Object.assign(new Error('simulated persistent sharing violation'), { code: 'EPERM' });
+  let attempts = 0;
+  const writer = writerWithRenameFaults('win32', (source, target) => {
+    attempts++;
+    assert.equal(fs.readFileSync(target, 'utf8'), before);
+    assert.deepEqual(JSON.parse(fs.readFileSync(source, 'utf8')), { state: 'stopped' });
+    throw failure;
+  });
+  assert.throws(() => writer.write(f, { state: 'stopped' }), (e) => e === failure, 'the final rename error is reported to the caller');
+  assert.ok(attempts > 1, 'the lock receives a chance to clear');
+  assert.equal(writer.elapsed(), 500, 'a persistent lock cannot extend the 500 ms retry deadline');
+  assert.equal(fs.readFileSync(f, 'utf8'), before, 'exhaustion never unlinks or truncates the old store');
+  assert.deepEqual(siblings(f), ['persistent-lock.json'], 'failed replacement cleans its own temporary file');
+});
+
+test('atomicWriteJSON: POSIX rename errors and permanent Windows errors fail immediately', () => {
+  for (const [platform, code] of [['linux', 'EPERM'], ['darwin', 'EBUSY'], ['win32', 'ENOENT'], ['win32', 'ENOSPC'], ['win32', 'EXDEV']]) {
+    wipe();
+    const f = path.join(JDIR, 'not-retryable.json');
+    const before = '{"state":"running"}\n';
+    fs.writeFileSync(f, before);
+    const failure = Object.assign(new Error('simulated ' + code), { code });
+    let attempts = 0;
+    const writer = writerWithRenameFaults(platform, () => { attempts++; throw failure; });
+    assert.throws(() => writer.write(f, { state: 'stopped' }), (e) => e === failure, platform + '/' + code);
+    assert.equal(attempts, 1, platform + '/' + code + ' is not retryable');
+    assert.deepEqual(writer.waits, [], 'non-retryable errors never block the caller');
+    assert.equal(fs.readFileSync(f, 'utf8'), before);
+    assert.deepEqual(siblings(f), ['not-retryable.json']);
+  }
 });
 
 // ── 3. reminders store: a corrupt read is QUARANTINED, not silently wiped ──

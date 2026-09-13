@@ -4,6 +4,28 @@
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const { performance } = require('perf_hooks');
+
+// Windows readers/scanners can briefly deny replacement of an otherwise writable store. Retry only
+// those sharing/permission errors, using the SAME completed temp file and never removing the target.
+// This synchronous path adds at most a 500 ms retry-wait budget (filesystem calls themselves are not
+// time-bounded). Permanent errors still propagate to atomicWriteJSON, which preserves the prior store
+// and cleans up its private temp file.
+function renameStore(tmp, file) {
+  if (process.platform !== 'win32') return fs.renameSync(tmp, file);
+  const deadline = performance.now() + 500;
+  const sleeper = new Int32Array(new SharedArrayBuffer(4));
+  let delay = 10;
+  for (;;) {
+    try { return fs.renameSync(tmp, file); }
+    catch (e) {
+      const remaining = deadline - performance.now();
+      if (!['EPERM', 'EACCES', 'EBUSY'].includes(e.code) || remaining <= 0) throw e;
+      Atomics.wait(sleeper, 0, 0, Math.min(delay, remaining));
+      delay = Math.min(delay * 2, 100);
+    }
+  }
+}
 
 // ---- CRASH-SAFE JSON STORE WRITE (shared) ------------------------------------------------------------
 // The one place any durable owner store (reminders, cron jobs, ...) is written to disk. Serialize FIRST so a
@@ -22,7 +44,7 @@ function atomicWriteJSON(file, obj) {
     fs.writeSync(fd, body);
     try { fs.fsyncSync(fd); } catch {}                       // best-effort durability (some fs/platforms reject fsync)
     fs.closeSync(fd); fd = undefined;
-    fs.renameSync(tmp, file);                                // atomic on POSIX: the reader sees old-or-new, never a torn write
+    renameStore(tmp, file);                                  // the reader sees old-or-new, never a torn write
     fsyncDir(dir);                                           // best-effort: make the rename entry itself durable across a hard power-loss
   } catch (e) {
     if (fd !== undefined) { try { fs.closeSync(fd); } catch {} }
