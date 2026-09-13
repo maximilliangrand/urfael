@@ -97,7 +97,7 @@ The completion receipt distinguishes the evidence actually collected. The worker
 
 For a command check, `verification.checkReceipt` records the command, exit code, timeout flag, start/end timestamps, workspace hash, and log path. Its success means that specific command passed against that recorded workspace. Check `independentlyVerified` to see whether the optional model review also passed. A model review reports whether it could refute the criteria from the source; it is not deterministic test evidence. A marker alone does not imply tests or an independent review.
 
-Review the recorded baseline and the resulting repository before accepting the work. The result is not automatically published, and recovery does not rewind files. Resume is supported for managed host jobs; container, SSH, and legacy jobs without recovery state are not resumable here. On Windows, an interrupted job that still records an active worker, check, or verifier requires manual inspection because surviving child processes cannot be ruled out from the recorded leader PID. Cleanly stopped Windows jobs can still be eligible. Jobs only offers Resume when the server advertises it.
+Review the recorded baseline and the resulting repository before accepting the work. The runner adds no publishing step, and recovery does not rewind files. Resume is supported for managed host jobs; container, SSH, and legacy jobs without recovery state are not resumable here. On Windows, an interrupted job that still records an active worker, check, or verifier requires manual inspection because surviving child processes cannot be ruled out from the recorded leader PID. Cleanly stopped Windows jobs can still be eligible. Jobs only offers Resume when the server advertises it.
 
 ## Related
 
