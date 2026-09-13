@@ -121,9 +121,32 @@ function fixture(t) {
   const release = () => fs.writeFileSync(path.join(vault, 'release'), 'go');
   const hold = () => fs.rmSync(path.join(vault, 'release'), { force: true });
   const terminal = (id) => eventually(() => { const job = read(id); return job && !ACTIVE.has(job.state) && job.state !== 'queued' ? job : null; }, 'worker did not persist terminal state for ' + id);
-  const settled = () => eventually(() => ownedProcesses().every((child) => !alive(child.pid))
-    && invocations().every((row) => !alive(row.pid)) && locks().length === 0,
-  'supervisors and descendants did not exit and release their claims', 20000);
+  const processesExited = () => {
+    const before = ownedProcesses();
+    if (before.some((child) => alive(child.pid)) || invocations().some((row) => alive(row.pid))) return false;
+    // A supervisor may spawn its notifier between the ledger read and its own exit. Once every
+    // observed parent is dead, re-read to include children it registered immediately before exit.
+    const after = ownedProcesses();
+    return before.length === after.length && after.every((child) => !alive(child.pid));
+  };
+  const settledProcesses = () => eventually(processesExited, 'owned processes did not all exit', 20000);
+  const settled = () => eventually(() => processesExited() && locks().length === 0,
+    'supervisors and descendants did not exit and release their claims', 20000);
+  const readiness = (id) => exec(`
+    store.reconcile();
+    const job = store.get(${JSON.stringify(id)});
+    const progress = runner.progressFor(job);
+    console.log(JSON.stringify({ resumable: runner.describe(job).resumable, claimAvailable: store.runClaimAvailable(job.id),
+      state: job.state, pid: job.pid, childPid: job.childPid,
+      progress: progress && { phase: progress.phase, childPid: progress.childPid, outcome: progress.outcome,
+        iterations: progress.iterations, elapsedMs: progress.elapsedMs, activeSince: progress.activeSince, contract: progress.contract } }));
+  `);
+  const ready = async (id) => {
+    await settled();
+    const status = await readiness(id);
+    assert.equal(status.resumable, true, 'settled job is not ready to resume: ' + JSON.stringify(status));
+    return status;
+  };
   t.after(async () => {
     release();
     await Promise.all([...children].map((proc) => new Promise((resolve) => {
@@ -135,7 +158,8 @@ function fixture(t) {
     fs.rmSync(home, { recursive: true, force: true,
       ...(process.platform === 'win32' ? { maxRetries: 5, retryDelay: 50 } : {}) });
   });
-  return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal, settled, ownedProcesses };
+  return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal,
+    settled, settledProcesses, readiness, ready, ownedProcesses };
 }
 
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
@@ -250,6 +274,7 @@ test('stopped goals resume the same job, session and original budgets', { timeou
   const original = spec('resume');
   const { id } = await start(f, original);
   assert.equal((await f.terminal(id)).state, 'stopped');
+  await f.ready(id);
   const acceptedSpec = f.read(id).spec;
   f.hold();
   const resumed = await f.exec(`const value = runner.resume(${JSON.stringify(id)}); console.log(JSON.stringify(value)); process.exit(0);`);
@@ -273,6 +298,7 @@ test('competing resumes admit one worker and reject the other', { timeout: 30000
   f.release();
   const { id } = await start(f, spec('resume'));
   await f.terminal(id);
+  await f.ready(id);
   f.hold();
   const code = `try { const j = runner.resume(${JSON.stringify(id)}); console.log(JSON.stringify({ accepted: true, id: j.id })); } catch (e) { console.log(JSON.stringify({ accepted: false, code: e.code, message: e.message })); } process.exit(0);`;
   const results = await Promise.all([f.exec(code), f.exec(code)]);
@@ -288,7 +314,7 @@ test('a stopped receipt becomes resumable only after its live execution claim is
   f.release();
   const { id } = await start(f, spec('resume'));
   assert.equal((await f.terminal(id)).state, 'stopped');
-  await f.settled();
+  await f.ready(id);
   f.hold();
   const result = await f.exec(`
     const id = ${JSON.stringify(id)};
@@ -324,6 +350,7 @@ test('resume contract rejection cannot reuse its previous attempt receipt', { ti
   f.release();
   const { id } = await start(f, spec('resume'));
   assert.equal((await f.terminal(id)).state, 'stopped');
+  await f.ready(id);
   const before = await f.exec(`console.log(JSON.stringify(runner.progressFor(store.get(${JSON.stringify(id)}))));`);
   await f.exec(`const job = store.get(${JSON.stringify(id)}); store.update(job.id, { spec: { ...job.spec, goal: 'changed contract' } });
     runner.resume(job.id); console.log('{}'); process.exit(0);`);
@@ -374,6 +401,7 @@ test('resume refuses live, completed, sandboxed and exhausted work before spawni
     { name: 'missing receipt', state: 'interrupted', missing: true },
     { name: 'negative iteration counter', state: 'stopped', progress: { iterations: -1 } },
     { name: 'negative elapsed time', state: 'stopped', progress: { elapsedMs: -1 } },
+    { name: 'ambiguous child handoff', state: 'interrupted', progress: { phase: 'starting' } },
     { name: 'unknown receipt outcome', state: 'stopped', progress: { outcome: 'made-up' } },
     { name: 'missing provider session', state: 'stopped', progress: { sessionId: null } },
   ];
@@ -427,6 +455,7 @@ test('resume keeps explicit verify=false and the original sandbox, criteria and 
     URFAEL_GOAL_VERIFY: '1', URFAEL_YOLO: '1',
   });
   assert.equal((await f.terminal(id)).state, 'stopped');
+  await f.ready(id);
   const accepted = f.read(id);
   const first = f.invocations()[0];
   assert.equal(first.args.includes('--verify'), false);
@@ -451,13 +480,15 @@ test('two resumes reclaim one dead-owner lock without stealing the winning gener
   f.release();
   const { id, launcherPid } = await start(f, spec('resume'));
   await f.terminal(id);
+  await f.ready(id);
   const lock = path.join(f.jobs, id + '.run-lock');
-  await eventually(() => !fs.existsSync(lock), 'completed worker did not release its lock');
   assert.equal(alive(launcherPid), false);
   fs.mkdirSync(lock);
   const token = 'a'.repeat(32);
   fs.writeFileSync(path.join(lock, 'owner.json'), JSON.stringify({ token, pid: launcherPid, createdAt: Date.now() - 60000 }));
   fs.utimesSync(lock, new Date(Date.now() - 60000), new Date(Date.now() - 60000));
+  const status = await f.readiness(id);
+  assert.equal(status.resumable, true, 'stale claim is not reclaimable: ' + JSON.stringify(status));
   f.hold();
   const code = `try { runner.resume(${JSON.stringify(id)}); console.log(JSON.stringify({ accepted: true })); }
     catch (error) { console.log(JSON.stringify({ accepted: false, message: error.message })); } process.exit(0);`;
@@ -478,21 +509,35 @@ test('a killed supervisor cannot resume over its surviving provider, then resume
     const f = fixture(t);
     const { id } = await start(f, spec('complete'));
     await eventually(() => f.invocations().length === 1, 'provider did not start before crash injection');
-    const worker = f.read(id);
     const providerPid = f.invocations()[0].pid;
+    const worker = await eventually(() => {
+      const job = f.read(id);
+      const progress = JSON.parse(fs.readFileSync(path.join(f.jobs, id + '.progress.json'), 'utf8'));
+      // The provider may start before its parent persists the handoff. A crash in phase=starting is
+      // intentionally not recoverable, so inject this crash only after both child PIDs are durable.
+      return job && Number.isInteger(job.childPid) && job.childPid > 0
+        && progress.phase === 'worker' && progress.childPid === providerPid ? job : null;
+    }, 'provider started without a durable child handoff');
     assert.ok(worker.pid && worker.pid !== process.pid);
     // The worker and loop share a group; the provider has its own. Kill only processes created here.
     process.kill(-worker.pid, 'SIGKILL');
-    await eventually(() => !alive(worker.pid), 'supervisor did not exit after SIGKILL');
+    await eventually(() => !alive(worker.pid) && !alive(worker.childPid), 'supervisor or goal loop did not exit after SIGKILL');
     assert.equal(alive(providerPid), true, 'the separately grouped provider should expose the recovery hazard');
+    const lock = path.join(f.jobs, id + '.run-lock');
+    fs.utimesSync(lock, new Date(Date.now() - 60000), new Date(Date.now() - 60000));
+    const blocked = await f.readiness(id);
+    assert.equal(blocked.claimAvailable, true, 'the surviving provider, not the claim grace period, must block recovery');
+    assert.equal(blocked.resumable, false);
     const refused = await f.exec(`try { runner.resume(${JSON.stringify(id)}); console.log(JSON.stringify({ refused: false })); }
       catch (error) { console.log(JSON.stringify({ refused: true, message: error.message })); } process.exit(0);`);
     assert.equal(refused.refused, true);
     assert.equal(f.invocations().length, 1);
     process.kill(-providerPid, 'SIGKILL');
-    await eventually(() => !alive(providerPid), 'provider did not stop');
-    const lock = path.join(f.jobs, id + '.run-lock');
+    await eventually(() => !alive(providerPid) && !alive(-providerPid), 'provider process group did not stop');
+    await f.settledProcesses();
     fs.utimesSync(lock, new Date(Date.now() - 60000), new Date(Date.now() - 60000));
+    const status = await f.readiness(id);
+    assert.equal(status.resumable, true, 'dead attempt is not ready to resume: ' + JSON.stringify(status));
     const resumed = await f.exec(`console.log(JSON.stringify(runner.resume(${JSON.stringify(id)}))); process.exit(0);`);
     assert.equal(resumed.id, id);
     f.release();
