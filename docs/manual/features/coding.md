@@ -1,6 +1,6 @@
 # Coding
 
-`urfael code "<task>"` runs Claude Code in your repo with per-project memory, a checkpoint of the working tree, and a rewind command. Background coding goals use a separate loop with bounded iterations, completion evidence, and manual recovery.
+`urfael code "<task>"` runs Claude Code in your repo with per-project memory, an attempted checkpoint of the working tree, and a rewind command. Background coding goals use a separate loop with bounded iterations, completion evidence, and manual recovery.
 
 ```bash
 urfael code "add a retry to the API client"
@@ -14,13 +14,13 @@ Run from inside a git repo (or point at one with `--dir`):
 
 1. **Resolves the repo and its memory.** The project id derives from the git remote, so the same repo shares one memory across clones. With no remote it falls back to the directory name plus a hash of the path, so two repos with the same basename never collide.
 2. **Loads per-project memory.** A `CONVENTIONS.md` and `HISTORY.md` for that repo live under the private memory repo (`~/Urfael-memory/projects/<id>/`). The conventions load as context every turn, fenced as reference, not instructions. The first run seeds a `CONVENTIONS.md` for you to fill in.
-3. **Checkpoints first.** Before the brain runs, the working tree (tracked and untracked, the set `git add -A` stages) is snapshotted onto a private git shadow ref (`refs/urfael/checkpoints/<id>`) through a temporary index. This captures that set yet touches nothing live: not your branch, not your index, not your working tree.
+3. **Attempts a checkpoint first.** Before the brain runs, the working tree (tracked and untracked, the set `git add -A` stages) is snapshotted onto a private git shadow ref (`refs/urfael/checkpoints/<id>`) through a temporary index. This leaves your branch, index, and working tree unchanged. If Git cannot create the checkpoint, the command reports that and continues without one.
 4. **Runs Claude Code in the repo,** seeded with the project conventions and your task.
 5. **Records the turn.** The task and its checkpoint id are appended to the repo's `HISTORY.md` and an append-only log, both inside the git-versioned memory repo.
 
 ## Per-project memory
 
-Claude Code forgets each repo between sessions. Urfael keeps a stable memory per repo so it picks up your conventions instead of relearning them:
+Urfael stores conventions and session history for each project:
 
 - `CONVENTIONS.md` is yours to edit. Put the stack, the layout, the conventions, and the gotchas that bit you before. It loads every turn.
 - `HISTORY.md` is appended automatically, one entry per coding turn, each with the checkpoint to rewind to.
@@ -62,13 +62,13 @@ Rewind is safe by construction:
 
 The checkpoint mechanism relies on git, so `urfael code` needs a git repo (it tells you to run `git init` if you are not in one).
 
-A checkpoint covers tracked and untracked files, the same set as `git add -A`. Files matched by `.gitignore` (often `.env`, local config, build output) are deliberately left out, so a secret is never copied into a shadow ref. If the agent might change an ignored file you care about, back it up yourself.
+A checkpoint covers tracked and nonignored untracked files, the same set as `git add -A`. Ignored untracked files are left out, but tracked files remain included even if an ignore rule matches them. This is not a secret scanner. If the agent might change an ignored file you care about, back it up yourself.
 
 Rewind restores files to a snapshot and keeps newer files rather than deleting them, so a rewind is an overlay rather than a byte-for-byte mirror. `urfael code` is the supervised coding session. Background goal jobs are described below; their repository baseline is a review reference, not a checkpoint or an automatic undo.
 
 ## Background coding goals: review and recovery
 
-A background job with `kind: "goal"` works toward a goal in an explicitly selected git repository (`spec.repo`). Use an isolated checkout or worktree. The loop has iteration, elapsed-time, and per-turn limits; it never pushes or merges for you.
+A background job with `kind: "goal"` works toward a goal in an explicitly selected git repository (`spec.repo`). Use an isolated checkout or worktree. The loop has iteration, elapsed-time, and per-turn limits. The runner does not add a push or merge step; review the work before publishing. The worker still runs with your configured tool permissions.
 
 Inspect it in the Console's **Jobs** view or from the terminal:
 

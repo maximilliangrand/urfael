@@ -416,7 +416,7 @@ async function loadJobs() {
       };
       actions.appendChild(resumeBtn);
     }
-    if (j.state === 'running' || j.state === 'starting') {
+    if (j.state === 'running') {
       const cancelBtn = document.createElement('button'); cancelBtn.className = 'row-act small'; cancelBtn.textContent = 'Cancel';
       cancelBtn.onclick = async () => {
         if (cancelBtn.disabled) return;

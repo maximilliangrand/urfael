@@ -1689,7 +1689,7 @@ function readStdinAdapter(maxBytes) {
     if (j.log) console.log(dim('--- log tail ---\n') + j.log);
     return;
   }
-  if (cmd === 'cancel') { if (!rest[0]) { console.log('usage: urfael cancel <id>'); return; } const r = await req('POST', `/job/${rest[0]}/cancel`); console.log(r && r.ok ? gold('✓ cancelled job ' + rest[0]) : '✗ no active job ' + rest[0]); return; }
+  if (cmd === 'cancel') { if (!rest[0]) { console.log('usage: urfael cancel <id>'); return; } const r = await req('POST', `/job/${rest[0]}/cancel`); console.log(r && r.ok ? gold('✓ cancellation requested for job ' + rest[0]) : '✗ no active job ' + rest[0]); return; }
   if (cmd === 'schedule') {
     // the dedicated Reminders & Calendar channel: add / move / cancel a reminder or calendar event in plain English.
     // It streams /schedule exactly like ask() streams /ask. The daemon (LOCAL-only; it 403s any channel key) stages

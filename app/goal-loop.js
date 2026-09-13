@@ -58,19 +58,28 @@ function appDir() { return __dirname; }
 
 function gitState(repo) { return require(path.join(appDir(), 'goal-progress')).workspaceHash(repo); }
 
-function checkInvocation(command, platform = process.platform) {
+function checkInvocation(command, platform = process.platform, sourceEnv = process.env) {
   // Encode the owner's entire PowerShell source instead of sending quotes and metacharacters through
   // another Windows native argv parsing pass. POSIX still receives the unchanged command via bash -c.
-  return platform === 'win32'
-    ? { bin: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')] }
-    : { bin: 'bash', args: ['-c', command] };
+  if (platform !== 'win32') return { bin: 'bash', args: ['-c', command] };
+  const env = { ...sourceEnv };
+  const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATHEXT');
+  const pathExt = key && String(env[key]).trim() || '.COM;.EXE;.BAT;.CMD';
+  // Windows PowerShell appends .CPL at startup. With PATHEXT omitted by a scoped launcher, that becomes
+  // the only extension: even node.exe is then ShellExecuted as a document, asynchronously, losing its
+  // exit code and escaping the watchdog. Restore the standard executable floor when absent; reject a
+  // conflicting explicit configuration rather than claiming that its asynchronous check passed.
+  if (!pathExt.split(';').some((s) => s.trim().toUpperCase() === '.EXE')) throw new Error('Windows acceptance checks require PATHEXT to include .EXE');
+  for (const k of Object.keys(env)) if (k.toUpperCase() === 'PATHEXT') delete env[k];
+  env.PATHEXT = pathExt;
+  return { bin: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')], env };
 }
 
 // On POSIX each turn/check gets a dedicated process group. The watchdog kills that group, and the parent
 // worker uses its recorded childPid to terminate it, so a hung shell/check cannot leave grandchildren behind.
 function boundedRun(cmd, args, opts, timeoutSec, progress, phase) {
   return new Promise((resolve) => {
-    let outChunks = [], tail = '', outBytes = 0, done = false, timedOut = false, overflow = false, p, timer;
+    let outChunks = [], tail = '', outBytes = 0, done = false, timedOut = false, overflow = false, spawnFailed = false, p, timer;
     const kill = () => {
       if (!p || !p.pid) return;
       if (process.platform === 'win32') {
@@ -82,12 +91,11 @@ function boundedRun(cmd, args, opts, timeoutSec, progress, phase) {
     const finish = (rc) => {
       if (done) return; done = true; clearTimeout(timer);
       process.removeListener('SIGTERM', interrupted); process.removeListener('SIGINT', interrupted);
-      resolve({ rc: timedOut ? 124 : overflow ? 125 : rc, out: Buffer.concat(outChunks).toString('utf8'), tail, timedOut, overflow });
+      resolve({ rc: spawnFailed ? 127 : timedOut ? 124 : overflow ? 125 : rc, out: Buffer.concat(outChunks).toString('utf8'), tail, timedOut, overflow });
     };
     try {
       progress.save({ phase: 'starting', childPid: null });
-      p = spawn(cmd, args, { cwd: opts.cwd, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
-      progress.save({ phase, childPid: p.pid || null });
+      p = spawn(cmd, args, { cwd: opts.cwd, env: opts.env, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) { kill(); return finish(127); }
     process.once('SIGTERM', interrupted); process.once('SIGINT', interrupted);
     timer = setTimeout(() => { timedOut = true; kill(); }, Math.max(1, timeoutSec * 1000));
@@ -100,7 +108,11 @@ function boundedRun(cmd, args, opts, timeoutSec, progress, phase) {
     });
     if (p.stderr) p.stderr.on('data', (d) => { tail = (tail + d.toString('utf8')).slice(-4096); try { fs.appendFileSync(opts.errTo, d); } catch { overflow = true; kill(); } });
     p.on('close', (code) => finish(code == null ? 1 : code));
-    p.on('error', (e) => { tail = String(e.message || e); finish(127); });
+    p.on('error', (e) => { tail = String(e.message || e); spawnFailed = true; });
+    // Attach close/error handlers before the handoff write. If persistence fails after spawn, kill
+    // the owned child and wait for close before the caller can release its execution lock or retry.
+    try { progress.save({ phase, childPid: p.pid || null }); }
+    catch (e) { tail = String(e.message || e); spawnFailed = true; kill(); }
   });
 }
 
@@ -138,7 +150,7 @@ async function main(argv) {
     say('Result: ' + (outcome === 'completed' ? 'COMPLETED' : 'STOPPED (not confirmed complete)') + ' after ' + state.iterations + ' iters. ' + reason);
     if (o.verify) say(outcome === 'completed' ? '  ↳ independently verified against the stated criteria and workspace.' : '  ↳ stopped, not independently verified.');
     say('Progress: ' + progress.file);
-    say("Nothing was pushed or merged — that's yours to do.");
+    say('Review the workspace and logs before publishing; the loop adds no separate push or merge step.');
     return outcome === 'completed' ? 0 : outcome === 'stopped' ? 2 : 1;
   };
   const remainingSec = () => Math.max(0, (o.maxMins * 60000 - elapsed()) / 1000);
@@ -149,9 +161,9 @@ async function main(argv) {
     try { execFileSync(process.execPath, [path.join(APP, 'bridge/ledger-log.js'), JSON.stringify({ goalId: state.runId, ...event })],
       { stdio: 'ignore', windowsHide: true, timeout: Math.max(1, Math.min(1500, remainingSec() * 1000)) }); } catch {}
   };
-  const run = async (cmd, args, phase) => {
+  const run = async (cmd, args, phase, env) => {
     if (cancelled || remainingSec() <= 0) return { rc: 124, out: '', timedOut: true };
-    const r = await boundedRun(cmd, args, { cwd: o.repo, errTo: LOG }, Math.min(o.turnTimeout, remainingSec()), progress, phase);
+    const r = await boundedRun(cmd, args, { cwd: o.repo, errTo: LOG, env }, Math.min(o.turnTimeout, remainingSec()), progress, phase);
     save({ childPid: null, phase: 'idle' });
     return r;
   };
@@ -209,7 +221,7 @@ async function main(argv) {
         if (o.check) {
           const checkStarted = Date.now();
           const invocation = checkInvocation(o.check);
-          const c = await run(invocation.bin, invocation.args, 'check');
+          const c = await run(invocation.bin, invocation.args, 'check', invocation.env);
           log(c.out); checkPassed = c.rc === 0;
           checkReceipt = { command: o.check, exitCode: c.rc, timedOut: c.timedOut,
             startedAt: checkStarted, endedAt: Date.now(), workspaceHash: verifiedHash, logFile: LOG };
@@ -262,5 +274,5 @@ async function main(argv) {
   }
 }
 
-module.exports = { parseArgs, buildPrompt, usage, gitState, checkInvocation, MARKER, STALE_LIMIT, main };
+module.exports = { parseArgs, buildPrompt, usage, gitState, checkInvocation, boundedRun, MARKER, STALE_LIMIT, main };
 if (require.main === module) main(process.argv.slice(2)).then((c) => process.exit(c)).catch((e) => { process.stderr.write(String(e.message || e) + '\n'); process.exit(1); });

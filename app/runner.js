@@ -94,7 +94,9 @@ function argvFor(job) {
 // / --ssh-* / bypass flags) are forwarded so a normal owner-local job behaves identically; nothing else is.
 const JOB_ENV_KEYS = ['URFAEL_YOLO', 'URFAEL_SANDBOX', 'URFAEL_SANDBOX_IMAGE', 'URFAEL_SSH_HOST', 'URFAEL_SSH_DIR', 'URFAEL_GOAL_VERIFY', 'URFAEL_GOAL_CRITERIA'];
 function jobEnv(job) {
-  const env = scopedEnv(process.env, JOB_ENV_KEYS.concat(['USERPROFILE', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP']));
+  // PowerShell uses PATHEXT to distinguish native executables from shell associations; stripping it
+  // can make a native acceptance command launch asynchronously and hide its failure status.
+  const env = scopedEnv(process.env, JOB_ENV_KEYS.concat(['USERPROFILE', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP', 'PATHEXT']));
   if (job && job.kind === 'goal' && job.goalEnvironment) {
     for (const key of JOB_ENV_KEYS) {
       delete env[key];

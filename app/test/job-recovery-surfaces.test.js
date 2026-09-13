@@ -106,17 +106,19 @@ test('Resume rejection remains visible and preserves a retryable button; transpo
   await button.onclick(); assert.match(ui.log.textContent, /Could not confirm resume.*Refresh jobs/);
 });
 
-test('Starting jobs can be cancelled, cancelling jobs have no duplicate action, and load errors do not look empty', async () => {
-  const j = sample(); j.state = 'starting'; j.resumable = false;
+test('Cancel is offered only while running, and cancellation/load errors remain visible', async () => {
+  const j = sample(); j.state = 'running'; j.resumable = false;
   const ui = surface([j], { jobCancel: async () => ({ error: 'Could not signal worker' }) });
   await ui.context.loadJobs(); await ui.buttons().find((b) => b.textContent === 'Cancel').onclick();
   assert.match(ui.log.textContent, /Could not signal worker/);
-  j.state = 'cancelling'; await ui.context.loadJobs(); assert.equal(ui.buttons().some((b) => b.textContent === 'Cancel'), false);
+  for (const state of ['starting', 'cancelling', 'stopped', 'interrupted', 'done']) {
+    j.state = state; await ui.context.loadJobs(); assert.equal(ui.buttons().some((b) => b.textContent === 'Cancel'), false, state + ' cannot be cancelled from this surface');
+  }
   ui.api.jobs = async () => null; await ui.context.loadJobs(); assert.match(ui.log.textContent, /Could not load jobs/);
 });
 
 const cli = fs.readFileSync(path.join(APP, 'cli.js'), 'utf8');
-const cliSource = cli.slice(cli.indexOf("  if (cmd === 'jobs')"), cli.indexOf("  if (cmd === 'cancel')"));
+const cliSource = cli.slice(cli.indexOf("  if (cmd === 'jobs')"), cli.indexOf("  if (cmd === 'schedule')"));
 assert.ok(cliSource.includes("'/resume'"), 'exercise the actual CLI dispatch');
 async function runCli(cmd, rest, reply) {
   const requests = [], output = [], errors = [], proc = { exitCode: 0 };
@@ -142,6 +144,13 @@ test('CLI rejects path-like ids, extra overrides and duplicate flags before any 
   for (const args of [['../bad', '--resume'], ['goal-1234', '--resume', '--max-iters', '99'], ['goal-1234', '--resume', '--resume']]) {
     const r = await runCli('job', args, null); assert.equal(r.exitCode, 1); assert.equal(r.requests.length, 0); assert.match(r.errors, /usage:/);
   }
+});
+
+test('CLI cancellation acknowledgment does not claim the worker has already stopped', async () => {
+  const r = await runCli('cancel', ['goal-1234'], { ok: true });
+  assert.deepEqual(r.requests, [['POST', '/job/goal-1234/cancel']]);
+  assert.match(r.output, /cancellation requested for job goal-1234/);
+  assert.doesNotMatch(r.output, /✓ cancelled|stopped|completed/);
 });
 
 test('CLI list/detail retain exact recorded evidence and expose a resume command only when eligible', async () => {

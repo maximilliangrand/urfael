@@ -78,9 +78,25 @@ function fixture(t) {
     ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot, TEMP: home, TMP: home } : {}),
   };
   const children = new Set();
-  const spawnedPids = path.join(home, 'spawned-pids.jsonl');
-  const ownedPids = () => {
-    try { return fs.readFileSync(spawnedPids, 'utf8').trim().split('\n').filter(Boolean).map(Number); }
+  const spawnedProcesses = path.join(home, 'spawned-processes.jsonl');
+  const observer = path.join(home, 'observe-processes.cjs');
+  // Keep observing through the real supervisor: its best-effort notifier is detached too, and can
+  // retain the fixture cwd on Windows after the supervisor exits. This changes no child behavior;
+  // each Node descendant preloads the same spawn observer before executing its original entrypoint.
+  fs.writeFileSync(observer, `
+    const cp = require('node:child_process');
+    const spawn = cp.spawn;
+    cp.spawn = (command, args, options) => {
+      const invocation = args;
+      if (command === process.execPath) args = ['--require', __filename, ...args];
+      const child = spawn(command, args, options);
+      if (child.pid) require('node:fs').appendFileSync(${JSON.stringify(spawnedProcesses)},
+        JSON.stringify({ pid: child.pid, command, args: invocation }) + '\\n');
+      return child;
+    };
+  `);
+  const ownedProcesses = () => {
+    try { return fs.readFileSync(spawnedProcesses, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse); }
     catch (error) { if (error.code === 'ENOENT') return []; throw error; }
   };
   const locks = () => fs.existsSync(jobs) ? fs.readdirSync(jobs).filter((name) => name.endsWith('.run-lock')) : [];
@@ -90,16 +106,8 @@ function fixture(t) {
     catch { return []; }
   };
   async function exec(code, extraEnv = {}) {
-    // Observe actual spawned PIDs before the launcher exits. Terminal job metadata clears its PID,
-    // and a provider's exit happens before the supervisor finishes checking and releasing its claim.
-    const prelude = `const fixtureSpawn = require('node:child_process').spawn;
-      require('node:child_process').spawn = (...args) => {
-        const child = fixtureSpawn(...args);
-        if (child.pid) require('node:fs').appendFileSync(${JSON.stringify(spawnedPids)}, child.pid + '\\n');
-        return child;
-      };
-      const store = require(${JSON.stringify(path.join(APP, 'jobstore.js'))}); const runner = require(${JSON.stringify(path.join(APP, 'runner.js'))});`;
-    const proc = spawn(process.execPath, ['-e', prelude + code], { cwd: home, env: { ...env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
+    const prelude = `const store = require(${JSON.stringify(path.join(APP, 'jobstore.js'))}); const runner = require(${JSON.stringify(path.join(APP, 'runner.js'))});`;
+    const proc = spawn(process.execPath, ['--require', observer, '-e', prelude + code], { cwd: home, env: { ...env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
     children.add(proc);
     let stdout = '', stderr = '';
     proc.stdout.on('data', (b) => { stdout += b; });
@@ -113,9 +121,9 @@ function fixture(t) {
   const release = () => fs.writeFileSync(path.join(vault, 'release'), 'go');
   const hold = () => fs.rmSync(path.join(vault, 'release'), { force: true });
   const terminal = (id) => eventually(() => { const job = read(id); return job && !ACTIVE.has(job.state) && job.state !== 'queued' ? job : null; }, 'worker did not persist terminal state for ' + id);
-  const settled = () => eventually(() => ownedPids().every((pid) => !alive(pid))
+  const settled = () => eventually(() => ownedProcesses().every((child) => !alive(child.pid))
     && invocations().every((row) => !alive(row.pid)) && locks().length === 0,
-  'supervisors did not exit and release their claims', 20000);
+  'supervisors and descendants did not exit and release their claims', 20000);
   t.after(async () => {
     release();
     await Promise.all([...children].map((proc) => new Promise((resolve) => {
@@ -127,7 +135,7 @@ function fixture(t) {
     fs.rmSync(home, { recursive: true, force: true,
       ...(process.platform === 'win32' ? { maxRetries: 5, retryDelay: 50 } : {}) });
   });
-  return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal, settled };
+  return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal, settled, ownedProcesses };
 }
 
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
@@ -157,6 +165,10 @@ test('detached worker persists successful receipt after its launcher exits', { t
   assert.equal(view.progress.sessionId, 'test-session-preserved');
   assert.equal(view.jobs.length, 1, 'progress receipts are not standalone jobs');
   assert.ok(view.description, 'completion is inspectable after a fresh process starts');
+  await f.settled();
+  const notifier = f.ownedProcesses().find((child) => child.args.includes(path.join(APP, 'bridge', 'notify.js')));
+  assert.ok(notifier, 'cleanup must observe the detached notifier spawned by the supervisor');
+  assert.equal(alive(notifier.pid), false, 'cleanup must wait for the notifier, not only its supervisor');
 });
 
 test('invalid repository before checkpoint creation cannot become done', { timeout: 30000 }, async (t) => {

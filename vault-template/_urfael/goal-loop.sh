@@ -288,7 +288,7 @@ if [ -n "$DONE" ]; then echo "Result: COMPLETED after $i iters. Review:  git -C 
 else echo "Result: STOPPED (not confirmed complete) after $i iters. Review $LOG and:  git -C \"$REPO\" diff"; OUTCOME="stopped (needs you) ⚠️"; fi
 # Opt-in gate: one honest note on WHY this is (or isn't) an independently-verified result. Guarded; off = no line.
 [ -n "$VERIFY" ] && { if [ -n "$DONE" ]; then echo "  ↳ independently verified: a fresh read-only refuter could not refute completion against the stated criteria."; elif [ "$SANDBOX" = ssh ]; then echo "  ↳ stopped, not independently verified (ssh, v1): the read-only verifier does not run on the ssh backend."; else echo "  ↳ stopped, not independently verified: the adversarial refuter never passed within the caps."; fi; }
-echo "Nothing was pushed or merged — that's yours to do."
+echo "Review the workspace and logs before publishing; the loop adds no separate push or merge step."
 # phone push (best-effort; silent no-op if no bridge.env / node). REPO_DIR was hoisted to the top of the script.
 NOTIFY="$APP/bridge/notify.js"
 [ -f "$NOTIFY" ] && command -v node >/dev/null 2>&1 && node "$NOTIFY" "Goal $OUTCOME after $i iters: $GOAL" >/dev/null 2>&1 || true

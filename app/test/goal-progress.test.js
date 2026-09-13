@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const cp = require('child_process');
 const progress = require('../goal-progress');
-const {checkInvocation} = require('../goal-loop');
+const {checkInvocation,boundedRun} = require('../goal-loop');
 const ROOT = path.resolve(__dirname, '../..');
 const LOOP = path.join(ROOT, 'app/goal-loop.js');
 
@@ -75,7 +75,7 @@ function scriptCheck(f, source) {
   const p = path.join(f.dir, "acceptance check's result.js");
   const records = path.join(f.dir,'check-processes.json');
   // Record actual native-process exit codes as test diagnostics, independently of PowerShell's status.
-  const observe = `{const fs=require('fs'),p=${JSON.stringify(records)};let a=[];try{a=JSON.parse(fs.readFileSync(p))}catch{}const entry={pid:process.pid,exitCode:null};a.push(entry);fs.writeFileSync(p,JSON.stringify(a));process.on('exit',code=>{entry.exitCode=code;fs.writeFileSync(p,JSON.stringify(a));});}\n`;
+  const observe = `{const fs=require('fs'),p=${JSON.stringify(records)};let a=[];try{a=JSON.parse(fs.readFileSync(p))}catch{}const entry={pid:process.pid,exitCode:null,pathExt:process.env.PATHEXT};a.push(entry);fs.writeFileSync(p,JSON.stringify(a));process.on('exit',code=>{entry.exitCode=code;fs.writeFileSync(p,JSON.stringify(a));});}\n`;
   fs.writeFileSync(p, observe+source);
   if (process.platform === 'win32') {
     const literal = (s) => "'" + s.replace(/'/g, "''") + "'";
@@ -123,6 +123,27 @@ test('PowerShell transport round-trips complete command source including literal
   assert.equal(Buffer.from(invocation.args[invocation.args.indexOf('-EncodedCommand')+1],'base64').toString('utf16le'),command);
 });
 
+test('Windows check environment restores missing executable extensions and rejects asynchronous document dispatch', () => {
+  const original={PATH:'fixture-path',HOME:'fixture-home'};
+  assert.equal(checkInvocation('exit 7','win32',original).env.PATHEXT,'.COM;.EXE;.BAT;.CMD');
+  assert.equal(Object.hasOwn(original,'PATHEXT'),false,'the parent environment is never mutated');
+  const custom={...original,PathExt:'.exe;.CUSTOM'};
+  const restored=checkInvocation('exit 7','win32',custom).env;
+  assert.equal(restored.PATHEXT,'.exe;.CUSTOM');assert.equal(Object.hasOwn(restored,'PathExt'),false);
+  assert.throws(()=>checkInvocation('exit 7','win32',{...original,PATHEXT:'.CPL'}),/PATHEXT/);
+});
+
+test('failed post-spawn progress persistence waits for owned child close, including asynchronous spawn errors', async () => {
+  const f=fixture();try {
+    for(const executable of [process.execPath,path.join(f.dir,'missing-executable')]) {
+      let pid;
+      const result=await boundedRun(executable,['-e','setInterval(()=>{},1000)'],{cwd:f.repo,errTo:path.join(f.dir,'spawn.log')},2,
+        {save:(patch)=>{if(patch.phase==='worker'){pid=patch.childPid;throw new Error('fixture handoff write failed');}}},'worker');
+      assert.equal(result.rc,127);if(pid)assert.equal(progress.alive(pid),false,'cannot retry while the old child still exists');
+    }
+  } finally {f.cleanup();}
+});
+
 test('passing baseline check without a final worker marker cannot complete or spawn a verifier', () => {
   const f = fixture();
   try {
@@ -161,8 +182,8 @@ test('a red first check cannot be bypassed by running a second green check', () 
     const count=path.join(f.dir,'check-count');
     const check=scriptCheck(f,`const fs=require('fs');fs.appendFileSync(${JSON.stringify(count)},'x');process.exit(fs.readFileSync(${JSON.stringify(count)},'utf8').length===1?1:0);`);
     // Localize native status transport independently of the loop before testing its candidate gate.
-    const invocation=checkInvocation(check);
-    const preflight=cp.spawnSync(invocation.bin,invocation.args,{cwd:f.repo,env:f.env,encoding:'utf8',timeout:10000});
+    const invocation=checkInvocation(check,process.platform,f.env);
+    const preflight=cp.spawnSync(invocation.bin,invocation.args,{cwd:f.repo,env:invocation.env||f.env,encoding:'utf8',timeout:10000});
     assert.equal(preflight.status,1,'Direct shell preflight: '+check+'\n'+f.diagnostics(preflight));
     fs.unlinkSync(count);fs.writeFileSync(path.join(f.dir,'check-processes.json'),'[]');
     const r=f.run(['--max-iters','1','--check',check,'--verify','--criteria',f.criteria]);

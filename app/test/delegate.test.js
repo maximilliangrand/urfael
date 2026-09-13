@@ -145,16 +145,20 @@ test('runner.jobEnv: a background /job child gets the SCOPED env (ambient secret
   const secretKey = 'URFAEL_TEST_FAKE_BRIDGE_SECRET';              // a bridge-shaped secret sitting in the daemon env
   const savedSecret = process.env[secretKey];
   const savedSandbox = process.env.URFAEL_SANDBOX;
+  const savedPathExt = process.env.PATHEXT;
   process.env[secretKey] = 'telegram-owner-token';
   process.env.URFAEL_SANDBOX = 'docker';                           // an owner-set operational default the job legitimately reads
+  process.env.PATHEXT = '.COM;.EXE;.BAT;.CMD';
   try {
     const e = runner.jobEnv();
     assert.ok(!(secretKey in e), 'the background child must NOT inherit an ambient daemon secret');
     assert.equal(e.PATH, process.env.PATH, 'PATH is kept so the job still runs');
     assert.equal(e.URFAEL_OVERLAY, '1');
+    assert.equal(e.PATHEXT, '.COM;.EXE;.BAT;.CMD', 'native Windows commands retain executable classification');
     assert.equal(e.URFAEL_SANDBOX, 'docker', 'the goal-loop isolation selector is preserved (behaviour identical for an owner-local job)');
   } finally {
     if (savedSecret === undefined) delete process.env[secretKey]; else process.env[secretKey] = savedSecret;
     if (savedSandbox === undefined) delete process.env.URFAEL_SANDBOX; else process.env.URFAEL_SANDBOX = savedSandbox;
+    if (savedPathExt === undefined) delete process.env.PATHEXT; else process.env.PATHEXT = savedPathExt;
   }
 });
