@@ -1,6 +1,6 @@
 'use strict';
 // Static + stubbed-spawn tests over vault-template/_urfael/goal-loop.sh for the OPT-IN --verify gate. Proves:
-//   • default byte-identical (flag-off worker prompt == baseline; the two candidate-done blocks are byte-unchanged);
+//   • default worker prompt stays compatible; both host entrypoints share the app-bundled engine;
 //   • --verify without --criteria fails closed (non-zero exit);
 //   • two-key ordering (a RED --check never spawns the verifier);
 //   • exit-only-on-pass + feedback (refute → continue with the refutation fed into the next prompt; pass → DONE).
@@ -22,18 +22,9 @@ const SRC = fs.readFileSync(GOAL_LOOP, 'utf8');
 // leg). Same fakes, same assertions — the twin can never drift from the .sh without a red build.
 const ENGINES = process.platform === 'win32' ? ['js'] : ['sh', 'js'];
 
-// ── STATIC: the two existing candidate-done blocks are byte-for-byte intact ───────────────────────────────
-test('the existing --check and marker candidate-done blocks are byte-for-byte unchanged', () => {
-  // These are the two blocks that set `DONE=1; break`; the verify interception is a guarded PRE-step, never an
-  // edit to these. If a careless change touches them, the default path is no longer byte-identical — fail loudly.
-  const checkBlock = 'if run_check; then echo "✅ verify command passes — done."; DONE=1; break; fi';
-  const markerBlock = '[ "$last" = "$MARKER" ] && { echo "✅ completion marker (no verify command given)."; DONE=1; break; }';
-  assert.ok(SRC.includes(checkBlock), 'the --check candidate-done line must be unchanged');
-  assert.ok(SRC.includes(markerBlock), 'the marker candidate-done line must be unchanged');
-});
-
-test('the pre-flight already-satisfied early-exit is suppressed under --verify (carries the [ -z "$VERIFY" ] guard)', () => {
-  assert.match(SRC, /if \[ -z "\$VERIFY" \] && \[ -n "\$CHECK" \] && run_check; then echo "✅ goal already satisfied/);
+test('host Bash entry delegates to the durable JS loop; sandbox recovery fails closed', () => {
+  assert.match(SRC, /exec node .*goal-loop\.js/);
+  assert.ok(SRC.includes('--state/--resume recovery is supported only for host goals'));
 });
 
 test('the verifier spawn is the read-only floor with NO --resume / bypass (grep-gated, mirrors goal-verify.js)', () => {
@@ -41,42 +32,6 @@ test('the verifier spawn is the read-only floor with NO --resume / bypass (grep-
   assert.match(SRC, /VFLAGS=\(--permission-mode acceptEdits --strict-mcp-config --allowedTools Read,Grep,Glob --output-format json --model "\$MODEL"\)/);
   const vflagsLine = SRC.split('\n').find((l) => l.includes('VFLAGS=('));
   assert.ok(vflagsLine && !/--resume|bypassPermissions|dangerously-skip/.test(vflagsLine), 'verifier flags carry no resume/bypass');
-});
-
-test('every verify-specific helper call sits inside a `[ -n "$VERIFY" ]` guarded region (default path untouched)', () => {
-  // Walk the script tracking `[ -n "$VERIFY" ]` ... matching `fi` depth. Assert the verify-only tokens only ever
-  // appear while inside such a guard (the pre-flight uses the `[ -z "$VERIFY" ]` twin, also a verify guard).
-  const TOKENS = ['goal-verify.js', 'ledger-log.js', 'VPROMPT', 'CONTRACT_TEXT', 'REFUTATION=', 'CRIT_DIGEST', 'goal_contract', 'goal_verify'];
-  const lines = SRC.split('\n');
-  let depth = 0;              // how many `[ -n "$VERIFY" ]` if-blocks we are currently inside
-  const stack = [];          // per-`if` : was it a VERIFY-guard?
-  for (const raw of lines) {
-    const line = raw.trim();
-    const isIf = /^if .*; then$|^if .*$/.test(line) && /^if\b/.test(line);
-    if (/^if\b/.test(line)) {
-      const isVerifyGuard = /\[ -n "\$VERIFY" \]/.test(line) || /\[ -z "\$VERIFY" \]/.test(line);
-      stack.push(isVerifyGuard);
-      if (isVerifyGuard) depth++;
-    }
-    // the tokens must only appear when depth>0, OR on a line that is itself the guard, OR in the arg-parse defaults.
-    // Strip inline comments first (a comment MENTIONING a helper is not an ungated ACTION — those have no ` #`).
-    const code = line.replace(/\s#.*$/, '');
-    if (depth === 0) {
-      for (const t of TOKENS) {
-        if (code.includes(t)) {
-          // allowed exceptions: a comment, or a pure variable-INITIALIZATION line at the top (empty defaults are
-          // harmless in the default path). A real ungated verify ACTION (a node call / prompt build) is the failure
-          // we hunt — and those all start with `node`/a substitution, never a bare `VAR=` init.
-          const benign = /^#/.test(line) || /^(GOAL_ID|CRIT_DIGEST|VERIFY_UNVERIFIABLE|CRITERIA|REFUTATION)=/.test(line);
-          assert.ok(benign, 'verify token "' + t + '" appears OUTSIDE a [ -n "$VERIFY" ] guard: ' + line);
-        }
-      }
-    }
-    if (line === 'fi' || /; fi$/.test(line)) {
-      const wasVerify = stack.pop();
-      if (wasVerify && depth > 0) depth--;
-    }
-  }
 });
 
 // ── FUNCTIONAL harness ────────────────────────────────────────────────────────────────────────────────────
@@ -137,18 +92,19 @@ function makeStub() {
 
 function runLoop(stub, extraArgs, extraEnv, engine) {
   const common = ['do the thing', '--repo', stub.repo, '--max-iters', '2', '--turn-timeout', '30', '--model', 'sonnet', ...extraArgs];
+  // Pin the fixture for BOTH entrypoints. In particular, do not inherit a daemon-smoke CLI override
+  // from an outer test runner, or any real account environment from the developer's shell.
+  const env = Object.assign({
+    HOME: stub.home, USERPROFILE: stub.home,
+    PATH: stub.bin + path.delimiter + process.env.PATH,
+    SystemRoot: process.env.SystemRoot || '',
+    URFAEL_CLAUDE_BIN: stub.claudeJs,
+    URFAEL_UPDATE_CHECK: '0',
+  }, extraEnv || {});
   let r;
   if (engine === 'js') {
-    const env = Object.assign({}, process.env, {
-      HOME: stub.home, USERPROFILE: stub.home,                 // os.homedir() reads USERPROFILE on win32
-      URFAEL_CLAUDE_BIN: stub.claudeJs,                        // claude-bin: .js → run under our own node
-    }, extraEnv || {});
     r = cp.spawnSync(process.execPath, [GOAL_LOOP_JS, ...common], { env, encoding: 'utf8', timeout: 60000 });
   } else {
-    const env = Object.assign({}, process.env, {
-      HOME: stub.home,
-      PATH: stub.bin + ':' + process.env.PATH,
-    }, extraEnv || {});
     r = cp.spawnSync('bash', [GOAL_LOOP, ...common], { env, encoding: 'utf8', timeout: 60000 });
   }
   return { code: r.status, out: (r.stdout || '') + (r.stderr || ''), prompts: (() => { try { return fs.readFileSync(stub.claudeLog, 'utf8'); } catch { return ''; } })() };

@@ -287,14 +287,14 @@ See also: `remind` · `unremind`
 list background jobs and their state.
 
 ```bash
-urfael jobs | job <id> | cancel <id>
+urfael jobs | job <id> [--resume] | cancel <id>
 ```
 
 Examples:
 
 ```bash
 urfael jobs
-urfael job a1b2c3
+urfael job a1b2c3 --resume
 urfael cancel a1b2c3
 ```
 
@@ -992,7 +992,7 @@ Folded under a parent command above, but valid on their own:
 | Command | What it does |
 |---|---|
 | `urfael unremind` | cancel a scheduled reminder by id |
-| `urfael job` | inspect one background job (full record + log tail) |
+| `urfael job` | inspect job evidence or resume a stopped coding goal |
 | `urfael cancel` | cancel a background job by id |
 
 ---

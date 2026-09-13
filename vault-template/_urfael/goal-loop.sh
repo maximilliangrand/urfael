@@ -27,6 +27,7 @@
 # command. --ssh-host is restricted to a safe [A-Za-z0-9._@-]+ pattern. We never push; we never hand secrets to
 # the remote. Off by default — without the flag behavior is byte-identical to before.
 set -uo pipefail
+ORIGINAL_ARGS=("$@")
 
 GOAL=""; REPO=""; MAX_ITERS=15; MAX_MINS=120; TURN_TIMEOUT=900; CHECK=""; MODEL="sonnet"; STALE_LIMIT=3
 SANDBOX="${URFAEL_SANDBOX:-}"   # ''=host (default), 'docker'=isolated no-net, 'docker-net'=isolated w/ network, 'ssh'=remote host
@@ -37,14 +38,23 @@ SSH_DIR="${URFAEL_SSH_DIR:-}"     # optional remote repo dir (cd here before eac
 # REFUTE completion; it is MANDATORY-paired with --criteria <file> (env URFAEL_GOAL_CRITERIA) — the machine-checkable
 # bar, stated up front — and FAILS CLOSED without it. REFUTATION carries a refuter's reason into the next turn.
 VERIFY=""; [ "${URFAEL_GOAL_VERIFY:-}" = "1" ] && VERIFY=1
-CRITERIA="${URFAEL_GOAL_CRITERIA:-}"; REFUTATION=""
-usage(){ echo 'Usage: goal-loop.sh "<goal>" [--repo DIR] [--max-iters N] [--max-mins M] [--turn-timeout S] [--check "cmd"] [--model NAME] [--sandbox docker|docker-net|ssh] [--ssh-host user@host] [--ssh-dir REMOTE_REPO_DIR] [--verify] [--criteria FILE]'; }
+CRITERIA="${URFAEL_GOAL_CRITERIA:-}"; REFUTATION=""; STATE=""; RESUME=""
+usage(){ echo 'Usage: goal-loop.sh "<goal>" [--repo DIR] [--max-iters N] [--max-mins M] [--turn-timeout S] [--check "cmd"] [--model NAME] [--sandbox docker|docker-net|ssh] [--ssh-host user@host] [--ssh-dir REMOTE_REPO_DIR] [--verify] [--criteria FILE] [--state FILE] [--resume]'; }
 while [ $# -gt 0 ]; do case "$1" in
   --repo) REPO="$2"; shift 2;; --max-iters) MAX_ITERS="$2"; shift 2;; --max-mins) MAX_MINS="$2"; shift 2;;
   --turn-timeout) TURN_TIMEOUT="$2"; shift 2;; --check) CHECK="$2"; shift 2;; --model) MODEL="$2"; shift 2;;
   --sandbox) SANDBOX="$2"; shift 2;; --ssh-host) SSH_HOST="$2"; shift 2;; --ssh-dir) SSH_DIR="$2"; shift 2;;
   --verify) VERIFY=1; shift;; --criteria) CRITERIA="$2"; shift 2;;
+  --state) STATE="$2"; shift 2;; --resume) RESUME=1; shift;;
   -h|--help) usage; exit 0;; *) if [ -z "$GOAL" ]; then GOAL="$1"; else echo "unknown arg: $1"; usage; exit 1; fi; shift;; esac; done
+
+# Host mode shares one implementation with Windows: durable progress, exact-content receipts and resume.
+# Keep the existing explicit Docker/SSH backend isolated; remote recovery is not silently approximated.
+if [ -z "$SANDBOX" ]; then
+  export URFAEL_CLAUDE_BIN="${URFAEL_CLAUDE_BIN:-$(command -v claude || true)}"
+  exec node "$(dirname "$0")/goal-loop.js" "${ORIGINAL_ARGS[@]}"
+fi
+[ -z "$STATE$RESUME" ] || { echo "✗ --state/--resume recovery is supported only for host goals."; exit 1; }
 
 [ -n "$GOAL" ] || { echo "✗ no goal given."; usage; exit 1; }
 # SECURITY (M6): never default to the current dir. Require an explicit --repo pointing at an ISOLATED git
@@ -171,7 +181,7 @@ run_check(){ if [ "$SANDBOX" = ssh ]; then printf '%s\n' "$CHECK" | "${SSH_PREFI
 # Pre-flight: if a verify command is given and already passes, the goal's done — don't burn a turn. Under --verify
 # the `[ -z "$VERIFY" ]` guard SUPPRESSES this early-exit so even a green check is still independently adjudicated
 # (a green check declares only CANDIDATE-done; the refuter, not the check alone, ends the loop). Off → unchanged.
-if [ -z "$VERIFY" ] && [ -n "$CHECK" ] && run_check; then echo "✅ goal already satisfied (verify passes)."; exit 0; fi
+# A passing check before work is a baseline, not evidence that the requested goal is done.
 
 for (( i=1; i<=MAX_ITERS; i++ )); do
   now=$(date +%s); (( (now-START)/60 >= MAX_MINS )) && { echo "⏰ wall-clock cap (${MAX_MINS}m) hit. Stopping."; break; }
@@ -216,19 +226,15 @@ NOTE: a prior INDEPENDENT read-only review REFUTED completion; unmet: ${REFUTATI
   printf '\n===== iter %s =====\n%s\n' "$i" "$text" >> "$LOG"
   printf '%s\n' "$text" | tail -4
 
-  # OPT-IN two-key gate (all inside `[ -n "$VERIFY" ]`): a candidate-done is INTERCEPTED before the untouched
-  # completion block below. Layer 1 (the deterministic --check, or the marker when no check) makes it only a
-  # CANDIDATE; Layer 2 spawns a SECOND, FRESH read-only claude to REFUTE it. On a well-formed PASS we fall through
-  # to the byte-identical block (which then sets DONE); on refute/error we feed the reason back and `continue`, so a
-  # red check or an unrefuted claim can NEVER reach DONE. ssh (v1) is treated as not-verifiable → never auto-DONE.
+  # Require a final worker marker AND the optional check. Run that check exactly once; a second
+  # check cannot accidentally bypass a refuted/missing independent review.
+  last=$(printf '%s' "$text" | grep -v '^[[:space:]]*$' | tail -1)
+  CANDIDATE=""; CHECKPASSED=false
+  if [ "$last" = "$MARKER" ]; then
+    if [ -z "$CHECK" ]; then CANDIDATE=1
+    elif run_check; then CANDIDATE=1; CHECKPASSED=true; fi
+  fi
   if [ -n "$VERIFY" ]; then
-    CANDIDATE=""; CHECKPASSED=false
-    if [ -n "$CHECK" ]; then
-      if run_check; then CANDIDATE=1; CHECKPASSED=true; fi   # Layer 1: a RED check never even spawns the verifier
-    else
-      vlast=$(printf '%s' "$text" | grep -v '^[[:space:]]*$' | tail -1)
-      [ "$vlast" = "$MARKER" ] && CANDIDATE=1
-    fi
     if [ -n "$CANDIDATE" ]; then
       VVERDICT="error"; VREASON="not independently verified"
       if [ "$SANDBOX" = ssh ]; then
@@ -268,12 +274,8 @@ NOTE: a prior INDEPENDENT read-only review REFUTED completion; unmet: ${REFUTATI
     fi
   fi
 
-  # Completion: the verify command is the source of truth; the marker only counts (as last line) if no check given.
-  if [ -n "$CHECK" ]; then
-    if run_check; then echo "✅ verify command passes — done."; DONE=1; break; fi
-  else
-    last=$(printf '%s' "$text" | grep -v '^[[:space:]]*$' | tail -1)
-    [ "$last" = "$MARKER" ] && { echo "✅ completion marker (no verify command given)."; DONE=1; break; }
+  if [ -n "$CANDIDATE" ]; then
+    echo "✅ completion marker and configured gates pass — done."; DONE=1; break
   fi
 
   state="$(git_state)"   # host/docker: local $REPO tree; ssh: the remote --ssh-dir tree (same tree the turns mutate)
@@ -286,7 +288,10 @@ if [ -n "$DONE" ]; then echo "Result: COMPLETED after $i iters. Review:  git -C 
 else echo "Result: STOPPED (not confirmed complete) after $i iters. Review $LOG and:  git -C \"$REPO\" diff"; OUTCOME="stopped (needs you) ⚠️"; fi
 # Opt-in gate: one honest note on WHY this is (or isn't) an independently-verified result. Guarded; off = no line.
 [ -n "$VERIFY" ] && { if [ -n "$DONE" ]; then echo "  ↳ independently verified: a fresh read-only refuter could not refute completion against the stated criteria."; elif [ "$SANDBOX" = ssh ]; then echo "  ↳ stopped, not independently verified (ssh, v1): the read-only verifier does not run on the ssh backend."; else echo "  ↳ stopped, not independently verified: the adversarial refuter never passed within the caps."; fi; }
-echo "Nothing was pushed or merged — that's yours to do."
+echo "Review the workspace and logs before publishing; the loop adds no separate push or merge step."
 # phone push (best-effort; silent no-op if no bridge.env / node). REPO_DIR was hoisted to the top of the script.
 NOTIFY="$APP/bridge/notify.js"
 [ -f "$NOTIFY" ] && command -v node >/dev/null 2>&1 && node "$NOTIFY" "Goal $OUTCOME after $i iters: $GOAL" >/dev/null 2>&1 || true
+
+[ -n "$DONE" ] && exit 0
+exit 2

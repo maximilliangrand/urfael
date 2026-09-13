@@ -332,20 +332,102 @@ $('#rem-form').addEventListener('submit', async (e) => {
 });
 
 // ---- jobs ----------------------------------------------------------------------
+function jobVerification(progress) {
+  const v = progress && progress.verification;
+  return typeof v === 'string' ? v : (v && typeof v.status === 'string' ? v.status : 'not recorded');
+}
+function jobProgressText(j) {
+  const p = j.progress;
+  if (!p) return j.kind === 'goal' ? 'No completion receipt recorded' : '';
+  const parts = [];
+  const maxIters = p.maxIters ?? (p.contract && p.contract.maxIters);
+  if (Number.isInteger(p.iterations)) parts.push('Iterations: ' + p.iterations + (Number.isInteger(maxIters) ? '/' + maxIters : ''));
+  if (p.outcome) parts.push('Outcome: ' + p.outcome);
+  parts.push('Verification: ' + jobVerification(p));
+  if (p.reason) parts.push(String(p.reason));
+  return parts.join(' · ');
+}
+function jobDetails(j) {
+  const s = j.spec || {}, p = j.progress || {};
+  const lines = [j.goal || s.goal || s.prompt || j.kind || 'Job', 'Job: ' + j.id, 'State: ' + j.state];
+  if (s.repo) lines.push('Repository: ' + s.repo);
+  const progress = jobProgressText(j); if (progress) lines.push(progress);
+  if (Number.isFinite(p.elapsedMs)) lines.push('Elapsed: ' + Math.round(p.elapsedMs / 1000) + 's');
+  if (p.baselineHead) lines.push('Review baseline (before this goal): ' + p.baselineHead);
+  if (p.lastWorkspaceHash) lines.push('Last recorded workspace: ' + p.lastWorkspaceHash);
+  const check = p.verification && p.verification.checkReceipt;
+  if (check && typeof check === 'object') {
+    lines.push('\nAcceptance check: ' + (check.command || '(command not recorded)'));
+    lines.push('Exit code: ' + (check.exitCode ?? 'not recorded') + ' · Timed out: ' + (typeof check.timedOut === 'boolean' ? check.timedOut : 'not recorded'));
+    const timestamp = (value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        const date = new Date(value); if (Number.isFinite(date.getTime())) return date.toISOString();
+      }
+      return typeof value === 'string' && value ? value : '?';
+    };
+    if (check.startedAt != null || check.endedAt != null) lines.push('Check time: ' + timestamp(check.startedAt) + ' → ' + timestamp(check.endedAt));
+    if (check.workspaceHash) lines.push('Checked workspace: ' + check.workspaceHash);
+    if (check.logFile) lines.push('Check log: ' + check.logFile);
+  }
+  if (p.contract) lines.push('\nCompletion contract:\n' + JSON.stringify(p.contract, null, 2));
+  if (p.verification && typeof p.verification === 'object') lines.push('\nVerification receipt:\n' + JSON.stringify(p.verification, null, 2));
+  const result = p.result || j.result;
+  if (result) lines.push('\nResult:\n' + (typeof result === 'string' ? result : JSON.stringify(result, null, 2)));
+  if (j.resumable === true) lines.push('\nResume is available with the same goal and settings.');
+  lines.push('\nLog tail:\n' + (j.log || '(no log)'));
+  return lines.join('\n');
+}
+function showJobMessage(message) {
+  const log = $('#job-log'); log.textContent = message; log.hidden = false;
+  log.setAttribute('aria-live', 'polite');
+}
 async function loadJobs() {
-  const jobs = await window.urfael.jobs() || [];
+  const jobs = await window.urfael.jobs().catch(() => null);
   const el = $('#job-list'); el.innerHTML = ''; $('#job-log').hidden = true;
-  if (!jobs.length) { el.innerHTML = '<p class="hint">No background work. Ask Urfael to research something “in the background”.</p>'; return; }
+  const refresh = document.createElement('button'); refresh.className = 'row-act small'; refresh.textContent = 'Refresh jobs';
+  refresh.onclick = () => loadJobs(); el.appendChild(refresh);
+  if (!Array.isArray(jobs)) { showJobMessage('Could not load jobs. Refresh to try again.'); return; }
+  if (!jobs.length) { const empty = document.createElement('p'); empty.className = 'hint'; empty.textContent = 'No background work. Ask Urfael to research something “in the background”.'; el.appendChild(empty); return; }
   for (const j of jobs.slice(0, 30)) {
-    const d = document.createElement('div'); d.className = 'row';
-    d.innerHTML = '<span class="when"></span><span class="grow"></span><span class="state"></span><button class="row-act small">Log</button><button class="row-act small">Cancel</button>';
-    d.querySelector('.when').textContent = (j.createdAt || '').slice(5, 16).replace('T', ' ');
-    d.querySelector('.grow').textContent = j.kind + '  ·  ' + j.id;
-    const st = d.querySelector('.state'); st.textContent = j.state; st.classList.add(j.state);
-    const [logBtn, cancelBtn] = d.querySelectorAll('button');
-    logBtn.onclick = async () => { const full = await window.urfael.job(j.id); $('#job-log').textContent = (full && full.log) || '(no log)'; $('#job-log').hidden = false; };
-    cancelBtn.onclick = async () => { await window.urfael.jobCancel(j.id); loadJobs(); };
-    if (j.state !== 'running') cancelBtn.remove();
+    const d = document.createElement('div'); d.className = 'row job-row';
+    const when = document.createElement('span'); when.className = 'when'; when.textContent = (j.createdAt || '').slice(5, 16).replace('T', ' ');
+    const content = document.createElement('div'); content.className = 'grow';
+    const title = document.createElement('div'); title.className = 'job-title'; title.textContent = j.goal || j.kind + ' · ' + j.id;
+    const progress = document.createElement('div'); progress.className = 'job-progress'; progress.textContent = jobProgressText(j);
+    content.append(title, progress);
+    const st = document.createElement('span'); st.className = 'state'; st.textContent = j.state;
+    if (/^[a-z-]+$/.test(j.state)) st.classList.add(j.state);
+    const actions = document.createElement('div'); actions.className = 'job-actions';
+    const logBtn = document.createElement('button'); logBtn.className = 'row-act small'; logBtn.textContent = 'Details';
+    logBtn.onclick = async () => {
+      const full = await window.urfael.job(j.id).catch(() => null);
+      showJobMessage(full && full.id && !full.error ? jobDetails(full) : ((full && full.error) || 'Could not load job details.'));
+    };
+    actions.appendChild(logBtn);
+    if (j.resumable === true) {
+      const resumeBtn = document.createElement('button'); resumeBtn.className = 'row-act small'; resumeBtn.textContent = 'Resume';
+      resumeBtn.onclick = async () => {
+        if (resumeBtn.disabled) return;
+        resumeBtn.disabled = true;
+        const r = await window.urfael.jobResume(j.id).catch(() => null);
+        if (!r || r.error || r.id !== j.id) { resumeBtn.disabled = false; showJobMessage((r && r.error) || 'Could not confirm resume. Refresh jobs before retrying.'); return; }
+        await loadJobs();
+        showJobMessage('Resume accepted for ' + r.id + '. State: ' + r.state + '. Open Details for progress.');
+      };
+      actions.appendChild(resumeBtn);
+    }
+    if (j.state === 'running') {
+      const cancelBtn = document.createElement('button'); cancelBtn.className = 'row-act small'; cancelBtn.textContent = 'Cancel';
+      cancelBtn.onclick = async () => {
+        if (cancelBtn.disabled) return;
+        cancelBtn.disabled = true;
+        const r = await window.urfael.jobCancel(j.id).catch(() => null);
+        if (!r || !r.ok) { cancelBtn.disabled = false; showJobMessage((r && r.error) || 'Could not cancel job. Refresh to check its state.'); return; }
+        await loadJobs();
+      };
+      actions.appendChild(cancelBtn);
+    }
+    d.append(when, content, st, actions);
     el.appendChild(d);
   }
 }

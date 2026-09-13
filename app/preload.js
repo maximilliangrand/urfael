@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('urfael', {
   jobs: () => ipcRenderer.invoke('urfael:jobs'),
   job: (id) => ipcRenderer.invoke('urfael:job', id),
   jobCancel: (id) => ipcRenderer.invoke('urfael:job-cancel', id),
+  jobResume: (id) => ipcRenderer.invoke('urfael:job-resume', id),
   setConfig: (k, v) => ipcRenderer.send('urfael:set-config', k, v),
   providerStatus: () => ipcRenderer.invoke('urfael:provider-status'),   // first-run onboarding
   saveProvider: (cfg) => ipcRenderer.invoke('urfael:save-provider', cfg),

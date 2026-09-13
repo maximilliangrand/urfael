@@ -1,6 +1,5 @@
 'use strict';
-// Detached job runner. Spawns the work in its OWN process group (so it survives the daemon and so cancel
-// is a real kill switch), streams output to the job log, and on exit records state + pushes a phone notify.
+// Launch a detached supervisor that owns both the child and its final durable result, even if the daemon exits.
 //   kind 'goal'      -> the guard-railed vault-template/_urfael/goal-loop.sh (isolated --repo, never pushes)
 //   kind 'ask'/'research' -> a sandboxed one-shot claude (no bypass, no computer-use) that writes a vault note
 const fs = require('fs');
@@ -37,9 +36,11 @@ function attribution(s) {
 function argvFor(job) {
   const s = job.spec || {};
   if (job.kind === 'goal') {
-    // POSIX runs the shipped bash loop; native Windows runs its line-for-line JS twin (goal-loop.js, scaffolded
-    // into the same vault dir) under our own node — same flags, same guard rails, no bash dependency.
-    const args = process.platform === 'win32'
+    // Managed host jobs always use this app version's engine. Existing vaults are user-owned and installers
+    // intentionally do not overwrite their old templates on upgrade. Remote backends keep the vault script.
+    const args = store.safeId(job.id) && supportsRecovery(job)
+      ? [process.execPath, path.join(__dirname, 'goal-loop.js'), String(s.goal || '')]
+      : process.platform === 'win32'
       ? [process.execPath, path.join(VAULT, '_urfael', 'goal-loop.js'), String(s.goal || '')]
       : ['bash', path.join(VAULT, '_urfael', 'goal-loop.sh'), String(s.goal || '')];
     if (s.repo) args.push('--repo', String(s.repo));
@@ -56,7 +57,7 @@ function argvFor(job) {
     // Optional throwaway-container isolation. Whitelist server-side; goal-loop.sh re-validates + needs docker.
     if (s.sandbox === 'docker' || s.sandbox === 'docker-net') args.push('--sandbox', s.sandbox);
     // Optional remote SSH backend: turns run on a remote host. Validate the host server-side against the SAME safe
-    // pattern goal-loop.sh enforces ([A-Za-z0-9._@-]+, no leading '-') — a bad/missing host is DROPPED, not passed,
+    // pattern goal-loop.sh enforces ([A-Za-z0-9._@-]+, no leading '-') — a bad/missing host is rejected,
     // so we never splice an attacker-shaped string onto an ssh command line. --ssh-dir is a path, passed verbatim
     // (goal-loop.sh %q-escapes it). Only enable ssh mode when the host validates.
     else if (s.sandbox === 'ssh') {
@@ -65,7 +66,11 @@ function argvFor(job) {
         args.push('--sandbox', 'ssh', '--ssh-host', host);
         if (s.sshDir) args.push('--ssh-dir', String(s.sshDir));
       }
-      // else: host invalid/missing -> drop ssh entirely; the loop runs on the host (default), never with a bad host.
+      else throw new Error('SSH jobs require a valid host');
+    }
+    if (store.safeId(job.id) && supportsRecovery(job)) {
+      args.push('--state', store.progressFile(job.id));
+      if (job.resumeAttempt) args.push('--resume');
     }
     return args;
   }
@@ -88,38 +93,106 @@ function argvFor(job) {
 // goal-loop's operational selectors (isolation backend + yolo, the documented env-equivalents of its --sandbox
 // / --ssh-* / bypass flags) are forwarded so a normal owner-local job behaves identically; nothing else is.
 const JOB_ENV_KEYS = ['URFAEL_YOLO', 'URFAEL_SANDBOX', 'URFAEL_SANDBOX_IMAGE', 'URFAEL_SSH_HOST', 'URFAEL_SSH_DIR', 'URFAEL_GOAL_VERIFY', 'URFAEL_GOAL_CRITERIA'];
-function jobEnv() { return scopedEnv(process.env, JOB_ENV_KEYS); }
-
-function run(job) {
-  const id = job.id;
-  let fd;
-  try { fd = fs.openSync(store.logFile(id), 'a'); } catch { fd = 'ignore'; }
-  let proc;
-  try {
-    const [cmd, ...args] = argvFor(job);
-    proc = spawn(cmd, args, { cwd: VAULT, env: jobEnv(),
-      stdio: ['ignore', fd, fd], detached: true });
-  } catch (e) {
-    store.update(id, { state: 'error', endedAt: new Date().toISOString(), result: String((e && e.message) || e) });
-    if (typeof fd === 'number') try { fs.closeSync(fd); } catch {}
-    return null;
+function jobEnv(job) {
+  // PowerShell uses PATHEXT to distinguish native executables from shell associations; stripping it
+  // can make a native acceptance command launch asynchronously and hide its failure status.
+  const env = scopedEnv(process.env, JOB_ENV_KEYS.concat(['USERPROFILE', 'SystemRoot', 'SYSTEMROOT', 'TEMP', 'TMP', 'PATHEXT']));
+  if (job && job.kind === 'goal' && job.goalEnvironment) {
+    for (const key of JOB_ENV_KEYS) {
+      delete env[key];
+      if (job.goalEnvironment[key] != null) env[key] = job.goalEnvironment[key];
+    }
   }
-  store.update(id, { state: 'running', pid: proc.pid, startedAt: new Date().toISOString() });
-  // `settled` guards the exit/error pair: spawn failures (ENOENT/EMFILE/ENOMEM/bad cwd) arrive as an ASYNC
-  // 'error' event, not the sync throw above. Without this handler the fd leaked, the job stayed 'running'
-  // forever (reconcile only runs at boot), and four such wedges permanently 429'd all new jobs.
-  let settled = false;
-  const finish = (state, extra) => {
-    if (settled) return; settled = true;
-    if (typeof fd === 'number') try { fs.closeSync(fd); } catch {}
-    store.update(id, { state, pid: null, endedAt: new Date().toISOString(), ...extra });
-    const a = attribution(job.spec || {});
-    notify('Urfael job ' + id + ' (' + job.kind + ') ' + state + '. ' + a.header + ' ' + a.caveat);
-  };
-  proc.on('exit', (code, signal) => finish(signal ? 'cancelled' : (code === 0 ? 'done' : 'failed'), { exitCode: code }));
-  proc.on('error', (e) => finish('error', { result: 'spawn failed: ' + String((e && e.message) || e) }));
-  proc.unref();
-  return proc.pid;
+  return env;
+}
+
+function supportsRecovery(job) {
+  const sandbox = job.spec && Object.hasOwn(job.spec, 'sandbox') ? job.spec.sandbox : process.env.URFAEL_SANDBOX || '';
+  return job.kind === 'goal' && (!sandbox || sandbox === 'host');
+}
+function progressFor(job) {
+  if (!job || job.kind !== 'goal' || !store.safeId(job.id)) return null;
+  try {
+    const p = JSON.parse(fs.readFileSync(store.progressFile(job.id), 'utf8'));
+    return p.schemaVersion === 1 && p.contract && typeof p.contract === 'object' &&
+      typeof p.runId === 'string' && p.runId.length > 0 && typeof p.sessionId === 'string' &&
+      ['running', 'completed', 'stopped', 'failed'].includes(p.outcome) &&
+      Number.isInteger(p.iterations) && p.iterations >= 0 && Number.isFinite(p.elapsedMs) && p.elapsedMs >= 0 &&
+      (p.activeSince == null || (Number.isFinite(p.activeSince) && p.activeSince > 0)) &&
+      Number.isInteger(p.contract.maxIters) && p.contract.maxIters > 0 &&
+      Number.isFinite(p.contract.maxMins) && p.contract.maxMins > 0 ? p : null;
+  } catch { return null; }
+}
+function resumable(job, heldToken) {
+  if (!job || !supportsRecovery(job) || !['stopped', 'interrupted', 'cancelled', 'failed', 'error'].includes(job.state) || store.isAlive(job.pid) || store.isAlive(job.childPid)) return false;
+  if (!store.runClaimAvailable(job.id, heldToken)) return false;
+  const p = progressFor(job);
+  if (p && process.platform === 'win32' && Number.isInteger(p.childPid) && p.childPid > 0 && p.phase !== 'idle') return false;
+  const elapsedMs = p ? p.elapsedMs + (p.activeSince ? Math.max(0, Date.now() - p.activeSince) : 0) : Infinity;
+  return !!(p && p.outcome !== 'completed' && p.resumable !== false && !require('./goal-progress').childAlive(p.childPid) && p.phase !== 'starting' &&
+    Number.isFinite(p.iterations) && p.iterations < p.contract.maxIters &&
+    elapsedMs < p.contract.maxMins * 60000);
+}
+function describe(job) {
+  return { ...job, goal: (job.spec && (job.spec.goal || job.spec.prompt || job.spec.task)) || '',
+    progress: progressFor(job), resumable: resumable(job) };
+}
+function run(job, options = {}) {
+  if (!job || !store.safeId(job.id)) throw new Error('invalid job');
+  const id = job.id;
+  const token = store.claimRun(id);
+  let fd;
+  let transitioned = false;
+  try {
+    const current = store.get(id);
+    if (!current || (options.resume ? !resumable(current, token) : current.state !== 'queued')) throw new Error('job is not resumable or is already running');
+    // Pin environment defaults into the spec, so a daemon restart cannot change the resumed contract.
+    const spec = { ...current.spec };
+    if (current.kind === 'goal') {
+      if (!Object.hasOwn(spec, 'sandbox')) spec.sandbox = process.env.URFAEL_SANDBOX || '';
+      if (spec.sandbox === 'host') spec.sandbox = '';
+      if (spec.sandbox && !['host', 'docker', 'docker-net', 'ssh'].includes(spec.sandbox)) throw new Error('unsupported goal sandbox');
+      if (spec.sandbox === 'ssh') {
+        if (!spec.sshHost) spec.sshHost = process.env.URFAEL_SSH_HOST;
+        if (!spec.sshDir) spec.sshDir = process.env.URFAEL_SSH_DIR;
+      }
+      if (spec.verify == null) spec.verify = process.env.URFAEL_GOAL_VERIFY === '1';
+      if (!options.resume && !spec.criteria && process.env.URFAEL_GOAL_CRITERIA) spec.criteria = process.env.URFAEL_GOAL_CRITERIA;
+    }
+    // Validate argv before accepting the handoff; an unsupported backend must never fall back to host execution.
+    if (spec.sandbox === 'ssh' && !/^[A-Za-z0-9._@][A-Za-z0-9._@-]*$/.test(String(spec.sshHost || process.env.URFAEL_SSH_HOST || ''))) throw new Error('SSH jobs require a valid host');
+    fd = fs.openSync(store.logFile(id), 'a', 0o600);
+    // This first transition must be durable. The token is then required for every supervisor write.
+    const goalEnvironment = current.goalEnvironment || (current.kind === 'goal' ? Object.fromEntries(JOB_ENV_KEYS
+      .filter((key) => process.env[key] != null).map((key) => [key, process.env[key]])) : undefined);
+    if (goalEnvironment) Object.assign(goalEnvironment, { URFAEL_SANDBOX: spec.sandbox || '',
+      URFAEL_GOAL_VERIFY: spec.verify ? '1' : '', URFAEL_GOAL_CRITERIA: spec.criteria || '',
+      URFAEL_SSH_HOST: spec.sshHost || '', URFAEL_SSH_DIR: spec.sshDir || '' });
+    const starting = { ...current, spec, ...(goalEnvironment ? { goalEnvironment } : {}), state: 'starting', attemptToken: token, resumeAttempt: !!options.resume,
+      pid: process.pid, childPid: null, startedAt: new Date().toISOString(), endedAt: null, exitCode: null, result: null };
+    require('./lib').atomicWriteJSON(path.join(store.JOBS_DIR, id + '.json'), starting);
+    transitioned = true;
+    const proc = spawn(process.execPath, [path.join(__dirname, 'job-worker.js'), id, token], {
+      cwd: VAULT, env: jobEnv(starting), stdio: ['ignore', fd, fd], detached: true,
+    });
+    proc.on('error', (e) => {
+      try { store.updateAttempt(id, token, { state: 'error', pid: null, endedAt: new Date().toISOString(), result: 'supervisor spawn failed: ' + e.message }); }
+      finally { store.releaseRun(id, token); }
+    });
+    proc.unref();
+    return proc.pid;
+  } catch (e) {
+    if (transitioned) store.updateAttempt(id, token, { state: 'error', pid: null, endedAt: new Date().toISOString(), result: 'supervisor launch failed: ' + e.message });
+    store.releaseRun(id, token);
+    throw e;
+  } finally { if (typeof fd === 'number') fs.closeSync(fd); }
+}
+function resume(id) {
+  store.reconcile();
+  const job = store.get(id);
+  if (!resumable(job)) throw new Error('job cannot resume: it must be stopped with a checkpoint and remaining budget');
+  run(job, { resume: true });
+  return describe(store.get(id));
 }
 
 // Cancel = signal the whole process GROUP (detached gives the child its own pgid), TERM then KILL after grace.
@@ -127,11 +200,16 @@ function run(job) {
 function cancel(id) {
   const j = store.get(id);
   if (!j || !j.pid || !store.isAlive(j.pid)) return false;
-  store.update(id, { state: 'cancelling' });
+  if (!['starting', 'running', 'cancelling'].includes(j.state)) return false;
+  // A launcher PID is temporary metadata, never a process group we are authorized to kill.
+  if (j.state === 'starting') return false;
+  if (j.attemptToken) store.updateAttempt(id, j.attemptToken, { state: 'cancelling' });
+  else store.update(id, { state: 'cancelling' });
   const pid = j.pid;
   if (process.platform === 'win32') {
     const { execFile } = require('child_process');
-    try { execFile('taskkill', ['/pid', String(pid), '/T'], { windowsHide: true }, () => {}); } catch {}
+    // New supervisors observe the persisted cancellation intent and save the result themselves.
+    if (!j.attemptToken) try { execFile('taskkill', ['/pid', String(pid), '/T'], { windowsHide: true }, () => {}); } catch {}
     setTimeout(() => { if (store.isAlive(pid)) { try { execFile('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true }, () => {}); } catch {} } }, 8000);
     return true;
   }
@@ -141,4 +219,4 @@ function cancel(id) {
   return true;
 }
 
-module.exports = { run, cancel, argvFor, attribution, jobEnv };
+module.exports = { run, resume, cancel, argvFor, attribution, jobEnv, supportsRecovery, progressFor, resumable, describe, notify, VAULT };

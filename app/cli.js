@@ -1654,9 +1654,42 @@ function readStdinAdapter(maxBytes) {
     }
     return;
   }
-  if (cmd === 'jobs') { for (const j of await req('GET', '/jobs')) console.log(`${j.id}  ${j.kind}  ${gold(j.state)}  ${dim('scope=' + (j.scope || '?'))}  ${dim(j.createdAt || '')}`); return; }
-  if (cmd === 'job') { if (!rest[0]) { console.log('usage: urfael job <id>'); return; } const j = await req('GET', '/job/' + rest[0]); console.log(dim('scope: ') + gold((j.spec && j.spec.scope) || '(unset)')); console.log(JSON.stringify({ ...j, log: undefined }, null, 2)); if (j.log) console.log(dim('--- log tail ---\n') + j.log); return; }
-  if (cmd === 'cancel') { if (!rest[0]) { console.log('usage: urfael cancel <id>'); return; } const r = await req('POST', `/job/${rest[0]}/cancel`); console.log(r && r.ok ? gold('✓ cancelled job ' + rest[0]) : '✗ no active job ' + rest[0]); return; }
+  if (cmd === 'jobs') {
+    for (const j of await req('GET', '/jobs')) {
+      console.log(`${j.id}  ${j.kind}  ${gold(j.state)}  ${dim('scope=' + (j.scope || '?'))}  ${dim(j.createdAt || '')}`);
+      if (j.goal) console.log('  ' + j.goal);
+      if (j.progress) {
+        const p = j.progress, v = p.verification;
+        const status = typeof v === 'string' ? v : (v && v.status) || 'not recorded';
+        const maxIters = p.maxIters ?? (p.contract && p.contract.maxIters);
+        console.log(dim('  iterations: ' + (p.iterations ?? '?') + (maxIters != null ? '/' + maxIters : '') + ' · verification: ' + status + (p.reason ? ' · ' + p.reason : '')));
+      } else if (j.kind === 'goal') console.log(dim('  No completion receipt recorded'));
+      if (j.resumable === true) console.log(dim('  resume: urfael job ' + j.id + ' --resume'));
+    }
+    return;
+  }
+  if (cmd === 'job') {
+    if (!/^[A-Za-z0-9-]{4,64}$/.test(rest[0] || '') || rest.slice(1).some((a) => a !== '--resume') || rest.length > 2) {
+      console.error('usage: urfael job <id> [--resume]'); process.exitCode = 1; return;
+    }
+    if (rest.includes('--resume')) {
+      let r;
+      try { r = await req('POST', '/job/' + rest[0] + '/resume', undefined, { timeoutMs: 5000 }); }
+      catch { console.error('✗ Could not confirm resume. Inspect `urfael job ' + rest[0] + '` before retrying.'); process.exitCode = 1; return; }
+      if (!r || r.error || r.id !== rest[0]) { console.error('✗ ' + ((r && r.error) || 'Could not confirm resume. Check the job before retrying.')); process.exitCode = 1; return; }
+      console.log(gold('✓ resume accepted for ' + r.id) + dim(' · state: ' + r.state));
+      console.log(dim('  inspect: urfael job ' + r.id));
+      return;
+    }
+    const j = await req('GET', '/job/' + rest[0]);
+    if (!j || !j.id || j.error) { console.error('✗ ' + ((j && j.error) || 'Could not load job.')); process.exitCode = 1; return; }
+    console.log(dim('scope: ') + gold((j.spec && j.spec.scope) || '(unset)'));
+    console.log(JSON.stringify({ ...j, log: undefined }, null, 2));
+    if (j.resumable === true) console.log(dim('resume: urfael job ' + j.id + ' --resume'));
+    if (j.log) console.log(dim('--- log tail ---\n') + j.log);
+    return;
+  }
+  if (cmd === 'cancel') { if (!rest[0]) { console.log('usage: urfael cancel <id>'); return; } const r = await req('POST', `/job/${rest[0]}/cancel`); console.log(r && r.ok ? gold('✓ cancellation requested for job ' + rest[0]) : '✗ no active job ' + rest[0]); return; }
   if (cmd === 'schedule') {
     // the dedicated Reminders & Calendar channel: add / move / cancel a reminder or calendar event in plain English.
     // It streams /schedule exactly like ask() streams /ask. The daemon (LOCAL-only; it 403s any channel key) stages
