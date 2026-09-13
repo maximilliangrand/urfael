@@ -23,17 +23,28 @@ function request(method, route, body) {
     const req = http.request({ socketPath, method, path: route, headers, timeout: 1500 }, (res) => {
       let raw = '';
       res.on('data', (chunk) => { raw += chunk; });
-      res.on('end', () => { let json; try { json = JSON.parse(raw); } catch {} resolve({ status: res.statusCode, json }); });
+      res.on('end', () => { let json; try { json = JSON.parse(raw); } catch {} resolve({ status: res.statusCode, json, ...(json === undefined ? { raw: raw.slice(-8000) } : {}) }); });
     });
-    req.on('error', () => resolve({ status: 0 }));
-    req.on('timeout', () => { req.destroy(); resolve({ status: 0 }); });
+    req.on('error', (error) => resolve({ status: 0, error: error.code || error.message }));
+    req.on('timeout', () => { req.destroy(); resolve({ status: 0, error: 'request timed out' }); });
     req.end(body === undefined ? undefined : JSON.stringify(body));
   });
 }
-async function until(probe, message, limitMs = 15000) {
+async function until(probe, message, limitMs = 15000, diagnostic = () => '') {
   const start = Date.now();
   do { const result = await probe(); if (result) return result; await pause(80); } while (Date.now() - start < limitMs);
-  assert.fail(message + '\nIsolated daemon output: ' + daemonOutput);
+  assert.fail(message + diagnostic() + '\nIsolated daemon output: ' + daemonOutput);
+}
+function jobDiagnostic(id, response) {
+  // Read only this fixture's matching files before after() removes its private profile.
+  assert.ok(created.has(id) && /^[a-z0-9-]{4,64}$/i.test(id));
+  const files = {};
+  for (const name of [id + '.json', id + '.progress.json', id + '.log', id + '.progress.json.log', path.join(id + '.run-lock', 'owner.json')]) {
+    try { files[name] = fs.readFileSync(path.join(jobDir, name), 'utf8').slice(-16000); }
+    catch (error) { files[name] = '[' + (error.code || error.message) + ']'; }
+  }
+  return '\nIsolated job evidence: ' + JSON.stringify({ observedAt: new Date().toISOString(), lastResponse: response,
+    daemon: daemon && { pid: daemon.pid, exitCode: daemon.exitCode, signalCode: daemon.signalCode }, files }, null, 2);
 }
 async function createGoal(maxIters) {
   const response = await request('POST', '/job', { kind: 'goal', goal: 'Exercise offline coding recovery', repo, maxIters, maxMins: 1, turnTimeout: 30 });
@@ -44,10 +55,19 @@ async function createGoal(maxIters) {
   return response.json.id;
 }
 async function stopped(id, iterations, resumable = false) {
+  let lastResponse;
+  const message = 'goal must persist a stopped receipt after ' + iterations + ' reserved turns with resumable=' + resumable;
+  const diagnostic = () => jobDiagnostic(id, lastResponse);
   return until(async () => {
-    const r = await request('GET', '/job/' + id);
-    return r.status === 200 && r.json.state === 'stopped' && r.json.progress && r.json.progress.iterations === iterations && r.json.resumable === resumable ? r.json : null;
-  }, 'goal must persist a stopped receipt after ' + iterations + ' reserved turns with resumable=' + resumable);
+    const r = lastResponse = await request('GET', '/job/' + id);
+    if (r.status !== 200 || !r.json) return null;
+    const j = r.json;
+    const incompatible = ['done', 'failed', 'error', 'interrupted', 'cancelled'].includes(j.state) ||
+      (j.state === 'stopped' && j.progress && j.progress.iterations !== iterations) ||
+      (j.state === 'stopped' && !resumable && j.resumable === true);
+    if (incompatible) assert.fail(message + '; observed incompatible terminal state' + diagnostic() + '\nIsolated daemon output: ' + daemonOutput);
+    return j.state === 'stopped' && j.progress && j.progress.iterations === iterations && j.resumable === resumable ? j : null;
+  }, message, 15000, diagnostic);
 }
 
 describe('coding jobs API (isolated real daemon, offline worker)', { timeout: 60000 }, () => {

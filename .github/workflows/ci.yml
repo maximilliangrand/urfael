@@ -32,6 +32,15 @@ jobs:
         run: npm ci || npm install
       - name: unit tests (pure, no credentials)
         run: npm test
+      - name: repeated coding recovery API diagnostics (temporary)
+        if: runner.os == 'Windows' && matrix.node == 24
+        shell: pwsh
+        run: |
+          for ($attempt = 1; $attempt -le 10; $attempt++) {
+            Write-Host "Recovery API diagnostic attempt $attempt"
+            node --test test/job-api.test.js
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
       - name: fuzz the input boundaries (small budget for CI)
         run: npm run fuzz
         env:
