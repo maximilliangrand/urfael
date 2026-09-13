@@ -123,8 +123,9 @@ function progressFor(job) {
       Number.isFinite(p.contract.maxMins) && p.contract.maxMins > 0 ? p : null;
   } catch { return null; }
 }
-function resumable(job) {
+function resumable(job, heldToken) {
   if (!job || !supportsRecovery(job) || !['stopped', 'interrupted', 'cancelled', 'failed', 'error'].includes(job.state) || store.isAlive(job.pid) || store.isAlive(job.childPid)) return false;
+  if (!store.runClaimAvailable(job.id, heldToken)) return false;
   const p = progressFor(job);
   if (p && process.platform === 'win32' && Number.isInteger(p.childPid) && p.childPid > 0 && p.phase !== 'idle') return false;
   const elapsedMs = p ? p.elapsedMs + (p.activeSince ? Math.max(0, Date.now() - p.activeSince) : 0) : Infinity;
@@ -144,7 +145,7 @@ function run(job, options = {}) {
   let transitioned = false;
   try {
     const current = store.get(id);
-    if (!current || (options.resume ? !resumable(current) : current.state !== 'queued')) throw new Error('job is not resumable or is already running');
+    if (!current || (options.resume ? !resumable(current, token) : current.state !== 'queued')) throw new Error('job is not resumable or is already running');
     // Pin environment defaults into the spec, so a daemon restart cannot change the resumed contract.
     const spec = { ...current.spec };
     if (current.kind === 'goal') {

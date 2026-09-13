@@ -58,6 +58,19 @@ function reconcile() {
   }
 }
 
+// Advertise readiness using the same live-owner and startup-grace rules as claimRun.
+function runClaimAvailable(id, heldToken) {
+  if (!safeId(id)) return false;
+  const dir = path.join(JOBS_DIR, id + '.run-lock');
+  let stat, owner;
+  try { stat = fs.statSync(dir); } catch (e) { return e.code === 'ENOENT'; }
+  try { owner = JSON.parse(fs.readFileSync(path.join(dir, 'owner.json'), 'utf8')); } catch {}
+  // run() checks eligibility again after acquiring the claim; only its own exact generation may
+  // bypass this availability check. Readers must wait until the finishing supervisor releases it.
+  if (heldToken && owner && owner.token === heldToken && owner.pid === process.pid) return true;
+  return Date.now() - stat.mtimeMs >= 30000 && !(owner && isAlive(owner.pid));
+}
+
 // Atomic, cross-process claim. Retired locks remain nonempty: two contenders that observed the same stale
 // generation cannot both rename away a replacement lock (rename over a nonempty directory fails).
 function claimRun(id) {
@@ -98,4 +111,4 @@ function releaseRun(id, token) {
   } catch {}
 }
 
-module.exports = { create, get, update, updateAttempt, list, appendLog, tailLog, reconcile, isAlive, safeId, logFile, progressFile, claimRun, ownRun, releaseRun, JOBS_DIR };
+module.exports = { create, get, update, updateAttempt, list, appendLog, tailLog, reconcile, isAlive, safeId, logFile, progressFile, runClaimAvailable, claimRun, ownRun, releaseRun, JOBS_DIR };

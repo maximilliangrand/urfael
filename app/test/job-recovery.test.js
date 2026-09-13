@@ -283,6 +283,42 @@ test('competing resumes admit one worker and reject the other', { timeout: 30000
   assert.equal(f.invocations().length, 4, 'three initial turns plus exactly one resumed turn');
 });
 
+test('a stopped receipt becomes resumable only after its live execution claim is released', { timeout: 30000 }, async (t) => {
+  const f = fixture(t);
+  f.release();
+  const { id } = await start(f, spec('resume'));
+  assert.equal((await f.terminal(id)).state, 'stopped');
+  await f.settled();
+  f.hold();
+  const result = await f.exec(`
+    const id = ${JSON.stringify(id)};
+    const before = runner.resumable(store.get(id));
+    // Reproduce the finish window deterministically: a valid stopped receipt is visible while
+    // a live supervisor still owns the execution claim. Readiness and admission must agree.
+    const token = store.claimRun(id);
+    let locked, described, refused = false;
+    try {
+      locked = runner.resumable(store.get(id));
+      described = runner.describe(store.get(id)).resumable;
+      try { runner.resume(id); } catch { refused = true; }
+    } finally { store.releaseRun(id, token); }
+    const released = runner.resumable(store.get(id));
+    const resumed = runner.resume(id);
+    console.log(JSON.stringify({ before, locked, described, refused, released, resumedId: resumed.id }));
+    process.exit(0);
+  `);
+  assert.equal(result.before, true, 'the completed checkpoint has budget and is eligible to resume');
+  assert.equal(result.locked, false, 'a live claim must make resumable() false even with stopped metadata');
+  assert.equal(result.described, false, 'the detail response must not advertise a resume that admission rejects');
+  assert.equal(result.refused, true, 'resume must refuse while the claim remains owned');
+  assert.equal(result.released, true, 'releasing the claim restores readiness');
+  assert.equal(result.resumedId, id);
+  await eventually(() => f.invocations().length === 4, 'released claim did not permit the resumed provider');
+  f.release();
+  assert.equal((await f.terminal(id)).state, 'done');
+  assert.equal(f.invocations().length, 4, 'the refused resume must not launch another provider');
+});
+
 test('resume contract rejection cannot reuse its previous attempt receipt', { timeout: 30000 }, async (t) => {
   const f = fixture(t);
   f.release();

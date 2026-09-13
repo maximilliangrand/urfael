@@ -43,11 +43,11 @@ async function createGoal(maxIters) {
   created.add(response.json.id);
   return response.json.id;
 }
-async function stopped(id, iterations) {
+async function stopped(id, iterations, resumable = false) {
   return until(async () => {
     const r = await request('GET', '/job/' + id);
-    return r.status === 200 && r.json.state === 'stopped' && r.json.progress && r.json.progress.iterations === iterations ? r.json : null;
-  }, 'goal must persist a stopped receipt after ' + iterations + ' reserved turns');
+    return r.status === 200 && r.json.state === 'stopped' && r.json.progress && r.json.progress.iterations === iterations && r.json.resumable === resumable ? r.json : null;
+  }, 'goal must persist a stopped receipt after ' + iterations + ' reserved turns with resumable=' + resumable);
 }
 
 describe('coding jobs API (isolated real daemon, offline worker)', { timeout: 60000 }, () => {
@@ -137,10 +137,11 @@ describe('coding jobs API (isolated real daemon, offline worker)', { timeout: 60
 
   it('resumes the same eligible job with remaining budget and never resets its iteration counter', async () => {
     const id = await createGoal(4);
-    const first = await stopped(id, 3);
+    const first = await stopped(id, 3, true);
     assert.equal(first.resumable, true);
+    // Readiness comes from GET, not retries of the mutating resume request.
     const accepted = await request('POST', '/job/' + id + '/resume');
-    assert.equal(accepted.status, 200); assert.equal(accepted.json.id, id);
+    assert.equal(accepted.status, 200, 'resume after advertised readiness: ' + JSON.stringify(accepted)); assert.equal(accepted.json.id, id);
     assert.ok(['starting', 'running'].includes(accepted.json.state));
     const final = await stopped(id, 4);
     assert.equal(final.resumable, false);
