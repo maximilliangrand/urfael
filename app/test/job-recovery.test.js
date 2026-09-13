@@ -154,8 +154,10 @@ function fixture(t) {
       proc.kill();
     })));
     await settled();
-    // Windows can retain a just-closed file handle briefly, after all owned processes have exited.
-    fs.rmSync(home, { recursive: true, force: true,
+    // Node 22's synchronous rimraf can throw an initial EBUSY before entering its retry loop.
+    // The promise version retries that error at every level, including the fixture root, after
+    // liveness is verified above. Exhaustion still rejects this hook; no cleanup failure is hidden.
+    await fs.promises.rm(home, { recursive: true, force: true,
       ...(process.platform === 'win32' ? { maxRetries: 5, retryDelay: 50 } : {}) });
   });
   return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal,

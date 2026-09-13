@@ -51,7 +51,7 @@ if (step.wait) { const timer = setInterval(() => { if (fs.existsSync(config.barr
     SystemRoot: process.env.SystemRoot || '', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(dir, 'empty-git-config') };
   const args = ['goal', '--repo', repo, '--state', state, '--max-iters', '4', '--max-mins', '2', '--turn-timeout', '10'];
   const set = (c) => fs.writeFileSync(config, JSON.stringify({ criteria, ...c })); set({});
-  const run = (extra = []) => cp.spawnSync(process.execPath, [LOOP, ...args, ...extra], { env, encoding: 'utf8', timeout: 30000 });
+  const run = (extra = [], timeout = 30000) => cp.spawnSync(process.execPath, [LOOP, ...args, ...extra], { env, encoding: 'utf8', timeout });
   const read = () => JSON.parse(fs.readFileSync(state, 'utf8'));
   const readCalls = () => JSON.parse(fs.readFileSync(calls, 'utf8'));
   const diagnostics = (r) => {
@@ -108,8 +108,14 @@ test('acceptance receipts retain failing explicit-shell and native-program exit 
   for(const kind of ['shell','native']) {
     const f=fixture();try {
       const check=kind==='shell'?'exit 7':scriptCheck(f,'process.exit(7);');
-      const r=f.run(['--max-iters','1','--check',check]);
+      // Windows CI has exhausted the 10 s fixture limit even for an explicit exit command. Allow
+      // more shell startup time here; the separate watchdog test retains its 2 s deadline.
+      const windows=process.platform==='win32';
+      const extra=['--max-iters','1','--check',check];
+      if(windows)extra.push('--turn-timeout','30');
+      const r=f.run(extra,windows?60000:30000);
       assert.equal(r.status,2,f.diagnostics(r));assert.equal(f.read().verification.checkReceipt.exitCode,7,f.diagnostics(r));
+      assert.equal(f.read().verification.checkReceipt.timedOut,false,f.diagnostics(r));
       assert.equal(f.read().result,null,f.diagnostics(r));
       if(kind==='native')assert.equal(JSON.parse(fs.readFileSync(path.join(f.dir,'check-processes.json')))[0].exitCode,7);
     } finally {f.cleanup();}
