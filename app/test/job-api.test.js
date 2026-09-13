@@ -64,16 +64,21 @@ describe('coding jobs API (isolated real daemon, offline worker)', { timeout: 60
       PATH: path.join(__dirname, 'stub') + path.delimiter + path.dirname(process.execPath) + path.delimiter + (process.env.PATH || process.env.Path || ''),
       URFAEL_VAULT_DIR: 'vault', URFAEL_MEMORY_DIR: 'memory', URFAEL_CLAUDE_BIN: STUB,
       URFAEL_UPDATE_CHECK: '0', URFAEL_HEARTBEAT_MINS: '0',
-      GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: os.devNull,
+      // Git for Windows cannot reliably open Node's \\.\nul device path as a
+      // config file. A private, empty regular file is portable and still isolates
+      // this fixture from all user/system Git configuration.
+      GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(testRoot, 'empty-git-config'),
     };
     for (const key of ['SystemRoot', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT']) if (process.env[key]) testEnv[key] = process.env[key];
     socketPath = ipc.daemonSock(testEnv);
+    fs.writeFileSync(testEnv.GIT_CONFIG_GLOBAL, '');
     fs.writeFileSync(path.join(testRoot, 'vault', 'CLAUDE.md'), 'Offline API test fixture.\n');
-    const git = (...args) => execFileSync('git', ['-C', repo, ...args], { env: testEnv, stdio: 'ignore' });
+    // Capture stderr so a failed fixture command retains its actual diagnosis in CI.
+    const git = (...args) => execFileSync('git', ['-C', repo, ...args], { env: testEnv, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
     git('init', '-q'); git('config', 'user.name', 'Offline Test'); git('config', 'user.email', 'offline@example.invalid');
     fs.writeFileSync(path.join(repo, 'seed.txt'), 'unchanged fixture\n');
     git('add', 'seed.txt'); git('commit', '-qm', 'fixture');
-    execFileSync('git', ['-C', path.join(testRoot, 'memory'), 'init', '-q'], { env: testEnv, stdio: 'ignore' });
+    execFileSync('git', ['-C', path.join(testRoot, 'memory'), 'init', '-q'], { env: testEnv, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
     assert.ok(fs.existsSync(STUB));
     if (!WIN) assert.ok(fs.statSync(STUB).mode & 0o111);
     daemon = spawn(process.execPath, [path.join(APP, 'daemon.js')], { env: testEnv, detached: !WIN, stdio: ['ignore', 'pipe', 'pipe'] });

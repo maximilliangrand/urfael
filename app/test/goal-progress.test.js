@@ -57,10 +57,16 @@ if (step.wait) { const timer = setInterval(() => { if (fs.existsSync(config.barr
   const options = {goal:'goal',repo,maxIters:4,maxMins:2,turnTimeout:10,check:'',model:'sonnet',verify:false,criteria:'',state};
   return {dir,repo,git,env,args,state,criteria,set,run,read,readCalls,cleanup,options};
 }
-const quote = (s) => '"' + s.replace(/"/g, '\\"') + '"';
 function scriptCheck(f, source) {
-  const p = path.join(f.dir, 'check.js'); fs.writeFileSync(p, source);
-  return quote(process.execPath) + ' ' + quote(p);
+  const p = path.join(f.dir, "acceptance check's result.js"); fs.writeFileSync(p, source);
+  if (process.platform === 'win32') {
+    const literal = (s) => "'" + s.replace(/'/g, "''") + "'";
+    // PowerShell treats a quoted executable path as a string unless invoked with &. Explicitly
+    // propagate the native status so the exit-7 feedback fixture tests that actual code, not PS's 1.
+    return '& ' + literal(process.execPath) + ' ' + literal(p) + '; exit $LASTEXITCODE';
+  }
+  const literal = (s) => "'" + s.replace(/'/g, "'\"'\"'") + "'";
+  return literal(process.execPath) + ' ' + literal(p);
 }
 
 test('workspace receipt detects edits with identical porcelain, untracked bytes, deletion, mode and symlinks', () => {

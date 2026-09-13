@@ -78,13 +78,27 @@ function fixture(t) {
     ...(process.platform === 'win32' ? { SystemRoot: process.env.SystemRoot, TEMP: home, TMP: home } : {}),
   };
   const children = new Set();
+  const spawnedPids = path.join(home, 'spawned-pids.jsonl');
+  const ownedPids = () => {
+    try { return fs.readFileSync(spawnedPids, 'utf8').trim().split('\n').filter(Boolean).map(Number); }
+    catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+  };
+  const locks = () => fs.existsSync(jobs) ? fs.readdirSync(jobs).filter((name) => name.endsWith('.run-lock')) : [];
   const read = (id) => { try { return JSON.parse(fs.readFileSync(path.join(jobs, id + '.json'), 'utf8')); } catch { return null; } };
   const invocations = () => {
     try { return fs.readFileSync(path.join(vault, 'invocations.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse); }
     catch { return []; }
   };
   async function exec(code, extraEnv = {}) {
-    const prelude = `const store = require(${JSON.stringify(path.join(APP, 'jobstore.js'))}); const runner = require(${JSON.stringify(path.join(APP, 'runner.js'))});`;
+    // Observe actual spawned PIDs before the launcher exits. Terminal job metadata clears its PID,
+    // and a provider's exit happens before the supervisor finishes checking and releasing its claim.
+    const prelude = `const fixtureSpawn = require('node:child_process').spawn;
+      require('node:child_process').spawn = (...args) => {
+        const child = fixtureSpawn(...args);
+        if (child.pid) require('node:fs').appendFileSync(${JSON.stringify(spawnedPids)}, child.pid + '\\n');
+        return child;
+      };
+      const store = require(${JSON.stringify(path.join(APP, 'jobstore.js'))}); const runner = require(${JSON.stringify(path.join(APP, 'runner.js'))});`;
     const proc = spawn(process.execPath, ['-e', prelude + code], { cwd: home, env: { ...env, ...extraEnv }, stdio: ['ignore', 'pipe', 'pipe'] });
     children.add(proc);
     let stdout = '', stderr = '';
@@ -99,17 +113,21 @@ function fixture(t) {
   const release = () => fs.writeFileSync(path.join(vault, 'release'), 'go');
   const hold = () => fs.rmSync(path.join(vault, 'release'), { force: true });
   const terminal = (id) => eventually(() => { const job = read(id); return job && !ACTIVE.has(job.state) && job.state !== 'queued' ? job : null; }, 'worker did not persist terminal state for ' + id);
+  const settled = () => eventually(() => ownedPids().every((pid) => !alive(pid))
+    && invocations().every((row) => !alive(row.pid)) && locks().length === 0,
+  'supervisors did not exit and release their claims', 20000);
   t.after(async () => {
     release();
-    for (const proc of children) proc.kill();
-    await eventually(() => invocations().every((row) => !alive(row.pid)), 'scripted goal hosts did not exit during cleanup').catch(() => {
-      for (const row of invocations()) { try { process.kill(row.pid, 'SIGKILL'); } catch {} }
-    });
-    // Worker completion is asynchronous relative to its child's exit; allow it to commit before cleanup.
-    await sleep(100);
-    fs.rmSync(home, { recursive: true, force: true });
+    await Promise.all([...children].map((proc) => new Promise((resolve) => {
+      proc.once('close', resolve);
+      proc.kill();
+    })));
+    await settled();
+    // Windows can retain a just-closed file handle briefly, after all owned processes have exited.
+    fs.rmSync(home, { recursive: true, force: true,
+      ...(process.platform === 'win32' ? { maxRetries: 5, retryDelay: 50 } : {}) });
   });
-  return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal };
+  return { home, vault, repo, check, jobs, env, exec, read, invocations, release, hold, terminal, settled };
 }
 
 function alive(pid) { try { process.kill(pid, 0); return true; } catch { return false; } }
@@ -281,11 +299,13 @@ test('a stale worker cannot overwrite a replacement attempt', { timeout: 30000 }
   const f = fixture(t);
   const { id } = await start(f, spec('complete'));
   await eventually(() => f.invocations().length === 1, 'scripted goal host never started');
+  const workerPid = f.read(id).pid;
+  assert.ok(Number.isInteger(workerPid) && workerPid > 0);
   const token = 'replacement-attempt-token';
   await f.exec(`store.update(${JSON.stringify(id)}, { attemptToken: ${JSON.stringify(token)}, state: 'interrupted', result: 'replacement owns state' }); console.log('{}');`);
   f.release();
-  await eventually(() => f.invocations().every((row) => !alive(row.pid)), 'old host did not finish');
-  await sleep(100);
+  await f.settled();
+  assert.equal(alive(workerPid), false, 'the stale supervisor must finish before checking its final writes');
   const current = f.read(id);
   assert.equal(current.attemptToken, token);
   assert.equal(current.state, 'interrupted');
