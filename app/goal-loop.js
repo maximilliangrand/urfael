@@ -58,6 +58,14 @@ function appDir() { return __dirname; }
 
 function gitState(repo) { return require(path.join(appDir(), 'goal-progress')).workspaceHash(repo); }
 
+function checkInvocation(command, platform = process.platform) {
+  // Encode the owner's entire PowerShell source instead of sending quotes and metacharacters through
+  // another Windows native argv parsing pass. POSIX still receives the unchanged command via bash -c.
+  return platform === 'win32'
+    ? { bin: 'powershell.exe', args: ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')] }
+    : { bin: 'bash', args: ['-c', command] };
+}
+
 // On POSIX each turn/check gets a dedicated process group. The watchdog kills that group, and the parent
 // worker uses its recorded childPid to terminate it, so a hung shell/check cannot leave grandchildren behind.
 function boundedRun(cmd, args, opts, timeoutSec, progress, phase) {
@@ -200,9 +208,8 @@ async function main(argv) {
         verifiedHash = progressAPI.workspaceHash(o.repo);
         if (o.check) {
           const checkStarted = Date.now();
-          const c = process.platform === 'win32'
-            ? await run('powershell.exe', ['-NoProfile', '-Command', o.check], 'check')
-            : await run('bash', ['-c', o.check], 'check');
+          const invocation = checkInvocation(o.check);
+          const c = await run(invocation.bin, invocation.args, 'check');
           log(c.out); checkPassed = c.rc === 0;
           checkReceipt = { command: o.check, exitCode: c.rc, timedOut: c.timedOut,
             startedAt: checkStarted, endedAt: Date.now(), workspaceHash: verifiedHash, logFile: LOG };
@@ -255,5 +262,5 @@ async function main(argv) {
   }
 }
 
-module.exports = { parseArgs, buildPrompt, usage, gitState, MARKER, STALE_LIMIT, main };
+module.exports = { parseArgs, buildPrompt, usage, gitState, checkInvocation, MARKER, STALE_LIMIT, main };
 if (require.main === module) main(process.argv.slice(2)).then((c) => process.exit(c)).catch((e) => { process.stderr.write(String(e.message || e) + '\n'); process.exit(1); });

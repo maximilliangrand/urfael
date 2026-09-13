@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const cp = require('child_process');
 const progress = require('../goal-progress');
+const {checkInvocation} = require('../goal-loop');
 const ROOT = path.resolve(__dirname, '../..');
 const LOOP = path.join(ROOT, 'app/goal-loop.js');
 
@@ -53,12 +54,29 @@ if (step.wait) { const timer = setInterval(() => { if (fs.existsSync(config.barr
   const run = (extra = []) => cp.spawnSync(process.execPath, [LOOP, ...args, ...extra], { env, encoding: 'utf8', timeout: 30000 });
   const read = () => JSON.parse(fs.readFileSync(state, 'utf8'));
   const readCalls = () => JSON.parse(fs.readFileSync(calls, 'utf8'));
-  const cleanup = () => fs.rmSync(dir, { recursive: true, force: true });
+  const diagnostics = (r) => {
+    const readOr = (p) => {try{return fs.readFileSync(p,'utf8');}catch{return '<absent>';}};
+    return (r.stdout||'')+(r.stderr||'')+'\nProgress: '+readOr(state)+'\nCheck count: '+readOr(path.join(dir,'check-count'))+
+      '\nCheck processes: '+readOr(path.join(dir,'check-processes.json'))+'\nLog tail: '+readOr(state+'.log').slice(-5000);
+  };
+  const cleanup = (primaryError) => {
+    let owned=[];try{owned=JSON.parse(fs.readFileSync(path.join(dir,'check-processes.json')));}catch{}
+    for(const child of owned)if(child.exitCode===null&&progress.alive(child.pid))try {
+      if(process.platform==='win32')cp.execFileSync('taskkill',['/pid',String(child.pid),'/T','/F'],{stdio:'ignore',timeout:5000});
+      else process.kill(child.pid,'SIGKILL');
+    }catch{}
+    try{fs.rmSync(dir,{recursive:true,force:true,maxRetries:8,retryDelay:50});}
+    catch(e){if(!primaryError)throw e;primaryError.message+='\nCleanup also failed: '+e.message;}
+  };
   const options = {goal:'goal',repo,maxIters:4,maxMins:2,turnTimeout:10,check:'',model:'sonnet',verify:false,criteria:'',state};
-  return {dir,repo,git,env,args,state,criteria,set,run,read,readCalls,cleanup,options};
+  return {dir,repo,git,env,args,state,criteria,set,run,read,readCalls,cleanup,diagnostics,options};
 }
 function scriptCheck(f, source) {
-  const p = path.join(f.dir, "acceptance check's result.js"); fs.writeFileSync(p, source);
+  const p = path.join(f.dir, "acceptance check's result.js");
+  const records = path.join(f.dir,'check-processes.json');
+  // Record actual native-process exit codes as test diagnostics, independently of PowerShell's status.
+  const observe = `{const fs=require('fs'),p=${JSON.stringify(records)};let a=[];try{a=JSON.parse(fs.readFileSync(p))}catch{}const entry={pid:process.pid,exitCode:null};a.push(entry);fs.writeFileSync(p,JSON.stringify(a));process.on('exit',code=>{entry.exitCode=code;fs.writeFileSync(p,JSON.stringify(a));});}\n`;
+  fs.writeFileSync(p, observe+source);
   if (process.platform === 'win32') {
     const literal = (s) => "'" + s.replace(/'/g, "''") + "'";
     // PowerShell treats a quoted executable path as a string unless invoked with &. Explicitly
@@ -84,6 +102,25 @@ test('workspace receipt detects edits with identical porcelain, untracked bytes,
       fs.unlinkSync(path.join(f.repo, 'link')); fs.symlinkSync('elsewhere', path.join(f.repo, 'link')); assert.notEqual(progress.workspaceHash(f.repo), e);
     }
   } finally { f.cleanup(); }
+});
+
+test('acceptance receipts retain failing explicit-shell and native-program exit codes', () => {
+  for(const kind of ['shell','native']) {
+    const f=fixture();try {
+      const check=kind==='shell'?'exit 7':scriptCheck(f,'process.exit(7);');
+      const r=f.run(['--max-iters','1','--check',check]);
+      assert.equal(r.status,2,f.diagnostics(r));assert.equal(f.read().verification.checkReceipt.exitCode,7,f.diagnostics(r));
+      assert.equal(f.read().result,null,f.diagnostics(r));
+      if(kind==='native')assert.equal(JSON.parse(fs.readFileSync(path.join(f.dir,'check-processes.json')))[0].exitCode,7);
+    } finally {f.cleanup();}
+  }
+});
+
+test('PowerShell transport round-trips complete command source including literal quotes and exit variables', () => {
+  const command="& 'C:\\Program Files\\node.exe' 'C:\\owner''s work\\check.js'; exit $LASTEXITCODE";
+  const invocation=checkInvocation(command,'win32');
+  assert.equal(invocation.bin,'powershell.exe');assert.equal(invocation.args.includes('-NonInteractive'),true);
+  assert.equal(Buffer.from(invocation.args[invocation.args.indexOf('-EncodedCommand')+1],'base64').toString('utf16le'),command);
 });
 
 test('passing baseline check without a final worker marker cannot complete or spawn a verifier', () => {
@@ -123,8 +160,13 @@ test('a red first check cannot be bypassed by running a second green check', () 
   try {
     const count=path.join(f.dir,'check-count');
     const check=scriptCheck(f,`const fs=require('fs');fs.appendFileSync(${JSON.stringify(count)},'x');process.exit(fs.readFileSync(${JSON.stringify(count)},'utf8').length===1?1:0);`);
+    // Localize native status transport independently of the loop before testing its candidate gate.
+    const invocation=checkInvocation(check);
+    const preflight=cp.spawnSync(invocation.bin,invocation.args,{cwd:f.repo,env:f.env,encoding:'utf8',timeout:10000});
+    assert.equal(preflight.status,1,'Direct shell preflight: '+check+'\n'+f.diagnostics(preflight));
+    fs.unlinkSync(count);fs.writeFileSync(path.join(f.dir,'check-processes.json'),'[]');
     const r=f.run(['--max-iters','1','--check',check,'--verify','--criteria',f.criteria]);
-    assert.equal(r.status,2,r.stdout+r.stderr);assert.equal(f.read().outcome,'stopped');assert.equal(fs.readFileSync(count,'utf8'),'x');
+    assert.equal(r.status,2,f.diagnostics(r));assert.equal(f.read().outcome,'stopped');assert.equal(fs.readFileSync(count,'utf8'),'x');
     assert.equal(f.readCalls().some(c=>c.verifier),false);
   } finally { f.cleanup(); }
 });
@@ -133,7 +175,7 @@ test('check-only failure feeds command, exit code and bounded diagnostics into t
   const f=fixture();try {
     const count=path.join(f.dir,'check-count');
     const check=scriptCheck(f,`const fs=require('fs');fs.appendFileSync(${JSON.stringify(count)},'x');if(fs.readFileSync(${JSON.stringify(count)},'utf8').length===1){process.stderr.write('fixture assertion failed');process.exit(7);}`);
-    const r=f.run(['--check',check]);assert.equal(r.status,0,r.stdout+r.stderr);assert.equal(f.read().iterations,2);
+    const r=f.run(['--check',check]);assert.equal(r.status,0,f.diagnostics(r));assert.equal(f.read().iterations,2,f.diagnostics(r));
     const argv=f.readCalls()[1].argv,prompt=argv[argv.indexOf('-p')+1];
     assert.match(prompt,/untrusted diagnostic output/);assert.match(prompt,/Exit code: 7/);assert.match(prompt,/fixture assertion failed/);assert.ok(prompt.includes(check));
   } finally {f.cleanup();}
@@ -149,12 +191,15 @@ test('marker-only completion is explicitly unverified, while review alone is not
   }
 });
 
-test('a timed-out check records a failing command receipt; oversized worker output never completes', () => {
-  const f=fixture();try {
+test('a timed-out check records a failing command receipt; oversized worker output never completes', async () => {
+  const f=fixture();let primaryError;try {
     const check=scriptCheck(f,"setInterval(()=>{},1000);");
-    const r=f.run(['--max-iters','1','--turn-timeout','1','--check',check]);
-    assert.equal(r.status,2,r.stdout+r.stderr);assert.equal(f.read().verification.checkReceipt.timedOut,true);assert.equal(f.read().verification.checkReceipt.exitCode,124);
-  } finally {f.cleanup();}
+    const r=f.run(['--max-iters','1','--turn-timeout','2','--check',check]);
+    assert.equal(r.status,2,f.diagnostics(r));assert.equal(f.read().verification.checkReceipt.timedOut,true,f.diagnostics(r));assert.equal(f.read().verification.checkReceipt.exitCode,124);
+    const owned=JSON.parse(fs.readFileSync(path.join(f.dir,'check-processes.json')));
+    try { await until(()=>owned.every(p=>!progress.alive(p.pid))); }
+    catch(e) {throw new Error('watchdog left its acceptance-check process alive: '+f.diagnostics(r),{cause:e});}
+  } catch(e) {primaryError=e;throw e;} finally {f.cleanup(primaryError);}
   const g=fixture();try {
     g.set({steps:[{spam:true},{spam:true}]});const r=g.run();assert.equal(r.status,1,r.stdout+r.stderr);assert.equal(g.read().result,null);
   } finally {g.cleanup();}
