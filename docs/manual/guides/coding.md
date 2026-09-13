@@ -7,14 +7,14 @@ Urfael can take a coding goal and work toward it on its own: edit files, run a c
 
 ## The loop
 
-You hand the brain a goal and it enqueues a detached background job (`job` kind `goal`), so the work runs concurrently and does not tie up your conversation. The job runs the guard-railed `goal-loop.sh`, which wraps your `claude` CLI and repeats one turn at a time until a real completion signal lands.
+You hand the brain a goal and it enqueues a detached background job (`job` kind `goal`), so the work runs concurrently and does not tie up your conversation. Managed host jobs use the current app's `goal-loop.js`; the vault shell script retains the optional Docker/SSH backends. The loop wraps your `claude` CLI and repeats one turn at a time until completion is supported by the configured evidence or a limit stops the run.
 
 The guardrails are kill switches, not just exit traps:
 
 - It refuses to run without an explicit `--repo` pointing at an isolated git worktree. It never defaults to the current directory, and it refuses if that directory is not a git repo, so you can always `git reset --hard`.
 - It caps iterations and wall-clock time, and SIGKILLs a hung turn. The daemon clamps these server-side: iterations 1 to 50, wall clock 1 to 240 minutes, per-turn timeout 30 to 3600 seconds.
 - A no-progress circuit breaker aborts when the git state has not changed for several turns.
-- Completion needs a `GOAL_COMPLETE` marker plus an optional `--check` command you supply.
+- Completion needs the worker's final `URFAEL-GOAL-DONE` marker and a passing `--check` command when one is configured. Optional `--verify --criteria FILE` also requires a fresh read-only model review. A passing baseline test alone cannot finish a goal.
 - It never auto-merges and never auto-pushes. The result is a worktree you review.
 
 You inspect and stop a running job from any terminal:
@@ -22,10 +22,13 @@ You inspect and stop a running job from any terminal:
 ```bash
 urfael jobs            # list background jobs and their state
 urfael job <id>        # one job's record plus a log tail
+urfael job <id> --resume # continue an eligible host goal with its remaining budget
 urfael cancel <id>     # kill the whole process group
 ```
 
 See [features/automation.md](features/automation.md) for the wider job and scheduling surface.
+
+Host runs save their model session, progress and verification receipts outside the workspace. A detached supervisor records the result even if the daemon restarts. Checks are tied to tracked and nonignored untracked file contents, including further edits to an already-dirty file. Failed checks feed diagnostics into the next turn. The Jobs view distinguishes unverified worker claims, model reviews, passing checks and incomplete runs. See [coding review and recovery](features/coding.md#background-coding-goals-review-and-recovery) for receipt details, resume conditions and platform limits. Docker/SSH jobs do not support this host recovery protocol.
 
 ## The sandbox is the point
 

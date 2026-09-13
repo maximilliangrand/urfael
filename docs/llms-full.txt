@@ -50,8 +50,8 @@ Urfael is an always-on local brain that runs your installed `claude` CLI as a su
 ## Prerequisites
 
 - **Claude Code on a paid plan (Pro or Max), signed in.** Run `claude` once and log in before you start Urfael. The brain shells out to that CLI, so it rides your existing subscription. (Opus escalation needs Max. On Pro, set `URFAEL_OPUS_MODEL=sonnet` so hard turns stay on Sonnet instead of failing.)
-- **Node 20 or newer.** `app/package.json` declares `"engines": { "node": ">=20" }`. (Older SETUP notes say Node 18; treat 20 as the floor.)
-- **An operating system Urfael supports.** macOS on Apple Silicon or Intel is the primary, best-tested target. Linux runs the headless brain and the Electron GUI, but it is newer and has far less mileage. There is no Windows build of the daemon today.
+- **Node 20 or newer.** `app/package.json` declares `"engines": { "node": ">=20" }`, the single source of truth for the floor.
+- **An operating system Urfael supports.** macOS on Apple Silicon or Intel is the primary, best-tested target. Linux runs the headless brain and the Electron GUI, but it is newer and has far less mileage. **Native Windows is supported in beta**: `install.ps1` installs the daemon + CLI (the control plane rides a per-user named pipe with a required token instead of the POSIX 0600 socket), and the full unit/fuzz/red-team suite gates it in CI on every push. WSL remains fully supported and is the path to the POSIX-only extras (docker/ssh goal sandboxes, host-reaching plugin cells).
 - **Obsidian** with its Local REST API community plugin, for the vault.
 - For local voice (the free default): `ffmpeg`, `whisper-cpp`, and `coreutils` on macOS. The installer downloads the speech model (checksum-pinned). Docker is optional and only needed for sandboxed autonomous coding.
 
@@ -61,24 +61,56 @@ One Homebrew line covers the local-voice tools on macOS:
 brew install ffmpeg whisper-cpp coreutils
 ```
 
-## Path 1: run from source in `app/`
+## macOS & Linux — the easy way
 
-This is the recommended path because the installer is read-it-first friendly. It never auto-installs heavy software and never enables anything risky on your behalf.
+You do not need to install anything first. Open Terminal (on a Mac: press ⌘-Space, type `Terminal`, Enter) and paste this one line:
 
 ```bash
-git clone https://github.com/maximilliangrand/urfael.git && cd urfael
+curl -fsSL https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.sh | bash
+```
+
+It installs the prerequisites for you (on macOS via Homebrew, which it installs if missing; on Linux via apt/dnf/pacman) — Node, git, ffmpeg, and Claude Code — downloads Urfael, sets it up, walks you through connecting your Claude account, and offers to open the app. That is the whole install. (You may be asked for your Mac password once, when Homebrew installs.)
+
+Prefer to click? On a Mac, download the repo as a ZIP (green **Code** button on GitHub → **Download ZIP**), unzip it, and **double-click `install-mac.command`**. If macOS says it "cannot be opened because it is from an unidentified developer," right-click the file → **Open** → **Open** (that is Gatekeeper on an unsigned helper, not a problem with the file).
+
+## Path 1: run from source, step by step
+
+Prefer to see every step? This is the same thing by hand. `install.sh` is read-it-first friendly — it never enables anything risky.
+
+```bash
+git clone https://github.com/maximilliangrand/urfael.git urfael-src && cd urfael-src
 ./install.sh        # checks deps, fetches the speech model, scaffolds your vault, writes config templates
 urfael setup        # onboarding wizard: subscription (default), an API key, or a local model
 cd app && npm start # the Console opens
 ```
 
-`install.sh` writes config templates (`chmod 600`), scaffolds the vault and memory repo, runs `npm install`, links the `urfael` CLI onto your PATH, and writes the service files (launchd on macOS, `systemd --user` on Linux) without loading them. You start the daemon yourself in [start/quickstart.md](start/quickstart.md).
+(`./install.sh --guided` does the auto-install-everything version above, if you want it without the one-liner.) `install.sh` writes config templates (`chmod 600`), scaffolds the vault and memory repo, installs the app dependencies (including the Electron desktop runtime, which it verifies), links the `urfael` CLI onto your PATH, and writes the service files (launchd on macOS, `systemd --user` on Linux) without loading them. You start the daemon yourself in [start/quickstart.md](start/quickstart.md).
 
-If you prefer a one-liner, a bootstrap clones the repo and runs `install.sh` for you. It is deliberately short so you can read it first.
+### Native Windows (beta) — the easy way
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.sh | bash
+You do not need to install anything first, and you do not need to be technical. **Copy this one line, paste it into PowerShell, and press Enter:**
+
+```powershell
+irm https://raw.githubusercontent.com/maximilliangrand/urfael/main/get.ps1 | iex
 ```
+
+To open PowerShell: press the Windows key, type `PowerShell`, and click it. That one line installs the prerequisites for you (Node, git, ffmpeg, and Claude Code, via Windows' built-in `winget`), downloads Urfael, sets it up, walks you through connecting your Claude account, and offers to open the app. That is the whole install.
+
+Prefer to click instead of paste? Download the repo as a ZIP (green **Code** button on GitHub → **Download ZIP**), unzip it, and **double-click `install-windows.cmd`**. It does the same guided install. If Windows shows a blue **"Windows protected your PC"** box, click **More info** → **Run anyway** — that appears because the helper isn't code-signed yet, not because anything is wrong.
+
+You will sign into Claude once during setup (a browser opens — sign in with your Claude Pro/Max account, or paste an API key). After it finishes, open a **new** terminal and type `urfael "hello"`, or use the Console window the installer opened.
+
+<details><summary>Doing it by hand (for developers)</summary>
+
+```powershell
+git clone https://github.com/maximilliangrand/urfael.git urfael-src; cd urfael-src
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Guided   # -Guided auto-installs prerequisites + runs setup
+```
+
+Drop `-Guided` if you already have Node 20+, git, ffmpeg and Claude Code and just want the plain install. Do not double-click `install.sh` — that is the macOS/Linux installer.
+</details>
+
+Windows differences, stated plainly: the daemon's control plane is a per-user named pipe plus a required token file under your profile (the POSIX build uses a `0600` unix socket — same trust statement, different kernel); the Console (`npm start`) uses the Electron desktop runtime, which the installer downloads and verifies; autostart is a Run-key command the installer prints but never adds for you; `--check` commands for goal jobs run under PowerShell; docker/ssh goal sandboxes and host-reaching plugin cells stay POSIX/WSL-only for now. The brain's `curl --unix-socket` examples become `node _urfael/daemonctl.js …` (the installer scaffolds it).
 
 ## Path 2: the packaged desktop app
 
@@ -95,7 +127,7 @@ Note plainly: the packaged app is the Console (the Electron overlay UI). It is a
 - **`~/Urfael`**: your Obsidian vault, scaffolded from the template, with a `.claude` symlink to `_urfael`. This is the archive the brain reads.
 - **`~/Urfael-memory`**: a private local git repo for what Urfael learns. Per-day conversation logs land in `~/Urfael-memory/sessions/` as JSONL.
 - **`~/.claude/urfael/`**: config templates (`tts.env`, `api-keys.env`, and others) written from the examples at `chmod 600`.
-- **The daemon socket**: once the daemon is running it listens only on a `0600` unix socket at `~/.claude/urfael/daemon.sock`. No TCP port is opened.
+- **The daemon socket**: once the daemon is running it listens only on a `0600` unix socket at `~/.claude/urfael/daemon.sock` (on native Windows: a per-user named pipe gated by `~/.claude/urfael/daemon.token`). No TCP port is opened on any OS.
 
 The `~/Urfael` vault and `~/Urfael-memory` repo are yours. They are kept separate from the cloned source (note the capitalisation) so an uninstall of the code never touches your data.
 
@@ -478,13 +510,13 @@ See [features/models.md](features/models.md).
 
 ## Channels
 
-Drive Urfael from 19 owner-allowlisted channels (the eight best-tested: Telegram, Discord, Slack, iMessage, Email as draft-only, Matrix, Signal, WhatsApp; the rest, including QQ, SimpleX, phone, and eight native webhook channels, are newer), by text or by voice memo transcribed locally. Every channel is gated to your id before the brain sees anything and is sandboxed read-only by default. The universal `relay` turns any platform with an in/out webhook into a two-way channel. The live relay of the Matrix, Signal, and WhatsApp bridges is not yet exercised against real accounts; treat them as code-complete and reviewed, not battle-hardened.
+Drive Urfael from 19 owner-allowlisted channels (the certified core, exercised against real accounts, is Telegram, Discord, Slack, iMessage, and Email as draft-only; the Matrix, Signal, and WhatsApp bridges, the QQ, SimpleX, and PSTN phone bridges, and the eight native webhook channels are code-complete and reviewed, not yet battle-hardened), by text or by voice memo transcribed locally. Every channel is gated to your id before the brain sees anything and is sandboxed read-only by default. The universal `relay` turns any platform with an in/out webhook into a two-way channel. The maturity split is single-sourced from `CHANNEL_MATURITY` in `app/lib.js`.
 
 See [channels/overview.md](channels/overview.md).
 
 ## The security model
 
-The brain is a local daemon reachable only through a `0600` unix socket and never opens a TCP port; the topology is one-way, so nothing reaches in. Default **Fortress** mode keeps remote turns read-only with no egress, and you opt into **Full** mode deliberately. Security-critical paths ship with adversarial regression tests, and `npm run security` attacks the running daemon: the latest run resisted 11 of 11 attack classes across 101 checks. Real-world scale is still small, and the docs say so on purpose.
+The brain is a local daemon reachable only through a `0600` unix socket and never opens a TCP port; the topology is one-way, so nothing reaches in. Default **Fortress** mode keeps remote turns read-only with no egress, and you opt into **Full** mode deliberately. Security-critical paths ship with adversarial regression tests, and `npm run security` attacks the running daemon: the latest run resisted 11 of 11 attack classes across 128 checks. Real-world scale is still small, and the docs say so on purpose.
 
 See [security/model.md](security/model.md). The full Threat Model and benchmark are summarised in [security/threat-model.md](security/threat-model.md), with the source documents at [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md) and [docs/SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md).
 
@@ -499,7 +531,7 @@ New here? Start with [start/quickstart.md](start/quickstart.md). Want the whole 
 
 # Coding
 
-Urfael's brain is the `claude` CLI, so it makes a sharper coding tool than the bare CLI. `urfael code "<task>"` runs Claude Code in your own repo with three things stacked on it: it remembers each repo, it checkpoints the whole working tree before it touches anything, and it gives you a one-command undo.
+`urfael code "<task>"` runs Claude Code in your repo with per-project memory, a checkpoint of the working tree, and a rewind command. Background coding goals use a separate loop with bounded iterations, completion evidence, and manual recovery.
 
 ```bash
 urfael code "add a retry to the API client"
@@ -545,7 +577,7 @@ Rewind is safe by construction:
 
 - It **checkpoints the current state first**, so the rewind is itself reversible. The command prints the id that undoes it. If that pre-checkpoint cannot be made (so the rewind would be irreversible), it refuses rather than overwrite your files; `--force` overrides.
 - It **keeps files you created since** the snapshot rather than deleting them, and lists them. It never runs a destructive clean.
-- It **leaves only your working tree changed.** After restoring, it unstages, so `git status` shows the restored files as ordinary working-tree edits for you to review, not a surprise staged commit.
+- It **preserves your existing index.** Restoring uses a temporary index, so your carefully staged changes remain staged exactly as before the rewind. Restored files appear as working-tree changes relative to that index.
 - It asks before it touches anything. Pass `--yes` to skip the prompt in a script.
 
 ## Flags
@@ -563,7 +595,40 @@ The checkpoint mechanism relies on git, so `urfael code` needs a git repo (it te
 
 A checkpoint covers tracked and untracked files, the same set as `git add -A`. Files matched by `.gitignore` (often `.env`, local config, build output) are deliberately left out, so a secret is never copied into a shadow ref. If the agent might change an ignored file you care about, back it up yourself.
 
-Rewind restores files to a snapshot and keeps newer files rather than deleting them, which is the safe default but means a rewind is an overlay, not a byte-for-byte mirror. For unattended, self-committing work, that is the separate, sandboxed `/goal` loop, not this. `urfael code` is the supervised, undoable coding session.
+Rewind restores files to a snapshot and keeps newer files rather than deleting them, so a rewind is an overlay rather than a byte-for-byte mirror. `urfael code` is the supervised coding session. Background goal jobs are described below; their repository baseline is a review reference, not a checkpoint or an automatic undo.
+
+## Background coding goals: review and recovery
+
+A background job with `kind: "goal"` works toward a goal in an explicitly selected git repository (`spec.repo`). Use an isolated checkout or worktree. The loop has iteration, elapsed-time, and per-turn limits; it never pushes or merges for you.
+
+Inspect it in the Console's **Jobs** view or from the terminal:
+
+```bash
+urfael jobs
+urfael job a1b2c3
+urfael job a1b2c3 --resume
+urfael cancel a1b2c3
+```
+
+Jobs shows the goal, current state, iteration count, stop reason, and recorded verification status. Iterations are charged before a worker turn starts, so an interrupted turn still counts toward the cap. **Details** includes the repository, original git baseline, completion contract, verification receipt, result, and log tail when available. Use **Refresh jobs** to read the latest progress. Older jobs without receipts are identified as having no recorded completion evidence.
+
+A clean process exit alone does not mean the goal was completed. `stopped` means the loop ended without confirmed completion; inspect its reason before resuming. `interrupted` means execution ended without a final outcome. `failed` records a failure. Starting, running, and cancelling jobs remain in those states until the worker has a terminal result.
+
+Host coding jobs save their progress outside the working repository, so the detached worker can continue when the daemon restarts. Resume is available only when the server reports that the existing job can safely continue. It reuses the last recorded model session, goal, settings, and remaining iteration/time limits. Unknown time during an interruption counts against the elapsed-time cap. Changing the completion contract or criteria requires a new job. The Console disables duplicate resume clicks and displays refusals. A CLI refusal exits nonzero. If the request cannot be confirmed, inspect the job before retrying.
+
+The completion receipt distinguishes the evidence actually collected. The worker's final `URFAEL-GOAL-DONE` marker is a completion claim. An owner-supplied `check` command adds an exit-status check. Optional `verify: true` with a criteria file adds a fresh model review with Read/Grep/Glob tools.
+
+| Verification status | Recorded evidence |
+|---|---|
+| `pending` | The completion gate has not finished. |
+| `failed` | The configured gate did not pass; inspect its reason. |
+| `unverified` | The worker reported completion with its marker; no acceptance check or model review passed. |
+| `reviewed` | A model review passed; no acceptance command passed. |
+| `passed` | The configured acceptance command actually exited successfully. |
+
+For a command check, `verification.checkReceipt` records the command, exit code, timeout flag, start/end timestamps, workspace hash, and log path. Its success means that specific command passed against that recorded workspace. Check `independentlyVerified` to see whether the optional model review also passed. A model review reports whether it could refute the criteria from the source; it is not deterministic test evidence. A marker alone does not imply tests or an independent review.
+
+Review the recorded baseline and the resulting repository before accepting the work. The result is not automatically published, and recovery does not rewind files. Resume is supported for managed host jobs; container, SSH, and legacy jobs without recovery state are not resumable here. On Windows, an interrupted job that still records an active worker, check, or verifier requires manual inspection because surviving child processes cannot be ruled out from the recorded leader PID. Cleanly stopped Windows jobs can still be eligible. Jobs only offers Resume when the server advertises it.
 
 ## Related
 
@@ -1293,7 +1358,7 @@ So even WhatsApp does not expose a listener to the LAN or the internet by defaul
 
 ## What is lightly tested
 
-The pure parsing and allowlist logic for every channel is unit-tested. The live relay of the Matrix, Signal, and WhatsApp bridges has not been exercised against real accounts yet; treat those as code-complete and reviewed, not battle-hardened. Linux paths are newer than macOS. The README states this plainly and so do we.
+The pure parsing and allowlist logic for every channel is unit-tested and frozen as a security-benchmark check. The certified core, exercised against real accounts, is Telegram, Discord, Slack, iMessage, and Email. The Matrix, Signal, and WhatsApp bridges, the QQ, SimpleX, and PSTN phone bridges, and the eight native webhook channels (Mattermost, Google Chat, SMS, DingTalk, Home Assistant, BlueBubbles, Feishu, WeCom) are code-complete and reviewed but not yet battle-hardened against a live account: treat them that way. Linux paths are newer than macOS. The README states this plainly and so do we; the same split is the maturity map in `app/lib.js`.
 
 ## Where to go next
 
@@ -1402,9 +1467,10 @@ The owner-key-to-channel mapping is `OWNER_ENV` in `app/bridge/bridge-core.js`. 
 
 Be honest with yourself about maturity. The README says it and so does this page:
 
-- Solid and best-tested: Telegram, Discord, Slack, iMessage, Email. The README counts these (plus Matrix) as the curated eight.
-- Code-complete and reviewed, but not yet exercised against real accounts: the live relay of Matrix, Signal, and WhatsApp. Their parsing and allowlist logic is unit-tested; the network path is not battle-hardened. Treat them accordingly.
-- Newer still: `qq`, `simplex`, and `phone` are real channel names the roster validates, with less mileage again. WhatsApp and phone are also the only inbound surfaces, so they carry more surface area; see the overview.
+- Certified and best-tested, exercised against real accounts: Telegram, Discord, Slack, iMessage, Email. This is the certified core.
+- Code-complete and reviewed, but not yet battle-hardened against a live account: the Matrix, Signal, and WhatsApp bridges, the `qq`, `simplex`, and `phone` (PSTN) bridges, and the eight native webhook channels below. Their parsing, signature verification, and fail-closed allowlist logic is unit-tested and frozen as a benchmark check; the live relay is the remaining certification step. Treat them accordingly. WhatsApp and phone are also the only inbound surfaces, so they carry more surface area; see the overview.
+
+This split is single-sourced from the `CHANNEL_MATURITY` map in `app/lib.js`, so the README, the honesty page, and this manual cite it identically.
 
 ## Native webhook channels
 
@@ -1450,50 +1516,29 @@ The full per-token instructions, including the privileged Discord intent, the Sl
 # FILE: docs/manual/security/model.md
 ================================================================================
 
-# The security model
+# Security model
 
-Self-hosted agents got owned in 2026 because they listened where attackers could reach them and ran untrusted content with real power. Urfael inverts both. This page is the moat in plain terms. Every claim matches what the code does, and where a control is opt-in or off by default, it says so.
+The daemon endpoint uses local IPC: a `0600` Unix socket on macOS/Linux and a token-authenticated named pipe on Windows. It does not listen on TCP.
 
-## The brain has no port
+Optional dashboard and API services open token-gated TCP listeners on `127.0.0.1`. Webhook, WhatsApp, and PSTN receivers also open loopback listeners, using per-hook secrets or provider signatures and sender checks. Local processes can reach these ports. User-configured tunnels or proxies can make them externally reachable.
 
-The brain is a local Node daemon. It speaks to every surface (mic, Console, CLI, TUI, orb) over a single UNIX socket at `$JDIR/daemon.sock`, mode `0600` so only your user can connect. There is no TCP port on the brain. A network scanner finds nothing, because nothing is listening on the network.
+## Remote turns
 
-The topology is one-way. Urfael reaches out: it drives your local `claude` login as warm subprocesses, and the chat bridges poll their APIs outbound. Nothing reaches in.
+Bridges check the sender against the configured roster before invoking the model. Profile resolution fails closed for unknown profiles. Default Fortress mode offers read/search tools without shell, write, or web access; Full mode adds web tools for remote owner/member turns. Scoped sessions use strict MCP configuration, and credential-deny rules restrict sensitive paths.
 
-Three HTTP surfaces are opt-in and bind `127.0.0.1` only: the web dashboard (`urfael dashboard`), the OpenAI-compatible API (`urfael serve`), and the webhook receiver. Each is loopback-only and token or secret gated: reachable from your own machine, not from the LAN or the internet. The genuinely inbound surfaces (the optional WhatsApp bridge and the webhook receiver) are opt-in, HMAC or per-hook-secret verified, and tunnel-it-yourself. Neither opens a port on your behalf.
+Messages are framed as untrusted data. This helps separate instructions from content but does not guarantee immunity to prompt injection. Tool restrictions cannot prevent every harmful response or disclosure of readable data. See [Fortress vs Full](modes.md) and [team mode](team.md).
 
-## Allowlisted before the brain, then sandboxed
+## Autonomous work and integrations
 
-Every message from a chat channel (Telegram, Discord, Slack, iMessage, Email, Matrix, Signal, WhatsApp) is checked against your id and dropped plus audited otherwise, before a single token reaches the model.
+The goal loop has execution caps and cancellation, but it can run on the host. Select Docker explicitly for its network and mount isolation, or SSH for execution on another host. `URFAEL_YOLO=1` enables unrestricted shell access and requires a deliberately isolated environment if untrusted input is involved.
 
-A message that passes the allowlist still runs in a read-only sandbox. The profile resolution in `app/lib.js` (`resolveProfile` / `profileFor`) is fail-closed: any unknown or non-string profile name resolves to the most restricted `untrusted` profile, never `local`. A remote turn gets Read, Grep, and Glob over your vault only. No write, no shell, no network egress. The message text is wrapped in a nonce-framed envelope marked as untrusted data, not instructions.
+Connectors and plugins carry their own authority. Static scans, previews, and consent hashes help review an installation; they do not prove code is safe. Brain-tools-only plugin servers can run as ordinary local processes with owner privileges. Read the [residual risks](../../THREAT-MODEL.md).
 
-The result: an injected "read a secret and POST it out" has nothing to read and nowhere to send. The containment is structural, not prompt-engineered.
+## Evidence
 
-## Autonomous work runs throwaway
+The project maintains unit regressions, fuzzing, SSRF tests, and manual live-daemon harnesses. They are self-authored checks, not an independent security audit. The security source has 11 groups and 128 check call sites; this is not a newly verified pass count. The live security and end-to-end harnesses are excluded from credential-free CI.
 
-The `/goal` loop can edit and commit code on its own. It runs with iteration, wall-clock, and stale caps, a kill switch, and never pushes. Beyond a trusted local repo, run it sandboxed:
-
-- `--sandbox docker`: a throwaway container, `--network none`, with only your `claude` auth files staged in. Your `bridge.env` and any API keys are never mounted.
-- `--sandbox ssh`: a remote box, again with no secrets mounted.
-
-Supervise the first run. Full capability mode (`URFAEL_YOLO=1`) gives the agent an unrestricted shell that also reads untrusted web and email; run that only in a VM, container, or throwaway account.
-
-## The vault denies the credential stores
-
-The spawned `claude` subprocess runs against a vault whose permissions deny reading `~/.claude` and `~/.ssh` outright. This is a hard boundary that holds even in YOLO mode: the agent cannot read your credential stores no matter what it is asked to do.
-
-## Secure by default
-
-Urfael ships in Fortress mode. No unrestricted shell, no computer-use, remote turns read-only with no egress. You turn power on deliberately. Opting into Full mode widens remote owner and member turns to web reach while keeping no-shell, no-bypass, framing, and the credential-deny in place, so even Full mode stays contained. See [Fortress vs Full](security/modes.md).
-
-Multiple people can use one instance, each a sandboxed principal through the same fail-closed kernel, where a role can only narrow access, never escalate. `urfael audit` gives an auditor the who, when, and what. See [Team mode](security/team.md).
-
-## Proof, not adjectives
-
-`npm run security` boots the real daemon and dashboard and attacks them the way self-hosted agents were attacked in the wild: network exposure, prompt-injection key exfil, malicious skills, runaway autonomous turns, DoS, and more. The latest run resists 11 of 11 attack classes across 101 checks. Several controls are also frozen as adversarial regression tests under `app/test/*.test.js`, so a refactor cannot quietly reopen a closed hole.
-
-This is a personal tool with a small user base, so it has had far less adversarial scrutiny than a large deployment. We say so plainly. The threat model also states the residual risks Urfael does not cover (a host already compromised, a sandbox you widen yourself, the model provider you point at). Read the full version in [Threat model and benchmark](security/threat-model.md), or the full file on GitHub at [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md).
+See [benchmark scope and limitations](threat-model.md) before interpreting or running the tests.
 
 
 ================================================================================
@@ -1636,46 +1681,25 @@ For the full engineering write-up, see the [Improvement Plan threat model](https
 # FILE: docs/manual/security/threat-model.md
 ================================================================================
 
-# Threat model & benchmark
+# Threat model and benchmark
 
-Most "secure" claims in this space are adjectives. Urfael ships a command instead:
+Urfael's security benchmark is a **self-authored regression harness**, not an independent audit. It mixes live daemon/dashboard probes, direct module checks, and source-text assertions.
 
-```bash
-npm run security
-```
+From `app/`, `npm run security` runs the harness. Read its [methodology and operational requirements](../../SECURITY-BENCHMARK.md) first: it uses local daemon state, changes test data and the dashboard token, and may consume authenticated Claude Code turns. It is manual, as is `npm run e2e`; neither runs in credential-free CI.
 
-This boots the real daemon and the opt-in dashboard, then attacks them across ten real-world attack classes and prints a pass/fail table. The current pass count is printed when the benchmark runs, so read the table rather than a number quoted here. The test is one you can read: it lives at [`app/test/security-benchmark.js`](https://github.com/maximilliangrand/urfael/blob/main/app/test/security-benchmark.js).
+## Coverage and counts
 
-## Why a benchmark and not an adjective
+The source defines **11 groups and 128 check call sites**. These are source counts, not a newly verified passing run. The groups cover network exposure, token handling, prompt-injection controls, skill supply chain, denial of service, autonomous work, defaults, inbound triggers, correctness regressions, plugin loading, and the native engine.
 
-Self-hosted agents were compromised in production in 2026, not hypothetically: public gateways found by the tens of thousands, a one-click token-leak RCE, a skill registry where roughly a fifth of skills were malware, a private key exfiltrated by a single poisoned email. The benchmark targets exactly those failure modes, defense by defense.
+The [full coverage map](../../SECURITY-BENCHMARK.md#coverage-map) explains what is checked. A pass supports a specific tested condition, not resistance to every attack in that category. Unit totals come from the separate `npm test` runtime summary.
 
-## The ten attack classes
+## Boundaries
 
-The benchmark groups its checks into ten classes. Each maps to a control Urfael actually enforces.
+The daemon uses local IPC. Opt-in dashboard, API, webhook, WhatsApp, and PSTN services can listen on loopback TCP ports. A user-configured tunnel or proxy can expose them externally. Fortress restricts remote tools to reading/searching; Full mode adds web reach for owner/member turns. Docker isolation for autonomous coding must be selected explicitly.
 
-1. **Network exposure.** The brain listens on a unix socket only, zero TCP ports. The opt-in dashboard and API bind `127.0.0.1` only. The benchmark confirms no TCP listeners and a `0600` socket.
-2. **Auth-token leak to RCE.** Tokens are constant-time compared, never logged, stored `0600`. Cross-origin `Host` is rejected (anti-rebinding) and no token rides in a URL.
-3. **Prompt-injection exfiltration.** Remote turns run a read-only profile (`Read`, `Grep`, `Glob`) with no shell, no write, and no network-egress tool. Untrusted content is nonce-framed. The vault denies reading credential stores. So "read a secret and send it out" has nothing to read and nowhere to send.
-4. **Poisoned skill / supply chain.** Skills are previewed and statically scanned before install, never auto-installed when flagged, never executed. One obfuscation layer is decoded and re-scanned. Install refuses SSRF redirects. Migrated foreign skills are scanned too.
-5. **Unauthenticated DoS / crash-loop.** Malformed input returns 401 or 400 and does not crash. Bodies are capped and requests are rate-limited.
-6. **Secret theft by a runaway agent.** The Docker sandbox stages only the claude auth files (never `bridge.env` or API keys) and runs `--network none` by default. The vault deny blocks reading credential stores across every spawned session.
-7. **Insecure defaults.** The unrestricted shell is off by default (opt-in and logged). An unknown channel gets the most-restricted profile.
-8. **Inbound-trigger escalation.** The webhook receiver binds `127.0.0.1` only. Each hook needs its own 256-bit secret (sha256-hashed, constant-time compared). A missing hook checks against a dummy hash, so there is no enumeration. The triggered `ask` action runs no-egress.
-9. **Correctness and craft regressions.** New surfaces keep their guarantees: a persona is a voice overlay that cannot strip its safety clause, a Council worker can only narrow its tools, a typo is caught before it spends a turn, and a connector refuses a plaintext-http remote. Each is frozen as a regression.
-10. **More of the same, nailed shut.** Several checks come from Urfael's own internal red-team. The holes were found, closed, then frozen so a refactor cannot reopen them.
+Residual risks include a compromised host, unrestricted shell mode, widened profiles, malicious readable content, connector/plugin privileges, provider data exposure, and limited deployment experience. Static scanning and model-based review do not guarantee safety.
 
-## Frozen regression tests
-
-The security-critical paths carry frozen regression tests under `app/test/*.test.js` (allowlist bypass, IMAP injection, SSRF, malware scan, fail-closed profiles, DoS). Several were written from real findings in Urfael's own adversarial review. They exist so a future commit cannot silently undo a guard.
-
-## What this does not claim
-
-This is not a claim that Urfael is unbreakable. Nothing is. The threat model states the residual risks plainly: a host already compromised as you, the opt-in `URFAEL_YOLO=1` unrestricted shell (run it only in a VM or throwaway account), a deliberately widened sandbox, the model itself, the connectors you enable, and the provider you point at. It is a personal tool with a small user base, so it has had far less adversarial scrutiny than a large deployment. We say so.
-
-## Further reading
-
-The honest version of what Urfael protects, who it protects against, and what it does not defend lives in [docs/THREAT-MODEL.md](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md). The full scorecard, with the in-the-wild incident for each class, lives in [docs/SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md). For the read-only vs web-reach tradeoff that classes 3 and 6 rely on, see [security/modes.md](security/modes.md). To get the daemon running first, see [start/quickstart.md](start/quickstart.md).
+Read the [full threat model](../../THREAT-MODEL.md), [security model](model.md), [mode tradeoffs](modes.md), and [quickstart](../start/quickstart.md).
 
 
 ================================================================================
@@ -1848,14 +1872,14 @@ Urfael can take a coding goal and work toward it on its own: edit files, run a c
 
 ## The loop
 
-You hand the brain a goal and it enqueues a detached background job (`job` kind `goal`), so the work runs concurrently and does not tie up your conversation. The job runs the guard-railed `goal-loop.sh`, which wraps your `claude` CLI and repeats one turn at a time until a real completion signal lands.
+You hand the brain a goal and it enqueues a detached background job (`job` kind `goal`), so the work runs concurrently and does not tie up your conversation. Managed host jobs use the current app's `goal-loop.js`; the vault shell script retains the optional Docker/SSH backends. The loop wraps your `claude` CLI and repeats one turn at a time until completion is supported by the configured evidence or a limit stops the run.
 
 The guardrails are kill switches, not just exit traps:
 
 - It refuses to run without an explicit `--repo` pointing at an isolated git worktree. It never defaults to the current directory, and it refuses if that directory is not a git repo, so you can always `git reset --hard`.
 - It caps iterations and wall-clock time, and SIGKILLs a hung turn. The daemon clamps these server-side: iterations 1 to 50, wall clock 1 to 240 minutes, per-turn timeout 30 to 3600 seconds.
 - A no-progress circuit breaker aborts when the git state has not changed for several turns.
-- Completion needs a `GOAL_COMPLETE` marker plus an optional `--check` command you supply.
+- Completion needs the worker's final `URFAEL-GOAL-DONE` marker and a passing `--check` command when one is configured. Optional `--verify --criteria FILE` also requires a fresh read-only model review. A passing baseline test alone cannot finish a goal.
 - It never auto-merges and never auto-pushes. The result is a worktree you review.
 
 You inspect and stop a running job from any terminal:
@@ -1863,10 +1887,13 @@ You inspect and stop a running job from any terminal:
 ```bash
 urfael jobs            # list background jobs and their state
 urfael job <id>        # one job's record plus a log tail
+urfael job <id> --resume # continue an eligible host goal with its remaining budget
 urfael cancel <id>     # kill the whole process group
 ```
 
 See [features/automation.md](features/automation.md) for the wider job and scheduling surface.
+
+Host runs save their model session, progress and verification receipts outside the workspace. A detached supervisor records the result even if the daemon restarts. Checks are tied to tracked and nonignored untracked file contents, including further edits to an already-dirty file. Failed checks feed diagnostics into the next turn. The Jobs view distinguishes unverified worker claims, model reviews, passing checks and incomplete runs. See [coding review and recovery](features/coding.md#background-coding-goals-review-and-recovery) for receipt details, resume conditions and platform limits. Docker/SSH jobs do not support this host recovery protocol.
 
 ## The sandbox is the point
 
@@ -1905,45 +1932,23 @@ The rationale (why only the auth files, why network-none is the default, the thr
 
 # Architecture
 
-Urfael is one local Node daemon that drives your installed `claude` CLI and speaks to every surface over a single UNIX socket. There is no TCP port on the brain. The security model is the shape of the system, not a layer on top of it.
+Urfael is a local Node daemon driving the installed `claude` CLI. Console, orb, CLI, and TUI clients use HTTP over local IPC: a `0600` Unix socket on macOS/Linux and an authenticated named pipe on Windows.
 
-## One daemon over a UNIX socket
+The core endpoint has no TCP listener. Optional dashboard, API, webhook, WhatsApp, and PSTN services do open loopback TCP listeners. A tunnel or proxy can expose them externally; other integrations connect outbound. See [security boundaries](../security/model.md).
 
-`app/daemon.js` is the conductor. It runs an HTTP server bound to a UNIX socket at `$JDIR/daemon.sock`, created with mode `0600` so only your user can talk to it. Every client (your mic, the Console, the `urfael` CLI, the TUI, the orb, the optional dashboard, the OpenAI-compatible API) connects to that one socket. No client has a privileged path; they all go through the same routes (`/ask`, `/council`, `/abort`, `/model`, `/persona`, `/seal`, and so on).
+## Routing and storage
 
-The topology is one-way. Urfael reaches out to your `claude` login and the chat APIs its bridges poll. Nothing reaches in. The LAN and the internet can address nothing on the brain because there is no port to address.
+`app/daemon.js` owns request routing, I/O, and subprocess lifecycle. Supporting modules handle profiles (`lib.js`), council tool restrictions (`council.js`), audit integrity (`audit-chain.js`, `seal.js`), and CLI metadata (`registry.js`).
 
-## Warm claude subprocesses
+Local owner sessions have the authority configured by the owner. Remote sessions use a restricted profile: Fortress is read-only without web/shell tools; Full mode adds web tools for remote owner/member turns. Credential-deny rules and strict MCP configuration provide additional controls. These harness restrictions are distinct from explicitly selected Docker isolation.
 
-The daemon keeps warm `claude` sessions ready rather than cold-starting a process per request. A local full-power session acts as you in the permission mode you set. A scoped pool handles remote turns under tight limits. When a remote message arrives, the session is spawned with `--allowedTools` restricted to Read, Grep, and Glob, and the vault's `permissions.deny` blocks `~/.claude` and `~/.ssh`. That denial holds even in the most permissive run mode.
+The Obsidian vault stores the archive; a git repository stores learned memory. See [memory](../features/memory.md) and the [quickstart](../start/quickstart.md).
 
-## The vault and the memory repo
+## Evidence
 
-The spawned `claude` subprocess works against two stores. The Obsidian vault is the archive that everything is written into and searched over. The git memory repo is what Urfael learns and commits over time. See [features/memory.md](features/memory.md) for how memory is captured, verified, and recalled, and [start/quickstart.md](start/quickstart.md) to set both up.
+CI runs credential-free unit, fuzz, and SSRF regression suites, with additional dependency and Windows installer checks. The security and end-to-end live harnesses are manual and may use authenticated model turns. They cover selected conditions and are self-authored, not independent audits.
 
-## Pure, unit-tested modules
-
-`daemon.js` is large because it owns I/O, process lifecycle, and routing. Every decision worth testing is delegated to a pure satellite module that takes data and returns data, with no daemon, no socket, and no `claude` in the loop. Examples:
-
-- `app/lib.js` resolves permission profiles (`resolveProfile` / `profileFor`).
-- `app/council.js` narrows a worker's tools (`intersectTools`).
-- `app/personas.js` appends the immutable `SAFETY_CLAUSE` at spawn.
-- `app/audit-chain.js` and `app/seal.js` hash-chain and ed25519-sign the Ledger of Record.
-- `app/registry.js` is the single source of truth for CLI help and dispatch.
-
-Because these are pure, the unit suite runs with no credentials in about half a second, and the security benchmark calls the exact same functions the daemon calls.
-
-## Fail-closed everywhere
-
-Resolution is fail-closed by default. Any unknown or non-string profile name returns the most restricted `untrusted` profile, never `local`. The owner's mode can only narrow a principal, never escalate it. `intersectTools` can only narrow a Council worker's tools to `requested ∩ floor`, never add Write, Edit, or Bash, and never returns an empty list (it falls back to the Read/Grep/Glob floor). An injected "read a secret and POST it out" turn has nothing to read and nowhere to send. That containment is structural, not prompt-engineered.
-
-The full trust-boundary table and the residual risks Urfael does not cover are in [security/model.md](security/model.md).
-
-## Read the full walkthrough
-
-This is a summary. The complete five-minute walkthrough, including the system diagram, the module map, the data-and-security flow of one remote message, and the test and benchmark story, is in the repository:
-
-[ARCHITECTURE.md on GitHub](https://github.com/maximilliangrand/urfael/blob/main/ARCHITECTURE.md)
+See the [full architecture](../../../ARCHITECTURE.md) and [benchmark methodology](../../SECURITY-BENCHMARK.md).
 
 
 ================================================================================
@@ -2105,7 +2110,7 @@ See also: `code` · `rewind`
 restore your repo to a checkpoint (undo a coding turn).
 
 ```bash
-urfael rewind [<id>] [--dir <path>] [--yes]
+urfael rewind [<id>] [--dir <path>] [--yes] [--force]
 ```
 
 Examples:
@@ -2116,6 +2121,23 @@ urfael rewind k3xq9z-1a2b
 ```
 
 See also: `code` · `checkpoints`
+
+### `urfael scan`
+
+read-only, verified security audit of a repo.
+
+```bash
+urfael scan [<path>] [--dir <path>] [--model <m>] [--report <file.md>] [--json]
+```
+
+Examples:
+
+```bash
+urfael scan .
+urfael scan ~/work/app --report audit.md
+```
+
+See also: `code` · `council`
 
 ## Memory
 
@@ -2239,8 +2261,8 @@ _reminders, background jobs, and cron_
 set a reminder, once or repeating.
 
 ```bash
-urfael remind "<text>" (--in <mins> | --at <iso>)
-  [--repeat daily|weekly|<mins> | --days <list> | --cron <expr>]
+urfael remind "<text>" (--in <mins> | --at <iso>) [--repeat daily|weekly|<mins>]
+  --repeat needs the --in/--at anchor; --days <list> | --cron <expr> self-anchor
 ```
 
 Examples:
@@ -2257,7 +2279,7 @@ See also: `reminders` · `cron`
 list scheduled reminders.
 
 ```bash
-urfael reminders
+urfael reminders | unremind <id>
 ```
 
 Examples:
@@ -2266,21 +2288,21 @@ Examples:
 urfael reminders
 ```
 
-See also: `remind`
+See also: `remind` · `unremind`
 
 ### `urfael jobs`
 
 list background jobs and their state.
 
 ```bash
-urfael jobs | job <id> | cancel <id>
+urfael jobs | job <id> [--resume] | cancel <id>
 ```
 
 Examples:
 
 ```bash
 urfael jobs
-urfael job a1b2c3
+urfael job a1b2c3 --resume
 urfael cancel a1b2c3
 ```
 
@@ -2292,7 +2314,7 @@ run the brain (or a --script shell cmd) on a schedule.
 
 ```bash
 urfael cron add "<prompt>" (--cron <expr> | --days <list> --at HH:MM |
-  --daily-at HH:MM | --in N | --repeat daily) [--then "<prompt>"]
+  --daily-at HH:MM | --in N) [--repeat daily|weekly|<mins>] [--then "<prompt>"]
   [--script "<cmd>"] [--deliver notify|silent|push]
 urfael cron list | cancel <id> | run <id>
 ```
@@ -2306,6 +2328,86 @@ urfael cron list
 ```
 
 See also: `remind` · `jobs` · `script`
+
+### `urfael watch`
+
+wake the brain on a local file change or process exit.
+
+```bash
+urfael watch add <file|glob|pid> <target> --prompt "<what to do>"
+  [--repeat] [--debounce <ms>] [--deliver notify|silent|push]
+urfael watch list | rm <id>
+```
+
+Examples:
+
+```bash
+urfael watch add file ./build.log --prompt "summarize any new errors"
+urfael watch add pid 12345 --prompt "the build exited, check the result"
+urfael watch list
+```
+
+See also: `cron` · `jobs` · `hook`
+
+### `urfael blueprint`
+
+set up a curated automation from a catalog (agent cron).
+
+```bash
+urfael blueprint [<id>] [slot=value ...]
+  bare lists the catalog; <id> shows its form; slot=value creates the agent cron
+```
+
+Aliases: `blueprints`
+
+Examples:
+
+```bash
+urfael blueprint
+urfael blueprint morning-brief
+urfael blueprint morning-brief time=07:30
+```
+
+See also: `cron` · `remind`
+
+### `urfael schedule`
+
+add/move/cancel a reminder or event in plain English.
+
+```bash
+urfael schedule "<add/move/cancel a reminder or event, in plain English>"
+  confirm with: urfael schedule yes   (drop it: urfael schedule no)
+```
+
+Examples:
+
+```bash
+urfael schedule "remind me to call the dentist tomorrow at 3pm"
+urfael schedule "move my standup to 10am"
+urfael schedule yes
+```
+
+See also: `calendar` · `remind` · `reminders`
+
+### `urfael calendar`
+
+show upcoming calendar events (read-only).
+
+```bash
+urfael calendar [--n <count>] [--ics]
+```
+
+Aliases: `cal`
+
+Examples:
+
+```bash
+urfael calendar
+urfael calendar --n 10
+urfael calendar --ics
+```
+
+See also: `schedule` · `reminders`
 
 ## Team
 
@@ -2362,7 +2464,24 @@ urfael seal
 urfael seal --verify
 ```
 
-See also: `audit`
+See also: `audit` · `attest`
+
+### `urfael attest`
+
+an attestation report: ledger intact, seal valid, posture.
+
+```bash
+urfael attest [--json] [--out <file>]
+```
+
+Examples:
+
+```bash
+urfael attest
+urfael attest --json --out attestation.json
+```
+
+See also: `audit` · `seal`
 
 ## Skills
 
@@ -2375,6 +2494,7 @@ your installed skills; install scans + previews, never runs.
 ```bash
 urfael skills list | export <name> | scan <file>
   | install <https-url> [--yes]
+  | learn <dir | https-url | --from-last>
 ```
 
 Examples:
@@ -2382,7 +2502,7 @@ Examples:
 ```bash
 urfael skills list
 urfael skills install https://example.com/skill.md
-urfael skills scan ./draft.md
+urfael skills learn --from-last
 ```
 
 See also: `hub` · `import`
@@ -2473,7 +2593,7 @@ See also: `connect` · `skills`
 
 ## Serve
 
-_expose the brain, API, web console, webhooks_
+_expose the brain: API, web console, webhooks_
 
 ### `urfael serve`
 
@@ -2547,18 +2667,37 @@ live multi-agent council, watch agents decompose + synthesize.
 
 ```bash
 urfael council "<task>" [--agents N]
-urfael council --list | --replay <id>
+urfael council --async "<task>" [--agents N]   (detached; opt-in URFAEL_COUNCIL_ASYNC=1)
+urfael council --list | --replay <id> | --result <id> | --cancel <id>
 ```
 
 Examples:
 
 ```bash
 urfael council "audit this repo for security gaps"
-urfael council "compare 3 caching strategies" --agents 4
-urfael council --list
+urfael council --async "review the whole vault for stale notes"
+urfael council --result <id>
 ```
 
 See also: `tui` · `jobs`
+
+### `urfael brain`
+
+select the brain: solo (default) or opt-in council ensemble.
+
+```bash
+urfael brain <moa | council | default | solo | status>   (opt-in: needs URFAEL_MOA_BRAIN=1; local-only, read-only workers)
+```
+
+Examples:
+
+```bash
+urfael brain council
+urfael brain status
+urfael brain default
+```
+
+See also: `council` · `model`
 
 ### `urfael hooks`
 
@@ -2616,6 +2755,24 @@ See also: `cron`
 
 _setup, health, and the daemon_
 
+### `urfael quickstart`
+
+connect, then your whole moat with one line to try each.
+
+```bash
+urfael quickstart
+```
+
+Aliases: `quick`
+
+Examples:
+
+```bash
+urfael quickstart
+```
+
+See also: `setup` · `status` · `doctor`
+
 ### `urfael setup`
 
 onboarding wizard, pick subscription / API key / local model.
@@ -2649,6 +2806,41 @@ urfael status
 ```
 
 See also: `doctor` · `tui` · `model`
+
+### `urfael usage`
+
+tokens + est cost, rolled up --by principal or channel.
+
+```bash
+urfael usage [--by principal|channel] [--verify] [--json]
+```
+
+Examples:
+
+```bash
+urfael usage
+urfael usage --by principal
+urfael usage --by channel --verify
+```
+
+See also: `status` · `audit`
+
+### `urfael context`
+
+what fills the model input, per category: bytes + est tokens.
+
+```bash
+urfael context ["<a message>"] [--json]
+```
+
+Examples:
+
+```bash
+urfael context
+urfael context "what did we decide about the launch?"
+```
+
+See also: `usage` · `forget`
 
 ### `urfael model`
 
@@ -2693,13 +2885,14 @@ See also: `model` · `status`
 health read; every red line carries its own one-command fix.
 
 ```bash
-urfael doctor
+urfael doctor [--json]
 ```
 
 Examples:
 
 ```bash
 urfael doctor
+urfael doctor --json
 ```
 
 See also: `status` · `setup`
@@ -2757,7 +2950,7 @@ See also: `update` · `doctor`
 pull the latest and reinstall (your own git checkout).
 
 ```bash
-urfael update
+urfael update [--check]
 ```
 
 Aliases: `upgrade`
@@ -2766,6 +2959,7 @@ Examples:
 
 ```bash
 urfael update
+urfael update --check
 ```
 
 See also: `version` · `doctor`
@@ -2805,7 +2999,8 @@ Folded under a parent command above, but valid on their own:
 
 | Command | What it does |
 |---|---|
-| `urfael job` | inspect one background job (full record + log tail) |
+| `urfael unremind` | cancel a scheduled reminder by id |
+| `urfael job` | inspect job evidence or resume a stopped coding goal |
 | `urfael cancel` | cancel a background job by id |
 
 ---
@@ -2888,6 +3083,14 @@ All three surfaces below bind `127.0.0.1` only. The brain itself opens no TCP po
 | `URFAEL_API_PORT` | Port for the OpenAI-compatible API (`urfael serve`). | `7720` |
 | `URFAEL_DASHBOARD_PORT` | Port for the web dashboard (`urfael dashboard`). | `7717` |
 | `URFAEL_HOOKS_PORT` | Port for the webhook receiver (`urfael hooks`). | `7718` |
+
+## Memory Journey graph (opt-in, experimental)
+
+Read-only, off by default. A projection over data Urfael already owns; it adds no data model, no egress, and no new inbound port (it is another route on the existing 0600 unix socket, proxied by the loopback dashboard).
+
+| Variable | Description | Default |
+|---|---|---|
+| `URFAEL_MEMGRAPH` | Set to `1`/`on`/`true` on **both** the daemon and the dashboard to enable the read-only "Memory journey" section: a graph of beliefs and lessons projected from the git-versioned memory plus the hash-chained Ledger of Record. Every node and edge resolves to a real git commit SHA; whole-chain integrity is shown via `audit-chain.verify` (a broken chain shows a red banner and withholds the provable badges). It loads on demand, caps and truncates its own output, and renders with `createElementNS`/`textContent` under the unchanged locked CSP. With it unset, the served dashboard page is byte-identical and the `/graph` route falls through to the existing 404. | unset (off) |
 
 ## Scheduling
 
@@ -2974,13 +3177,13 @@ No. Multiple people can use Urfael, each a sandboxed principal through the same 
 
 ## Which OS?
 
-macOS on Apple Silicon or Intel is the primary, best-tested target. Linux is supported but newer and less battle-tested: the headless core, voice, and Electron GUI run there, with far less mileage. The installer detects Linux and writes `systemd --user` units instead of launchd plists. There is no Windows port yet. See start/install.md.
+macOS on Apple Silicon or Intel is the primary, best-tested target. Linux is supported but newer and less battle-tested: the headless core, voice, and Electron GUI run there, with far less mileage. The installer detects Linux and writes `systemd --user` units instead of launchd plists. Native Windows is supported in beta — `install.ps1` in PowerShell (or WSL for the POSIX-only extras). See start/install.md.
 
 ## Is it production-ready?
 
-Be honest: it is young. Every feature is verified end-to-end by an in-repo harness (`npm run e2e`) against a live daemon, and the security-critical paths ship adversarial regression tests. The security benchmark (`npm run security`) boots the real daemon and dashboard and attacks them: the latest run resisted 11 of 11 attack classes across 101 checks.
+Be honest: it is young. Every feature is verified end-to-end by an in-repo harness (`npm run e2e`) against a live daemon, and the security-critical paths ship adversarial regression tests. The security benchmark (`npm run security`) boots the real daemon and dashboard and attacks them: the latest run resisted 11 of 11 attack classes across 128 checks.
 
-What that does not buy you is scale. This is a personal tool. The live relay of the Matrix, Signal, and WhatsApp bridges has not been exercised against real accounts (their parsing and allowlist logic is unit-tested). It is security-tested, not battle-tested at scale. That is the one thing only time and users add.
+What that does not buy you is scale. This is a personal tool. The live relay of the Matrix, Signal, and WhatsApp bridges, the QQ, SimpleX, and PSTN phone bridges, and the eight native webhook channels has not been exercised against real accounts (their parsing and allowlist logic is unit-tested and frozen as benchmark checks); the certified core is Telegram, Discord, Slack, iMessage, and Email. It is security-tested, not battle-tested at scale. That is the one thing only time and users add.
 
 For the full security writeup, see [SECURITY-BENCHMARK.md](https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md) and the [Threat Model](https://github.com/maximilliangrand/urfael/blob/main/docs/THREAT-MODEL.md).
 

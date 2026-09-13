@@ -2955,7 +2955,8 @@ const server = http.createServer(async (req, res) => {
     let spec = {}; try { spec = JSON.parse(body); } catch {}
     const KINDS = ['goal', 'ask', 'research']; // allowlist; 'goal' => isolated-repo, never-push goal-loop.sh
     if (!KINDS.includes(spec.kind)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unknown kind; allowed: ' + KINDS.join(',') })); return; }
-    if (jobstore.list().filter((j) => j.state === 'running').length >= MAX_RUNNING_JOBS) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'too many jobs running; cancel one first' })); return; }
+    jobstore.reconcile();
+    if (jobstore.list().filter((j) => ['starting', 'running', 'cancelling'].includes(j.state)).length >= MAX_RUNNING_JOBS) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'too many jobs running; cancel one first' })); return; }
     if (spec.kind === 'goal' && !spec.repo) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: "'goal' jobs require an isolated git worktree via spec.repo" })); return; }
     const clamp = (v, lo, hi) => Math.min(Math.max(parseInt(v, 10) || lo, lo), hi); // caps clamped server-side
     if (spec.maxIters != null) spec.maxIters = clamp(spec.maxIters, 1, 50);
@@ -2981,7 +2982,7 @@ const server = http.createServer(async (req, res) => {
     try { job = jobstore.create(spec); runner.run(jobstore.get(job.id)); }   // a jobs-dir I/O fault must 500, not hang the client
     catch (e) { logEvent({ ev: 'job_create_error', err: String((e && e.message) || e) }); res.writeHead(500, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'could not persist job' })); return; }
     logEvent({ ev: 'job_create', id: job.id, kind: spec.kind, scope: spec.scope, principal: typeof spec.principal === 'string' ? spec.principal.slice(0, 60) : '', role: typeof spec.role === 'string' ? spec.role : '' });
-    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: job.id, state: 'running' }));
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: job.id, state: jobstore.get(job.id).state }));
   } else if (req.url && req.url.startsWith('/recall')) {
     // GET /recall?q=<query>&k=<n> — BM25-ranked recall over the WHOLE archive via the warm inverted index
     // (O(query terms), incremental catch-up; never rescans). Empty/absent q -> []; k clamped 1..50. With an
@@ -3012,26 +3013,51 @@ const server = http.createServer(async (req, res) => {
     }
     res.end(JSON.stringify(ranked.map((e) => ({ t: e.t, channel: e.channel || '', user: e.user || '', urfael: e.urfael || '', score: e.score }))));
   } else if (req.url === '/jobs') {
+    jobstore.reconcile();
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(jobstore.list().map((j) => ({ id: j.id, kind: j.kind, state: j.state, scope: (j.spec && j.spec.scope) || '', createdAt: j.createdAt, endedAt: j.endedAt }))));
+    res.end(JSON.stringify(jobstore.list().map((j) => {
+      const detail = runner.describe(j);
+      const p = detail.progress;
+      return { id: j.id, kind: j.kind, state: j.state, scope: (j.spec && j.spec.scope) || '', goal: detail.goal,
+        createdAt: j.createdAt, endedAt: j.endedAt, resumable: detail.resumable,
+        progress: p ? { iterations: p.iterations, maxIters: p.contract.maxIters, outcome: p.outcome, reason: p.reason, verification: p.verification } : null };
+    })));
   } else if (req.url && req.url.startsWith('/job/')) {
-    const m = req.url.match(/^\/job\/([A-Za-z0-9-]{4,64})(\/cancel)?$/); // id validated; never interpolated into a shell
+    const m = req.url.match(/^\/job\/([A-Za-z0-9-]{4,64})(\/(?:cancel|resume))?$/); // id validated; never interpolated into a shell
     if (!m) { res.writeHead(404); res.end(); return; }
     // ORIGIN-SCOPED RESUME (opt-in, default OFF): reusing a job (cancel or read-back) is gated to the SAME origin that
     // created it. A bare 0600-socket request IS the local owner, who may resume anything (so today's owner path is
     // byte-identical); the gate exists so any FUTURE non-owner resume path is refused fail-closed by construction. A
     // job with no recorded creator origin (pre-flag) is treated as unattributable and only the owner may resume it.
     const resumeAllowed = (j) => !RUN_SCOPE_ON || runScope.canResume(j && j.spec && j.spec.runScopeOrigin, { local: true });
-    if (m[2]) { // POST /job/:id/cancel — a real kill switch (signals the whole process group)
+    if (m[2] === '/resume') {
+      if (req.method !== 'POST') { res.writeHead(405); res.end(); return; }
+      const j = jobstore.get(m[1]);
+      if (!j) { res.writeHead(404); res.end(); return; }
+      if (!resumeAllowed(j)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'cross-origin resume refused' })); return; }
+      jobstore.reconcile();
+      if (jobstore.list().filter((job) => ['starting', 'running', 'cancelling'].includes(job.state)).length >= MAX_RUNNING_JOBS) { res.writeHead(429, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'too many jobs running; cancel one first' })); return; }
+      try {
+        const resumed = runner.resume(j.id);
+        logEvent({ ev: 'job_resume', id: j.id, state: resumed.state });
+        res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ id: resumed.id, state: resumed.state }));
+      } catch (error) {
+        res.writeHead(409, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: error.message }));
+      }
+      return;
+    }
+    if (m[2] === '/cancel') { // POST /job/:id/cancel — a real kill switch (signals the whole process group)
       if (req.method !== 'POST') { res.writeHead(405); res.end(); return; }
       if (RUN_SCOPE_ON) { const jc = jobstore.get(m[1]); if (jc && !resumeAllowed(jc)) { logEvent({ ev: 'job_cancel', id: m[1], ok: false, refused: 'cross-origin' }); res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'cross-origin resume refused' })); return; } }
       const ok = runner.cancel(m[1]); logEvent({ ev: 'job_cancel', id: m[1], ok });
       res.writeHead(ok ? 200 : 404, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok })); return;
     }
+    if (req.method !== 'GET') { res.writeHead(405); res.end(); return; }
+    jobstore.reconcile();
     const j = jobstore.get(m[1]);
     if (!j) { res.writeHead(404); res.end(); return; }
     if (!resumeAllowed(j)) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'cross-origin resume refused' })); return; }
-    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ...j, log: jobstore.tailLog(m[1], 60) }));
+    res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ...runner.describe(j), log: jobstore.tailLog(m[1], 60) }));
   } else if (req.method === 'POST' && req.url === '/remind') {
     // schedule a reminder: {text, at|inMins, repeat?: 'daily'|'weekly'|{everyMins}} — fires as
     // notification + spoken aloud + phone push. The brain creates these itself (see CLAUDE.md).

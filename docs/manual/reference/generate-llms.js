@@ -31,7 +31,7 @@ function describe(file) {
     const t = ln.trim();
     if (!seenH1) { if (t.startsWith('# ')) seenH1 = true; continue; }
     if (!t || t.startsWith('#') || t.startsWith('>') || t.startsWith('|') || t.startsWith('-') || t.startsWith('```')) continue;
-    return t.replace(/\*\*/g, '').replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').slice(0, 160);
+    return t.replace(/\*\*/g, '').replace(/`/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').slice(0, 160).trimEnd();
   }
   return '';
 }

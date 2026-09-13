@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const fs = require('fs');
 const path = require('path');
-const twin = require('../../vault-template/_urfael/goal-loop.js');
+const twin = require('../goal-loop');
 
 const SH = fs.readFileSync(path.join(__dirname, '..', '..', 'vault-template', '_urfael', 'goal-loop.sh'), 'utf8');
 
@@ -51,7 +51,7 @@ test('every flag the .sh advertises in usage() exists in the twin parser (no sil
   for (const flag of String(m[0]).match(/--[a-z-]+/g)) {
     // --verify is the one boolean flag (consumes no value) — in BOTH implementations a trailing value after
     // it becomes a second positional and errors; probe it bare, everything else with a value.
-    const argv = flag === '--verify' ? ['g', flag] : ['g', flag, 'v'];
+    const argv = ['--verify', '--resume'].includes(flag) ? ['g', flag] : ['g', flag, 'v'];
     const o = twin.parseArgs(argv, {});
     assert.ok(!o.error, 'twin rejects ' + flag);
   }
@@ -60,7 +60,7 @@ test('every flag the .sh advertises in usage() exists in the twin parser (no sil
 test('the twin fails CLOSED where the .sh does: sandbox modes and verify-without-criteria', () => {
   // parseArgs accepts them (the runner argv contract), but they are v1-rejected in main() — assert the
   // source carries the fail-closed branches so a refactor can't quietly drop them.
-  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'vault-template', '_urfael', 'goal-loop.js'), 'utf8');
+  const src = fs.readFileSync(path.join(__dirname, '..', 'goal-loop.js'), 'utf8');
   assert.ok(src.includes('Aborting rather than silently running unsandboxed'));
   assert.ok(src.includes('--verify requires --criteria'));
   assert.ok(src.includes('is not a git repo'));

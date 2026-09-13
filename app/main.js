@@ -134,6 +134,7 @@ ipcMain.handle('urfael:reminder-cancel', (_e, id) => SAFE_ID.test(String(id)) ? 
 ipcMain.handle('urfael:jobs', () => daemonGet('/jobs'));
 ipcMain.handle('urfael:job', (_e, id) => SAFE_ID.test(String(id)) ? daemonGet('/job/' + id) : null);
 ipcMain.handle('urfael:job-cancel', (_e, id) => SAFE_ID.test(String(id)) ? daemonPostJson('/job/' + id + '/cancel') : null);
+ipcMain.handle('urfael:job-resume', (_e, id) => SAFE_ID.test(String(id)) ? daemonPostJson('/job/' + id + '/resume') : { error: 'Invalid job id' });
 const SETTABLE = ['SAY_VOICE', 'SAY_RATE', 'TTS_PROVIDER', 'STT_PROVIDER', 'URFAEL_THEME', 'URFAEL_ACKS', 'URFAEL_ORB', 'URFAEL_PET', 'CONSOLE_VOICE', 'WAKE_KEYWORD', 'WAKE_WORD_LABEL', 'WHISPER_MODEL', 'KOKORO_VOICE', 'ELEVENLABS_SPEED'];
 ipcMain.on('urfael:set-config', (_e, key, val) => {
   if (!SETTABLE.includes(key)) return;

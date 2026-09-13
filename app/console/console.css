@@ -146,6 +146,18 @@ button { font-family: var(--serif); }
 .row .when { color: var(--label); font: 11.5px var(--mono); white-space: nowrap; }
 .row .state { font-variant: small-caps; letter-spacing: 1px; font-size: 11px; color: var(--gold); }
 .row .state.failed, .row .state.error { color: var(--ember); }
+.row .state.stopped, .row .state.interrupted { color: var(--ember); }
+.job-title { white-space: normal; overflow-wrap: anywhere; }
+.job-progress { color: var(--dim); font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+.job-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.job-row { align-items: flex-start; }
+.job-row .state { white-space: nowrap; }
+.job-actions button:disabled { opacity: 0.5; cursor: wait; }
+@media (max-width: 640px) {
+  .job-row { flex-wrap: wrap; }
+  .job-row .grow { flex-basis: calc(100% - 120px); }
+  .job-actions { margin-left: auto; }
+}
 .row-act.small { padding: 3px 10px; min-height: 26px; font-size: 12px; }
 #distill { display: inline-flex; align-items: center; gap: 7px; }
 #distill .bi { width: 14px; height: 14px; flex: none; }
