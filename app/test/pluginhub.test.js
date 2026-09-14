@@ -69,6 +69,53 @@ test('parse prefixes brain tool names to mcp_<id>_<tool>', () => {
   assert.equal(m.caps.brain.tools[0].toolName, 'mcp_demo_fetch_thing');
 });
 
+test('installed normalized manifests reload with every consented capability and the original integrity pin', async (t) => {
+  const fs = require('fs'), os = require('os'), path = require('path');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'urfael-plugin-roundtrip-'));
+  t.after(() => fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 }));
+  const manifest = ph.parse(baseManifest({ capabilities: {
+    fs: [{ mode: 'read', path: 'vault:notes', why: 'read fixture notes' }],
+    net: [{ host: 'api.example.com', ports: [443], why: 'fixture endpoint' }],
+    exec: [{ bin: 'git', why: 'inspect changes' }],
+    secret: [{ ref: 'FIXTURE_TOKEN', why: 'reference only' }],
+    channel: [{ emit: 'notify', why: 'report result' }],
+    brain: { tools: [{ name: 'echo', description: 'return provided text' }] },
+  } }));
+  const grant = { enabled: false, caps: ph.grantFromManifest(manifest), manifestSha: ph.sha256(Buffer.from(JSON.stringify(manifest))) };
+  const file = path.join(dir, 'plugin.json');
+  fs.writeFileSync(file, JSON.stringify(manifest, null, 2)); // the actual CLI install representation
+  const loaded = ph.load(file);
+  assert.deepEqual(loaded, manifest);
+  assert.deepEqual(ph.grantFromManifest(loaded), grant.caps);
+  assert.equal(ph.integrityOk(loaded, grant).ok, true);
+  loaded.caps.net.push({ host: 'other.example.com', ports: [443], why: '' });
+  fs.writeFileSync(file, JSON.stringify(loaded));
+  assert.equal(ph.integrityOk(ph.load(file), grant).ok, false, 'adding a stored capability still requires new consent');
+});
+
+test('normalized capability input reuses validation and cannot forge derived authority', () => {
+  const normalized = ph.parse(baseManifest({ capabilities: { brain: { tools: [{ name: 'echo' }] } } }));
+  normalized.caps.fs = [{ path: 'vault:../outside', mode: 'write' }];
+  normalized.caps.net = [{ host: '127.0.0.1' }];
+  normalized.caps.exec = [{ bin: 'sh;unsafe' }];
+  normalized.caps.secret = [{ ref: 'invalid-secret-reference' }];
+  normalized.caps.brain.tools[0].toolName = 'forged_tool_name';
+  normalized.hostReaching = true; normalized.activation.ownerTurnsOnly = false;
+  const loaded = ph.parse(JSON.stringify(normalized));
+  for (const kind of ['fs', 'net', 'exec', 'secret']) assert.deepEqual(loaded.caps[kind], []);
+  assert.equal(loaded.hostReaching, false);
+  assert.equal(loaded.activation.ownerTurnsOnly, true);
+  assert.deepEqual(ph.pluginTools(loaded), ['mcp_demo_echo']);
+});
+
+test('an explicit authored capability field never merges or falls back to normalized caps', () => {
+  const caps = { brain: { tools: [{ name: 'unexpected' }] } };
+  for (const capabilities of [{}, null, 'invalid', []]) {
+    const loaded = ph.parse(baseManifest({ capabilities, caps }));
+    assert.deepEqual(ph.pluginTools(loaded), []);
+  }
+});
+
 // ── buildCellArgs: default-deny is the enforcement ───────────────────────────────────────────────
 test('buildCellArgs with an EMPTY grant is default-deny: --network none, all caps dropped, read-only, NO bind mounts', () => {
   const m = ph.parse(baseManifest());
