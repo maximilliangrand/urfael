@@ -7,6 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
+const { internalNodeEnv, externalEnv, scriptEnv } = require('./internal-node');
 
 const MARKER = 'URFAEL-GOAL-DONE';
 const STALE_LIMIT = 3;
@@ -45,12 +46,17 @@ function parseArgs(argv, env) {
   return o;
 }
 
-// The exact prompt the .sh builds (byte-identical text, so worker behavior can't drift between OSes).
+// The host runtime owns configured checks. A worker with file tools can hand off a candidate without
+// claiming to have executed a command it cannot run; only the runtime's acceptance gate can finish it.
 function buildPrompt(goal, check) {
-  return 'Work toward this goal in this repo: ' + goal + '\n' +
-    'Make concrete, committed progress this turn. When the goal is fully achieved and verified' +
-    (check ? " (so '" + check + "' passes)" : '') +
-    ', end your reply with a line containing only: ' + MARKER + '. If you are blocked or it is unsafe to proceed, explain why and stop.';
+  const handoff = check
+    ? 'When the implementation is ready for acceptance, end your reply with a line containing only: ' + MARKER + '.\n' +
+      'This marker requests verification by the runner; it does not claim that a test has passed. The runner will execute ' +
+      JSON.stringify(check) + ' and any requested independent review before accepting completion. If a check fails, you will receive its diagnostics on the next turn. ' +
+      'You may run checks yourself when tools permit. If you have no execution tool, hand off the ready implementation with the marker so the runner can check it; do not claim an unperformed test run.'
+    : 'When the goal is fully achieved, end your reply with a line containing only: ' + MARKER + '. State what you actually verified; no acceptance command is configured.';
+  return 'Work toward this goal in this repo: ' + goal + '\nMake concrete progress this turn. ' + handoff +
+    '\nIf you cannot produce a ready implementation or it is unsafe to proceed, explain why and stop.';
 }
 
 // Managed jobs execute this app-bundled engine so an existing customized vault need not be overwritten.
@@ -95,7 +101,8 @@ function boundedRun(cmd, args, opts, timeoutSec, progress, phase) {
     };
     try {
       progress.save({ phase: 'starting', childPid: null });
-      p = spawn(cmd, args, { cwd: opts.cwd, env: opts.env, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
+      const env = phase === 'check' ? externalEnv(opts.env || process.env) : scriptEnv(cmd, args, opts.env || process.env);
+      p = spawn(cmd, args, { cwd: opts.cwd, env, windowsHide: true, detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (e) { kill(); return finish(127); }
     process.once('SIGTERM', interrupted); process.once('SIGINT', interrupted);
     timer = setTimeout(() => { timedOut = true; kill(); }, Math.max(1, timeoutSec * 1000));
@@ -159,7 +166,7 @@ async function main(argv) {
   const ledger = (event) => {
     if (!o.verify || remainingSec() <= 0) return;
     try { execFileSync(process.execPath, [path.join(APP, 'bridge/ledger-log.js'), JSON.stringify({ goalId: state.runId, ...event })],
-      { stdio: 'ignore', windowsHide: true, timeout: Math.max(1, Math.min(1500, remainingSec() * 1000)) }); } catch {}
+      { stdio: 'ignore', env: internalNodeEnv(process.env), windowsHide: true, timeout: Math.max(1, Math.min(1500, remainingSec() * 1000)) }); } catch {}
   };
   const run = async (cmd, args, phase, env) => {
     if (cancelled || remainingSec() <= 0) return { rc: 124, out: '', timedOut: true };

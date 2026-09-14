@@ -14,7 +14,7 @@ For managed host jobs:
 - It requires an explicit `--repo` and checks that it is a Git repository. You choose whether that repository is isolated. The recorded baseline helps review changes; it does not automatically undo them.
 - It limits iterations and elapsed execution time, with watchdogs for model turns and acceptance commands. The daemon clamps these settings: iterations 1 to 50, execution time 1 to 240 minutes, per-turn timeout 30 to 3600 seconds.
 - A no-progress circuit breaker aborts when the git state has not changed for several turns.
-- Completion needs the worker's final `URFAEL-GOAL-DONE` marker and a passing `--check` command when one is configured. Optional `--verify --criteria FILE` also requires a fresh read-only model review. A passing baseline test alone cannot finish a goal.
+- Completion needs the worker's final `URFAEL-GOAL-DONE` marker and a passing `--check` command when one is configured. The marker hands a ready implementation to the runner, which executes the check; a worker with only file tools can request this verification without claiming a test run it could not perform. Optional `--verify --criteria FILE` also requires a fresh read-only model review. A passing baseline test alone cannot finish a goal.
 - The runner adds no push or merge step. The worker still has your configured tool permissions, so review its work and activity before publishing.
 
 You inspect and stop a running job from any terminal:

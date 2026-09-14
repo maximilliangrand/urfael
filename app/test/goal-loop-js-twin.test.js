@@ -1,6 +1,6 @@
 'use strict';
 // Parity harness for the native-Windows goal-loop twin (vault-template/_urfael/goal-loop.js) against the
-// shipped goal-loop.sh: same flags, same prompt text, same guard rails — asserted here so the two can
+// shipped goal-loop.sh: same flags and guard rails — asserted here so the two can
 // never drift silently (the same discipline the docs-consistency test applies to counts).
 const { test } = require('node:test');
 const assert = require('node:assert');
@@ -33,14 +33,15 @@ test('parseArgs mirrors the .sh flag set, positional goal, and env fallbacks', (
   assert.ok(twin.parseArgs(['a', 'b'], {}).error);
 });
 
-test('the worker prompt is byte-identical to the .sh PROMPT (with and without --check)', () => {
-  // the .sh builds: Work toward this goal in this repo: ${GOAL}\nMake concrete...${CHECK:+ (so '$CHECK' passes)}...
+test('host worker hands a ready candidate to the runner without claiming an unperformed check', () => {
   const noCheck = twin.buildPrompt('ship it', '');
   assert.ok(noCheck.startsWith('Work toward this goal in this repo: ship it\n'));
   assert.ok(noCheck.includes('end your reply with a line containing only: ' + twin.MARKER));
-  assert.ok(!noCheck.includes("(so '"));
+  assert.ok(noCheck.includes('no acceptance command is configured'));
   const withCheck = twin.buildPrompt('ship it', 'npm test');
-  assert.ok(withCheck.includes("verified (so 'npm test' passes), end your reply"));
+  assert.ok(withCheck.includes('The runner will execute "npm test"'));
+  assert.ok(withCheck.includes('If you have no execution tool, hand off the ready implementation'));
+  assert.ok(withCheck.includes('it does not claim that a test has passed'));
   // the marker itself matches the .sh MARKER= line
   assert.match(SH, new RegExp('MARKER="' + twin.MARKER + '"'));
 });

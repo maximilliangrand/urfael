@@ -8,6 +8,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const store = require('./jobstore');
 const { delegateScope, scopedEnv } = require('./lib');
+const { internalNodeEnv } = require('./internal-node');
 
 const VAULT = path.join(os.homedir(), process.env.URFAEL_VAULT_DIR || 'Urfael');
 const CB = require('./claude-bin').resolve();   // { bin, pre } — POSIX identical to the old probe; win32 exe/cli.js
@@ -17,7 +18,7 @@ const NOTIFY = path.join(__dirname, 'bridge', 'notify.js'); // best-effort; a no
 
 // one-way phone push for "job done / needs you". Single-destination by construction (see the bridge).
 function notify(text) {
-  try { const p = spawn(process.execPath, [NOTIFY, text], { detached: true, stdio: 'ignore', env: process.env }); p.unref(); } catch {}
+  try { const p = spawn(process.execPath, [NOTIFY, text], { detached: true, stdio: 'ignore', env: internalNodeEnv(process.env) }); p.unref(); } catch {}
 }
 
 // Per-principal re-entry attribution: a background child's output is UNREVIEWED, so every result note + notify carries
@@ -173,7 +174,7 @@ function run(job, options = {}) {
     require('./lib').atomicWriteJSON(path.join(store.JOBS_DIR, id + '.json'), starting);
     transitioned = true;
     const proc = spawn(process.execPath, [path.join(__dirname, 'job-worker.js'), id, token], {
-      cwd: VAULT, env: jobEnv(starting), stdio: ['ignore', fd, fd], detached: true,
+      cwd: VAULT, env: internalNodeEnv(jobEnv(starting)), stdio: ['ignore', fd, fd], detached: true,
     });
     proc.on('error', (e) => {
       try { store.updateAttempt(id, token, { state: 'error', pid: null, endedAt: new Date().toISOString(), result: 'supervisor spawn failed: ' + e.message }); }
