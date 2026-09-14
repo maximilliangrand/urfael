@@ -694,6 +694,8 @@ async function runCouncilAsBrain(text, opts) {
   // line, not mislabelled into a solo-turn usage field); the flat-rate subscription is $0 marginal regardless.
   const shape = (t, extra) => ({ text: t, model: 'council', ms: (extra && extra.ms) || 0, aborted: !!(extra && extra.aborted),
     usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 } });
+  const signal = opts && opts.signal;
+  if (signal && signal.aborted) return shape('(stopped)', { aborted: true });
   if (councilInFlight) return shape('A council is already in session, sir — one moment.');
   const t0 = Date.now();
   const agents = council.clampAgents(opts && opts.agents);
@@ -703,11 +705,14 @@ async function runCouncilAsBrain(text, opts) {
   catch (e) { return shape('I could not open a council record, sir (' + String((e && e.message) || e).slice(0, 120) + ').'); }
   logEvent({ ev: 'council_start', id: job.id, agents, source: 'brain' });
   councilInFlight = true; councilChildren.clear();
-  councilAbort = () => { for (const c of councilChildren) { try { c.kill('SIGKILL'); } catch {} inflightScoped.delete(c); } councilChildren.clear(); };
+  let synth = '', aborted = false, tokens = 0, errMsg = '';
+  const abortTurn = () => { aborted = true; for (const c of councilChildren) { try { c.kill('SIGKILL'); } catch {} inflightScoped.delete(c); } councilChildren.clear(); };
+  councilAbort = abortTurn;
+  if (signal) signal.addEventListener('abort', abortTurn, { once: true });
   const turnId = ++turnCounter;
   sendThinking({ reset: true, model: 'council', turnId });
-  let synth = '', aborted = false, tokens = 0, errMsg = '';
   const emitB = (o) => { try {
+    if (aborted) return;
     jobstore.appendLog(job.id, JSON.stringify({ id: job.id, ...o }));
     switch (o.ev) {
       case 'synthesis.delta': synth += o.delta || ''; sendSay({ delta: o.delta }); break;   // the answer streams to the voice writer
@@ -722,16 +727,27 @@ async function runCouncilAsBrain(text, opts) {
     }
   } catch {} };
   try {
-    const cr = await council.runCouncil(String(text), { agents, webOk }, emitB, councilDeps(job.id));
+    // Killing the current child alone is insufficient: the planner can resolve after
+    // cancellation and otherwise launch workers or synthesis. Guard each launch seam.
+    const deps = councilDeps(job.id);
+    const live = (fn) => (...args) => { if (aborted) throw new Error('aborted'); return fn(...args); };
+    const cr = await council.runCouncil(String(text), { agents, webOk }, emitB, {
+      ...deps, spawn: live(deps.spawn), oneShot: live(deps.oneShot), streamOne: live(deps.streamOne),
+      store: { update: (id, patch) => deps.store.update(id, aborted
+        ? { ...patch, state: 'interrupted', result: '' } : patch) },
+    });
     if (cr && cr.aborted) aborted = true;
     if (cr && typeof cr.answer === 'string' && cr.answer) synth = cr.answer;
   } catch (e) {
     errMsg = errMsg || String((e && e.message) || e).slice(0, 160);
   } finally {   // ALWAYS release single-flight + the abort hook, even on a throw, so a fault never wedges future turns
+    if (signal) signal.removeEventListener('abort', abortTurn);
+    if (aborted) { try { jobstore.update(job.id, { state: 'interrupted', endedAt: new Date().toISOString(), result: '' }); } catch {} }
     councilInFlight = false; councilAbort = null;
   }
   const ms = Date.now() - t0;
   logEvent({ ev: 'council_done', id: job.id, ok: !errMsg && !aborted, ms, tokens, source: 'brain' });
+  if (aborted) return shape('(stopped)', { ms, aborted: true });
   if (errMsg) return shape('The council could not finish, sir (' + errMsg + '). I did not answer solo — say "single brain" for the direct model.', { ms, aborted, tokens });
   const answer = synth.trim() ? synth : '(The council returned no answer, sir. Try again, or say "single brain" for the direct model.)';
   return shape(answer, { ms, aborted, tokens });
@@ -739,6 +755,10 @@ async function runCouncilAsBrain(text, opts) {
 const brain = {
   warmUp() { getSession(MODELS.opus).ask('Reply with exactly: ready', { silent: true }).catch(() => {}); }, // warm the DEFAULT tier (Opus); silent: never leak the warm-up into a client stream
   async ask(text, opts) {
+    const signal = opts && opts.signal;
+    const stopped = () => ({ text: '(stopped)', model: convoModel, ms: 0, aborted: true,
+      usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 } });
+    if (signal && signal.aborted) return stopped();
     const dir = parseModelDirective(text);                            // "switch to opus" / "use the fast model" / "back to auto"
     if (dir) return applyModelDirective(dir);                          // a control command — no LLM turn, not recorded
     const pdir = parsePersonaDirective(text, personas.knownIds(personaRoster));   // "be the architect" / "list personas" / "back to urfael"
@@ -757,7 +777,7 @@ const brain = {
     // native engine and return its (identically-shaped) result. On ANY miss tryNativeDefault returns null and we fall
     // through UNCHANGED to the CLI subscription path below. When nativeDefault is null this whole block is skipped, so
     // everything from here down is BYTE-IDENTICAL to today (same routing, budget guardrail, telemetry, CLI fallback).
-    if (nativeDefault) { const nr = await tryNativeDefault(text, opts); if (nr) return nr; }
+    if (nativeDefault) { const nr = await tryNativeDefault(text, opts); if (signal && signal.aborted) return stopped(); if (nr) return nr; }
     const ov = routeOverride(text);                                   // explicit "/fable …" / "/opus …" / "/sonnet …" wins for THIS turn
     if (ov) { text = ov.text; convoModel = MODELS[ov.model]; softTurns = 0; }
     else if (pinnedModel) { convoModel = MODELS[pinnedModel]; softTurns = 0; }   // a user pin overrides auto-routing entirely
@@ -801,21 +821,24 @@ const brain = {
     // side file BEFORE the model call, so a daemon crash mid-turn recovers the user's message on next boot. This is a
     // side write only — it never reads/mutates mem.promptText, and a write failure is swallowed so the turn is unchanged.
     if (TRANSCRIPT_WAL_ON) transcriptWal.record(MEMORY_DIR, { user: text, turnId, t: new Date().toISOString() });
-    let reply = await session.ask(mem.promptText, { speak: true, turnId });
+    // Session.ask binds cancellation to this queue item, including an abort
+    // during activeRecall before the warm-session handoff has happened.
+    let reply = await session.ask(mem.promptText, { speak: true, turnId, signal });
     // automatic fallback: a turn that failed for a RETRYABLE reason (overload, model-unavailable, network, timeout)
     // gets ONE retry on the other tier. An account-wide rate limit fails both, so we keep the original error; a
     // model-specific issue clears. Owner local turns only; URFAEL_FALLBACK=0 disables it. The cross-PROVIDER
     // env-swapped chain is a later extension of this same hook.
-    if (FALLBACK_ON && session.lastFailed && classifyError(session.errBuf).retryable) {
+    if (FALLBACK_ON && !(signal && signal.aborted) && session.lastFailed && classifyError(session.errBuf).retryable) {
       const fb = fallbackModelFor(model);
       if (fb && fb !== model) {
         logEvent({ ev: 'fallback', from: model, to: fb, cat: classifyError(session.errBuf).category });
         sendThinking({ reset: true, model: fb, turnId });             // clear the failed partial, restart on the fallback
         const fbSession = getSession(fb);
-        const fbReply = await fbSession.ask(mem.promptText, { speak: true, turnId });
+        const fbReply = await fbSession.ask(mem.promptText, { speak: true, turnId, signal });
         if (!fbSession.lastFailed) { model = fb; session = fbSession; reply = fbReply; }   // adopt the fallback only if it actually succeeded
       }
     }
+    if (signal && signal.aborted) reply = '(stopped)';
     const ms = Date.now() - t0;
     const u = session.lastUsage || {};
     logEvent({ ev: 'turn', model, in: text.length, out: (reply || '').length, ms, tokIn: u.input_tokens || 0, tokOut: u.output_tokens || 0, tokCache: u.cache_read_input_tokens || 0 });
@@ -1325,7 +1348,9 @@ function rememberNative(note) {
   const f = path.join(MEMORY_DIR, 'CAPTURED.md');
   try { fs.mkdirSync(MEMORY_DIR, { recursive: true }); fs.appendFileSync(f, '- ' + line + '\n', { mode: 0o600 }); } catch (e) { throw e; }
 }
-async function runNativeTurn({ text, providerId, model, onDelta, onThinking }) {
+async function runNativeTurn({ text, providerId, model, onDelta, onThinking, signal }) {
+  const stopped = () => ({ ok: false, text: '(stopped)', error: 'aborted', aborted: true, model: model || '' });
+  if (signal && signal.aborted) return stopped();
   const entry = providerSessions.findProvider(providerList(), providerId);
   if (!entry) return { ok: false, error: 'unknown provider' };
   const need = providers.secretNeeded(entry);
@@ -1338,7 +1363,9 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking }) {
   const mkSpec = (e, sec, m) => ({
     entry: e, secret: sec, model: m, vaultDir: VAULT, memoryDir: MEMORY_DIR,
     recall: nativeRecallSearch, appendMemory: async (n) => rememberNative(n),
-    contextWindow: 32000, maxTokens: 2048, selfReview: NATIVE_SELF_REVIEW, onDelta, onThinking,
+    contextWindow: 32000, maxTokens: 2048, selfReview: NATIVE_SELF_REVIEW,
+    onDelta: onDelta && ((t) => { if (!(signal && signal.aborted)) onDelta(t); }),
+    onThinking: onThinking && ((t) => { if (!(signal && signal.aborted)) onThinking(t); }),
   });
   const built = engine.buildEngine(mkSpec(entry, secret, useModel));
   if (!built) return { ok: false, error: 'that provider runs on the CLI engine (subscription), not the native engine' };
@@ -1346,9 +1373,11 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking }) {
   const t0 = Date.now();
   let promptText = text;
   try { const mem = await activeRecall(text); if (mem && mem.promptText) promptText = mem.promptText; } catch {}
+  if (signal && signal.aborted) return stopped();
   // loop.run() slices `messages` (never mutates it), so the SAME clean initial history is reused for each fallback.
   const messages = engine.assembleMessages({ system: nativeSystemPrompt(), userText: promptText });
-  let r; try { r = await built.run(messages); } catch (e) { return { ok: false, error: 'native engine error: ' + String((e && e.message) || e) }; }
+  let r; try { r = await built.run(messages, { signal }); } catch (e) { return signal && signal.aborted ? stopped() : { ok: false, error: 'native engine error: ' + String((e && e.message) || e) }; }
+  if (signal && signal.aborted) return stopped();
   // adopt the winning provider (primary until a fallback succeeds) for the transcript/record/return contract below.
   let winEntry = entry, winModel = useModel, winAdapter = built._adapter;
   // LIVE PROVIDER FALLBACK (native): a primary that failed for a RETRYABLE reason (network/timeout/overload/5xx/429/408
@@ -1364,13 +1393,15 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking }) {
       hasSecret: (e) => { const n = providers.secretNeeded(e); return !n || !!secretStore[n.env]; },
     });
     for (const fb of fbChain) {
+      if (signal && signal.aborted) return stopped();
       const fbSecret = nativeSecretFor(fb);                             // re-resolve THIS provider's OWN secret (fail-closed; local→placeholder)
       const fbModel = fb.big_model || fb.small_model || '';
       if (!fbModel) continue;                                            // no model to run on -> skip (fail-soft)
       const fbBuilt = engine.buildEngine(mkSpec(fb, fbSecret, fbModel));
       if (!fbBuilt || fbBuilt.needsSecret) continue;                      // double gate: buildEngine refused -> skip
       logEvent({ ev: 'native_fallback', from: winEntry.id, to: fb.id, cat: engine.classifyNativeError(r).category });
-      let fr; try { fr = await fbBuilt.run(messages); } catch { continue; }   // run never throws, but guard anyway -> next fallback
+      let fr; try { fr = await fbBuilt.run(messages, { signal }); } catch { if (signal && signal.aborted) return stopped(); continue; }   // run never throws, but guard anyway -> next fallback
+      if (signal && signal.aborted) return stopped();
       r = fr; winEntry = fb; winModel = fbModel; winAdapter = fbBuilt._adapter;   // adopt this attempt as the new latest
       if (fr.ok) break;                                                   // first success wins; stop the chain
       if (!engine.classifyNativeError(fr).retryable) break;              // a TERMINAL fallback error -> stop retrying
@@ -1393,23 +1424,28 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking }) {
 // the CLI subscription path — the turn is never dropped. It does NOT re-record (runNativeTurn already did transcript.push
 // + recordSession + logEvent('native_turn') on success) and the native path deliberately scopes out the CLI-tail
 // reviewTurn/modelUser/reinforceSurfaced + the URFAEL_BUDGET rolling window (that window meters the flat-rate
-// subscription, not a metered key). Known v1 limits: not abortable via brain.abort() (which only iterates the CLI
-// `sessions` map — an in-flight native default turn runs to completion), and TTS streams raw token deltas via
+// subscription, not a metered key). Request-scoped cancellation reaches the native engine; the legacy global
+// brain.abort() still targets CLI/council children. TTS streams raw token deltas via
 // sendSay({delta}), not sentence-segmented speech. Never throws (the pure fn never throws; runNativeTurn never throws).
-function tryNativeDefault(text /* , opts */) {
-  return defaultBrain.nativeDefaultResult(nativeDefault, text, {
+async function tryNativeDefault(text, opts) {
+  const signal = opts && opts.signal;
+  const stopped = () => ({ text: '(stopped)', model: nativeDefault || '', ms: 0, aborted: true,
+    usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 } });
+  if (signal && signal.aborted) return stopped();
+  const result = await defaultBrain.nativeDefaultResult(nativeDefault, text, {
     routeOverride,
     findProvider: providerSessions.findProvider,
     providers: providerList,
     pickAdapter: engine.pickAdapter,
     secretNeeded: providers.secretNeeded,
     hasSecret: (env) => !!secretStore[env],
-    runNativeTurn,
+    runNativeTurn: (spec) => runNativeTurn({ ...spec, signal }),
     onDelta: (t) => { try { sendSay({ delta: t }); } catch {} },
     onThinking: (t) => { try { sendThinking({ note: t }); } catch {} },
     resetStream: ({ model }) => { lastLocalTurn = Date.now(); const turnId = ++turnCounter; sendThinking({ reset: true, model, turnId }); },
     now: () => Date.now(),
   });
+  return signal && signal.aborted ? stopped() : result;
 }
 
 // Reinforce what active recall surfaced (the testing effect): bump each lesson's `surfaced` so consolidation can
@@ -2302,6 +2338,9 @@ function readBody(req) { // capped to MAX_BODY so an oversized body can't exhaus
   });
 }
 let chain = Promise.resolve();
+// Request IDs belong only to live owner /ask streams. Removing an entry never
+// loses a queued cancellation: its closure keeps the cancelled turn object.
+const localRequests = new Map();
 // ---- PLUGIN RUNTIME --------------------------------------------------------------------------------
 // An enabled plugin is a capability-scoped MCP server that attaches to the WARM (owner) sessions ONLY, via
 // --mcp-config (added to the user's connectors, not --strict). Every scoped/remote/cron spawn stays
@@ -2416,6 +2455,13 @@ const server = http.createServer(async (req, res) => {
     const body = await readBody(req);
     let parsed = {}; try { parsed = JSON.parse(body); } catch {}
     const text = parsed.text || '';
+    const hasRequestId = Object.prototype.hasOwnProperty.call(parsed, 'requestId');
+    if (hasRequestId && ('channel' in parsed)) {
+      res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'request IDs are local-only' })); return;
+    }
+    if (hasRequestId && (typeof parsed.requestId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(parsed.requestId))) {
+      res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'invalid requestId' })); return;
+    }
     // ONLY an absent channel key means the local mic/overlay (full power). Any PRESENT channel is a remote turn:
     // its profile comes from the principal's ROLE (TEAM MODE), which can only NARROW access — never reach local.
     // A remote turn is therefore never full-power regardless of a forged role (profileFor returns untrusted|guest).
@@ -2434,7 +2480,25 @@ const server = http.createServer(async (req, res) => {
       try { res.end(); } catch {}
       return;
     }
+    let turn;
+    const releaseTurn = () => { if (turn && localRequests.get(parsed.requestId) === turn) localRequests.delete(parsed.requestId); };
+    if (hasRequestId) {
+      if (localRequests.has(parsed.requestId)) {
+        res.writeHead(409, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'requestId already in flight' })); return;
+      }
+      turn = { res, cancelled: false, finished: false, controller: new AbortController() };
+      localRequests.set(parsed.requestId, turn);
+      res.once('finish', () => { turn.finished = true; releaseTurn(); });
+      res.once('close', () => {
+        if (!turn.finished) { turn.cancelled = true; turn.controller.abort(); }
+        releaseTurn();
+      });
+    }
     chain = chain.then(async () => {
+      if (turn && (turn.cancelled || res.destroyed)) {
+        if (!res.destroyed && !res.writableEnded) { res.writeHead(200, { 'Content-Type': 'application/x-ndjson' }); res.end(JSON.stringify({ kind: 'done', text: '(stopped)', aborted: true }) + '\n'); }
+        return;
+      }
       res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
       active = res;
       res.on('close', () => { if (active === res) active = null; }); // client gone -> stop writing into a dead socket
@@ -2497,7 +2561,7 @@ const server = http.createServer(async (req, res) => {
         pendingScheduleDirectives = null;   // any other message: the owner moved on, drop the stale directives
       }
       try {
-        const r = await brain.ask(text, { hl: !!parsed.hl });
+        const r = await brain.ask(text, { hl: !!parsed.hl, signal: turn && turn.controller.signal });
         // SELF-REWRITE (LOCAL path only — never askScoped): scan the owner-trusted reply for a single cosmetic
         // self-setting directive, validate it against the allowlist, then confirm-or-apply. A security key is
         // never settable (it isn't in the registry), so this can only ever touch persona/voice/UI cosmetics.
@@ -2542,7 +2606,8 @@ const server = http.createServer(async (req, res) => {
       catch (e) { emit({ kind: 'done', text: '(brain error)', model: '' }); }
       if (active === res) active = null;
       try { res.end(); } catch {}
-    }).catch((e) => { try { if (active === res) active = null; res.end(); } catch {} try { logEvent({ ev: 'chain_error', err: String((e && e.stack) || e).slice(0, 400) }); } catch {} });   // a thrown turn must never leave the shared chain rejected (which would brick all future turns)
+    }).catch((e) => { try { if (active === res) active = null; res.end(); } catch {} try { logEvent({ ev: 'chain_error', err: String((e && e.stack) || e).slice(0, 400) }); } catch {} })
+      .finally(() => { if (turn) { turn.finished = true; releaseTurn(); } });   // a thrown turn must never leave the shared chain rejected (which would brick all future turns)
   } else if (req.method === 'POST' && req.url === '/council') {
     // COUNCIL — a live, watchable multi-agent orchestration. LOCAL-ONLY (a remote channel is refused); single-flight;
     // serialized on the SAME `chain` as /ask but it writes to ITS OWN res, never the shared voice `active` writer.
@@ -2623,6 +2688,22 @@ const server = http.createServer(async (req, res) => {
     const c = asyncCouncil.cancelDetached({ id: cid, councilJobId, councilAbort, jobstore, logEvent });
     res.writeHead(c.code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: c.ok }));
   } else if (req.method === 'POST' && req.url === '/abort') {
+    const body = await readBody(req);
+    let parsed = {}; try { if (body) parsed = JSON.parse(body); } catch { res.writeHead(400); res.end('{"error":"invalid JSON"}'); return; }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { res.writeHead(400); res.end('{"error":"invalid request"}'); return; }
+    if ('channel' in parsed) { res.writeHead(403); res.end('{"error":"abort is local-only"}'); return; }
+    if (Object.prototype.hasOwnProperty.call(parsed, 'requestId')) {
+      const turn = typeof parsed.requestId === 'string' && localRequests.get(parsed.requestId);
+      if (!turn) { res.writeHead(404, { 'Content-Type': 'application/json' }); res.end('{"ok":false}'); return; }
+      turn.cancelled = true;
+      turn.controller.abort();
+      if (active !== turn.res && !turn.res.destroyed && !turn.res.writableEnded) {
+        turn.res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
+        turn.res.end(JSON.stringify({ kind: 'done', text: '(stopped)', aborted: true }) + '\n');
+      }
+      logEvent({ ev: 'abort', ok: true, scoped: true });
+      res.writeHead(200, { 'Content-Type': 'application/json' }); res.end('{"ok":true}'); return;
+    }
     // abort ONLY the current in-flight LOCAL turn — never askScoped or jobs. Safe to call when idle.
     const ok = brain.abort(); logEvent({ ev: 'abort', ok });
     res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok }));
