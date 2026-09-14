@@ -29,7 +29,7 @@ const VIEWS = ['converse', 'archive', 'reminders', 'jobs', 'hearth', 'settings',
     const r = await window.urfael.saveProvider(cfg).catch(() => ({ ok: false }));
     $('#ob-go').disabled = false;
     if (r && r.ok) { ob.hidden = true; try { $('#input').focus(); } catch {} }
-    else { note.classList.add('err'); note.textContent = 'Could not save. ' + ((r && r.error) || 'Try again.'); }
+    else { note.classList.add('err'); note.textContent = 'Could not finish setup. ' + ((r && r.error) || 'Try again.'); }
   });
   // show only on a fresh install (the marker / provider.env is absent)
   (async () => { try { const s = await window.urfael.providerStatus(); if (s && !s.onboarded) ob.hidden = false; } catch {} })();

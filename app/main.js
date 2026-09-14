@@ -46,7 +46,7 @@ function targetDisplay() { return screen.getDisplayNearestPoint(screen.getCursor
 // ---- brain daemon client ---------------------------------------------------
 function healthCheck(timeoutMs = 1200) {
   return new Promise((resolve) => {
-    const req = http.request({ socketPath: SOCK, method: 'GET', path: '/health', timeout: timeoutMs, headers: ipc.authHeaders() }, (res) => { res.resume(); resolve(true); });
+    const req = http.request({ socketPath: SOCK, method: 'GET', path: '/health', timeout: timeoutMs, headers: ipc.authHeaders() }, (res) => { res.resume(); resolve(res.statusCode === 200); });
     req.on('error', () => resolve(false));
     req.on('timeout', () => { req.destroy(); resolve(false); });
     req.end();
@@ -174,11 +174,11 @@ ipcMain.handle('urfael:chat-ask', (_e, id, text) => {
 ipcMain.on('urfael:conversation-end', () => daemonPost('/conversation-end'));
 
 // ---- first-run GUI onboarding (so a non-technical user never needs a terminal) ----
-ipcMain.handle('urfael:provider-status', () => {
+ipcMain.handle('urfael:provider-status', async () => {
   let mode = 'subscription';
   try { const e = setup.readEnv(); mode = e.ANTHROPIC_BASE_URL ? 'local' : e.ANTHROPIC_API_KEY ? 'apikey' : 'subscription'; } catch {}
-  let onboarded = false; try { onboarded = fs.existsSync(ONBOARDED) || fs.existsSync(setup.PROVIDER_ENV); } catch {}
-  return { onboarded, mode };
+  let configured = false; try { configured = fs.existsSync(ONBOARDED) || fs.existsSync(setup.PROVIDER_ENV); } catch {}
+  return { onboarded: configured && await ensureDaemon(), mode };
 });
 ipcMain.handle('urfael:save-provider', async (_e, cfg) => {
   cfg = cfg || {};
@@ -188,10 +188,10 @@ ipcMain.handle('urfael:save-provider', async (_e, cfg) => {
     if (cfg.mode === 'apikey' && typeof cfg.key === 'string' && cfg.key.trim()) next.ANTHROPIC_API_KEY = cfg.key.trim();
     else if (cfg.mode === 'local' && typeof cfg.url === 'string' && /^https?:\/\//.test(cfg.url)) { next.ANTHROPIC_BASE_URL = cfg.url.trim(); next.ANTHROPIC_AUTH_TOKEN = (typeof cfg.token === 'string' && cfg.token.trim()) || 'local'; }
     setup.writeEnv(next);                                                         // 0600, atomic (reused from the CLI wizard)
-    try { fs.mkdirSync(JDIR, { recursive: true }); fs.writeFileSync(ONBOARDED, new Date().toISOString()); } catch {}
     try { await daemonPostJson('/shutdown'); } catch {}                          // restart so the daemon loads the new provider.env
     await new Promise((r) => setTimeout(r, 600));
-    await ensureDaemon();
+    if (!(await ensureDaemon())) return { ok: false, error: 'Provider settings were saved, but the brain did not start. Reopen Urfael or inspect ' + path.join(JDIR, 'urfael.log') + ' and try again.' };
+    try { fs.mkdirSync(JDIR, { recursive: true }); fs.writeFileSync(ONBOARDED, new Date().toISOString()); } catch {}
     return { ok: true };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });

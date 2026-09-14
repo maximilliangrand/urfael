@@ -3,6 +3,7 @@
 const { spawn } = require('child_process');
 const store = require('./jobstore');
 const runner = require('./runner');
+const { scriptEnv } = require('./internal-node');
 
 function supervise(id, token) {
   const job = store.get(id);
@@ -80,7 +81,9 @@ function supervise(id, token) {
   cancelPoll = setInterval(() => { if ((store.get(id) || {}).state === 'cancelling') cancel(); }, 100);
   try {
     const [cmd, ...args] = runner.argvFor(job);
-    child = spawn(cmd, args, { cwd: runner.VAULT, env: runner.jobEnv(job), stdio: ['ignore', 'inherit', 'inherit'] });
+    child = spawn(cmd, args, { cwd: runner.VAULT,
+      env: scriptEnv(cmd, args, runner.jobEnv(job)),
+      stdio: ['ignore', 'inherit', 'inherit'] });
     child.on('error', (error) => finish(null, null, error));
     child.on('close', (code, signal) => finish(code, signal, launchError));
     if (!store.updateAttempt(id, token, { childPid: child.pid || null })) throw new Error('job ownership lost during spawn');

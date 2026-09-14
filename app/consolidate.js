@@ -100,6 +100,7 @@ function dedupeLessons(items) {
 
   for (const raw of list) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;   // junk: not a survivor slot (rebuilt as passthrough)
+    if (raw.forgottenAt != null) continue; // preserve owner retirement; never merge away its recurrence barrier
     const ref = typeof raw.ref === 'string' ? raw.ref : '';
     if (!norm(ref)) continue;                                              // no usable ref: passthrough, never merged
     const refNorm = norm(ref);
@@ -178,6 +179,7 @@ function rebuildOrder(originalList, survivors) {
   const emittedSlot = new Set();
   for (const raw of originalList) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) { out.push(raw); continue; }
+    if (raw.forgottenAt != null) { out.push(raw); continue; }
     const ref = typeof raw.ref === 'string' ? raw.ref : '';
     if (!norm(ref)) { out.push(raw); continue; }
     // which survivor slot does this input belong to? match by overlap to a slot ref (>= threshold) like the main pass.

@@ -75,7 +75,9 @@ The repo ships an `electron-builder` config in `app/package.json`. Building it p
 cd app && npm run dist        # or npm run dist:dir for an unpacked build
 ```
 
-Note plainly: the packaged app is the Console (the Electron overlay UI). It is a client of the same daemon, so you still install from source once to get the brain, the `urfael` CLI, and the service files. There is no published, signed download that sets up everything in one step today.
+The packaged app includes the Console, daemon, coding engine and vault template. On first launch the daemon creates a missing vault from that template; an existing vault is left unchanged. The onboarding screen saves provider settings and waits for the daemon to start. This confirms local startup, not a successful model login or request: Claude Code and the selected provider still need to be available.
+
+The package does not install the `urfael` command onto your shell's PATH, configure autostart services, or install voice binaries/models. Use the source installer for those optional components and the full memory/config setup. macOS builds currently use an ad-hoc signature; that is not Developer ID signing or notarization.
 
 ## What the installer creates on first run
 

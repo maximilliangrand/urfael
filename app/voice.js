@@ -123,7 +123,27 @@ function postWav(port, wav) {
   const bodyBuf = Buffer.concat([head, wav, tail]);
   return new Promise((resolve, reject) => {
     const req = http.request({ host: '127.0.0.1', port, path: '/inference', method: 'POST', headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'Content-Length': bodyBuf.length } },
-      (res) => { let d = ''; res.on('data', (c) => (d += c)); res.on('end', () => { try { resolve(JSON.parse(d).text || ''); } catch { resolve(d.trim()); } }); });
+      (res) => {
+        res.on('error', () => reject(new Error('whisper-server response was interrupted')));
+        res.on('aborted', () => reject(new Error('whisper-server response was interrupted')));
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          res.resume(); reject(new Error('whisper-server returned HTTP ' + res.statusCode)); return;
+        }
+        res.setEncoding('utf8'); // preserve codepoints split across HTTP chunks
+        let d = '';
+        res.on('data', (c) => (d += c));
+        res.on('end', () => {
+          let parsed;
+          try { parsed = JSON.parse(d); }
+          catch { reject(new Error('whisper-server returned invalid JSON')); return; }
+          // We requested response_format=json. Error objects, malformed responses and plain text are
+          // not transcripts; only a string text field (including legitimate silence) may reach chat.
+          if (!parsed || Array.isArray(parsed) || typeof parsed.text !== 'string') {
+            reject(new Error('whisper-server response is missing transcript text')); return;
+          }
+          resolve(parsed.text);
+        });
+      });
     req.on('error', () => reject(new Error('whisper-server not reachable')));
     req.write(bodyBuf); req.end();
   });
@@ -137,6 +157,7 @@ async function transcribeWhisper(webmBuf, cfg) {
     return (text || '').trim();
   } catch (e) {
     const isWin = process.platform === 'win32';
+    if (/^whisper-server (returned|response)/.test(e.message)) throw new Error('Local STT unavailable — ' + e.message);
     throw new Error(/ffmpeg/.test(e.message) ? ('Local STT needs ffmpeg — run: ' + (isWin ? 'winget install Gyan.FFmpeg (or re-run install.ps1)' : 'brew install ffmpeg'))
       : ('Local STT unavailable — ' + (isWin ? 're-run install.ps1 (it fetches whisper-server + the model)' : 'run: brew install whisper-cpp (and let install.sh fetch the model)')));
   } finally { for (const f of [webm, wav]) { try { fs.unlinkSync(f); } catch {} } }

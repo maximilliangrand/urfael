@@ -120,7 +120,9 @@ The repo ships an `electron-builder` config in `app/package.json`. Building it p
 cd app && npm run dist        # or npm run dist:dir for an unpacked build
 ```
 
-Note plainly: the packaged app is the Console (the Electron overlay UI). It is a client of the same daemon, so you still install from source once to get the brain, the `urfael` CLI, and the service files. There is no published, signed download that sets up everything in one step today.
+The packaged app includes the Console, daemon, coding engine and vault template. On first launch the daemon creates a missing vault from that template; an existing vault is left unchanged. The onboarding screen saves provider settings and waits for the daemon to start. This confirms local startup, not a successful model login or request: Claude Code and the selected provider still need to be available.
+
+The package does not install the `urfael` command onto your shell's PATH, configure autostart services, or install voice binaries/models. Use the source installer for those optional components and the full memory/config setup. macOS builds currently use an ad-hoc signature; that is not Developer ID signing or notarization.
 
 ## What the installer creates on first run
 
@@ -616,7 +618,7 @@ A clean process exit alone does not mean the goal was completed. `stopped` means
 
 Host coding jobs save their progress outside the working repository, so the detached worker can continue when the daemon restarts. Resume is available only when the server reports that the existing job can safely continue. It reuses the last recorded model session, goal, settings, and remaining iteration/time limits. Unknown time during an interruption counts against the elapsed-time cap. Changing the completion contract or criteria requires a new job. The Console disables duplicate resume clicks and displays refusals. A CLI refusal exits nonzero. If the request cannot be confirmed, inspect the job before retrying.
 
-The completion receipt distinguishes the evidence actually collected. The worker's final `URFAEL-GOAL-DONE` marker is a completion claim. An owner-supplied `check` command adds an exit-status check. Optional `verify: true` with a criteria file adds a fresh model review with Read/Grep/Glob tools.
+The completion receipt distinguishes the evidence actually collected. With an owner-supplied `check` command, the worker's final `URFAEL-GOAL-DONE` marker hands a ready candidate to the runner for verification; it does not claim the worker ran that command. The runner executes the check and records its exit status. Without a check, the marker remains a worker completion claim. Optional `verify: true` with a criteria file adds a fresh model review with Read/Grep/Glob tools.
 
 | Verification status | Recorded evidence |
 |---|---|
@@ -1879,7 +1881,7 @@ For managed host jobs:
 - It requires an explicit `--repo` and checks that it is a Git repository. You choose whether that repository is isolated. The recorded baseline helps review changes; it does not automatically undo them.
 - It limits iterations and elapsed execution time, with watchdogs for model turns and acceptance commands. The daemon clamps these settings: iterations 1 to 50, execution time 1 to 240 minutes, per-turn timeout 30 to 3600 seconds.
 - A no-progress circuit breaker aborts when the git state has not changed for several turns.
-- Completion needs the worker's final `URFAEL-GOAL-DONE` marker and a passing `--check` command when one is configured. Optional `--verify --criteria FILE` also requires a fresh read-only model review. A passing baseline test alone cannot finish a goal.
+- Completion needs the worker's final `URFAEL-GOAL-DONE` marker and a passing `--check` command when one is configured. The marker hands a ready implementation to the runner, which executes the check; a worker with only file tools can request this verification without claiming a test run it could not perform. Optional `--verify --criteria FILE` also requires a fresh read-only model review. A passing baseline test alone cannot finish a goal.
 - The runner adds no push or merge step. The worker still has your configured tool permissions, so review its work and activity before publishing.
 
 You inspect and stop a running job from any terminal:
@@ -2215,7 +2217,7 @@ See also: `why` · `forget`
 
 ### `urfael forget`
 
-remove matching beliefs + leave a provable git tombstone.
+remove active beliefs and keep a local audit record.
 
 ```bash
 urfael forget ["<phrase>"]

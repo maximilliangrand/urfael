@@ -43,25 +43,45 @@ function call(method, p, body) {
 function streamPrompt(sessionId, text, reqId) {
   const ctx = acp.newPromptCtx();
   let settled = false;
-  const finish = (stopReason) => { if (settled) return; settled = true; out(acp.rpcResult(reqId, { stopReason })); };
+  let resolveCompletion;
+  const completion = new Promise((resolve) => { resolveCompletion = resolve; });
+  const finish = (stopReason, message) => {
+    if (settled) return;
+    settled = true;
+    if (message) notify(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: message } });
+    out(acp.rpcResult(reqId, { stopReason }));
+    resolveCompletion();
+  };
+  const fail = () => finish('refusal', '(brain unreachable — the daemon stream did not complete)');
   const r = http.request({ socketPath: SOCK, method: 'POST', path: '/ask', headers: { 'Content-Type': 'application/json', ...ipc.authHeaders() }, timeout: 300000 }, (res) => {
     let buf = '';
+    const line = (ln) => {
+      if (settled || !ln.trim()) return;
+      let e; try { e = JSON.parse(ln); } catch { return; }
+      const { updates, done } = acp.ndjsonLineToUpdate(e, ctx);
+      for (const u of updates) notify(sessionId, u);
+      if (done) finish(done.stopReason);
+    };
+    res.setEncoding('utf8');
     res.on('data', (d) => {
-      buf += d.toString(); let i;
+      if (settled) return;
+      buf += d; let i;
       while ((i = buf.indexOf('\n')) >= 0) {
-        const ln = buf.slice(0, i).trim(); buf = buf.slice(i + 1); if (!ln) continue;
-        let e; try { e = JSON.parse(ln); } catch { continue; }
-        const { updates, done } = acp.ndjsonLineToUpdate(e, ctx);
-        for (const u of updates) notify(sessionId, u);
-        if (done) finish(done.stopReason);
+        const ln = buf.slice(0, i); buf = buf.slice(i + 1); line(ln);
       }
     });
-    res.on('end', () => finish('end_turn'));
+    res.on('end', () => { line(buf); if (!settled) fail(); });
+    res.on('aborted', fail);
+    res.on('error', fail);
+    res.on('close', () => { if (!res.complete) fail(); });
+    if (res.statusCode !== 200) { fail(); res.destroy(); }
   });
-  r.on('error', () => { notify(sessionId, { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '(brain unreachable — is the Urfael daemon running?)' } }); finish('refusal'); });
-  r.on('timeout', () => { r.destroy(); finish('refusal'); });
-  r.end(JSON.stringify({ text }));
-  return { abort: () => { try { r.destroy(); } catch {} } };
+  r.on('error', fail);
+  r.on('timeout', () => { finish('refusal'); r.destroy(); });
+  // The daemon associates cancellation with this stream, including a queued
+  // request whose editor disconnects before the daemon starts its turn.
+  r.end(JSON.stringify({ text, requestId: crypto.randomUUID() }));
+  return { completion, abort: () => { finish('cancelled'); r.destroy(); } };
 }
 
 // dispatch one inbound JSON-RPC message.
@@ -90,14 +110,18 @@ async function dispatch(msg, origin) {
       if (s.inflight) return out(acp.rpcError(id, -32603, 'a prompt is already in flight (single warm conversation)'));
       const text = acp.flattenPromptBlocks(params && params.prompt);
       if (!text) return out(acp.rpcResult(id, { stopReason: 'end_turn' }));
-      s.inflight = streamPrompt(sessionId, text, id);
-      const clear = () => { s.inflight = null; };
-      // streamPrompt resolves the request itself; we just clear the flag shortly after (best-effort)
-      setTimeout(clear, 0); s._clear = clear;
+      const turn = s.inflight = streamPrompt(sessionId, text, id);
+      // Keep the session busy until this exact stream settles, including transport
+      // failures. A stale completion must never clear a subsequent prompt's guard.
+      turn.completion.then(() => { if (s.inflight === turn) s.inflight = null; });
       return;
     }
     case 'session/cancel': {                                       // a notification — abort the in-flight turn
-      await call('POST', '/abort');
+      const s = sessions.get(params && params.sessionId);
+      if (!s || (RUN_SCOPE_ON && !runScope.canResume(s.origin, origin || ACP_ORIGIN))) return;
+      // Closing this request cancels only its matching daemon turn. The global
+      // /abort route could stop another session (or the microphone's owner turn).
+      if (s.inflight) s.inflight.abort();
       return;
     }
     case 'session/set_mode': {

@@ -94,7 +94,7 @@ const COMMANDS = [
     usage: 'urfael learn [trusted|proposed|retired]',
     examples: ['urfael learn', 'urfael learn trusted'], see: ['why', 'forget'] },
   { name: 'forget', group: 'MEMORY',
-    summary: 'remove matching beliefs + leave a provable git tombstone',
+    summary: 'remove active beliefs and keep a local audit record',
     usage: 'urfael forget ["<phrase>"]',
     examples: ['urfael forget "old office address"', 'urfael forget'], see: ['learn', 'why'] },
   { name: 'dataset', group: 'MEMORY', aliases: ['trajectories'],

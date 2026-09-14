@@ -29,6 +29,10 @@
       {
         "from": "../config",
         "to": "config"
+      },
+      {
+        "from": "../vault-template",
+        "to": "vault-template"
       }
     ],
     "mac": {

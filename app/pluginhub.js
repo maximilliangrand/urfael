@@ -84,7 +84,13 @@ function parse(text) {
     signature: typeof j.signature === 'string' ? j.signature : '',
   };
 
-  const c = (j.capabilities && typeof j.capabilities === 'object') ? j.capabilities : {};
+  // Authored manifests use `capabilities`; CLI installs persist this parser's
+  // normalized `caps` shape. Revalidate either representation through the same
+  // gates so reloading an untouched install preserves its consent hash. An
+  // explicit capabilities field takes precedence, even when empty or invalid;
+  // never merge a second capability source or trust derived stored fields.
+  const declared = Object.prototype.hasOwnProperty.call(j, 'capabilities') ? j.capabilities : j.caps;
+  const c = declared && typeof declared === 'object' && !Array.isArray(declared) ? declared : {};
   // fs: keep only vault-relative, non-secret, non-escaping paths
   for (const e of (Array.isArray(c.fs) ? c.fs : [])) {
     if (!e || typeof e !== 'object') continue;

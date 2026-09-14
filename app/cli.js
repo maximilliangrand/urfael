@@ -1623,11 +1623,19 @@ function readStdinAdapter(maxBytes) {
         lines.push('');
       }
       if (lines[lines.length - 1] === '') lines.pop();
-      console.log(frame('The tombstone record · provable deletions', lines));
+      console.log(frame('The tombstone record · local removals', lines));
       return;
     }
     const r = await req('POST', '/forget', { phrase });
     if (r && r.error) { console.error('✗ ' + r.error); process.exit(1); }
+    if (!r.count && r.auditRecovered) {
+      console.log(frame('Forget audit recovered', [
+        ok('✓ ' + r.auditRecovered + ' prior removal' + (r.auditRecovered === 1 ? '' : 's') + ' recorded in the local tombstone'),
+        dim('No additional beliefs removed. Git sync requested.'),
+        dim('see the record:  ') + gold('urfael forget'),
+      ]));
+      return;
+    }
     if (!r.count) { console.log(dim('nothing in memory matched “' + phrase + '” — there was nothing to forget, sir.')); return; }
     const when = (r.at || '').slice(0, 16).replace('T', ' ');
     console.log(frame('Forgotten', [
@@ -1635,7 +1643,7 @@ function readStdinAdapter(maxBytes) {
       '',
       ...(r.removed || []).slice(0, 20).map((x) => '  ' + bad('−') + ' ' + dim('(' + x.file + ') ') + '\x1b[9m\x1b[2m' + x.line.slice(0, 78) + '\x1b[0m'),
       '',
-      dim('tombstoned + git-committed — the deletion itself is now provable.'),
+      dim('removed from active memory; recorded locally. Git sync requested.'),
       dim('see the record:  ') + gold('urfael forget'),
     ]));
     return;

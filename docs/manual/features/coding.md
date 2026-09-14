@@ -85,7 +85,7 @@ A clean process exit alone does not mean the goal was completed. `stopped` means
 
 Host coding jobs save their progress outside the working repository, so the detached worker can continue when the daemon restarts. Resume is available only when the server reports that the existing job can safely continue. It reuses the last recorded model session, goal, settings, and remaining iteration/time limits. Unknown time during an interruption counts against the elapsed-time cap. Changing the completion contract or criteria requires a new job. The Console disables duplicate resume clicks and displays refusals. A CLI refusal exits nonzero. If the request cannot be confirmed, inspect the job before retrying.
 
-The completion receipt distinguishes the evidence actually collected. The worker's final `URFAEL-GOAL-DONE` marker is a completion claim. An owner-supplied `check` command adds an exit-status check. Optional `verify: true` with a criteria file adds a fresh model review with Read/Grep/Glob tools.
+The completion receipt distinguishes the evidence actually collected. With an owner-supplied `check` command, the worker's final `URFAEL-GOAL-DONE` marker hands a ready candidate to the runner for verification; it does not claim the worker ran that command. The runner executes the check and records its exit status. Without a check, the marker remains a worker completion claim. Optional `verify: true` with a criteria file adds a fresh model review with Read/Grep/Glob tools.
 
 | Verification status | Recorded evidence |
 |---|---|

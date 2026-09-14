@@ -48,10 +48,11 @@ module.exports = function createSessionModule(deps) {
         ...overlayArgs,  // persona = a VOICE overlay only; the moat is PERM_MODE + the vault settings, not this text
         ...pluginMcpArgs(),  // enabled plugins on the WARM (owner) session only; [] when none → byte-identical spawn. Scoped/remote/cron spawns stay --strict-mcp-config, so a plugin never reaches an untrusted turn.
       ]), { cwd: VAULT, env: childEnv, stdio: ['pipe', 'pipe', 'pipe'] });
+      this.buf = ''; // an incomplete line belongs to the old process, never its replacement
       const p = this.proc; // bind handlers to THIS proc identity so a stale exit can't clobber a freshly-spawned one
       recordBrainPid(p.pid);
-      p.stdout.on('data', (d) => this._onData(d));
-      if (p.stderr) p.stderr.on('data', (d) => { try { this.errBuf = (this.errBuf + d).slice(-2048); } catch {} });   // drained (consumed) so it can't stall; last 2KB kept for classification
+      p.stdout.on('data', (d) => { if (this.proc === p) this._onData(d); });
+      if (p.stderr) p.stderr.on('data', (d) => { try { if (this.proc === p) this.errBuf = (this.errBuf + d).slice(-2048); } catch {} });   // drained (consumed) so it can't stall; last 2KB kept for classification
       p.on('exit', () => { logEvent({ ev: 'brain_exit', model: this.model, cat: classifyError(this.errBuf).category }); if (this.proc !== p) return; this.proc = null;
         // mirror the timeout/abort cleanup: clear THIS turn's watchdog (else it later aborts a healthy turn) and drain
         // the queue so a turn waiting behind the crashed one is promoted instead of hanging forever.
@@ -139,7 +140,23 @@ module.exports = function createSessionModule(deps) {
       }, TURN_TIMEOUT_MS);
       this._send(this.current.text);
     }
-    ask(text, opts = {}) { return new Promise((res) => { this.queue.push({ text, cb: res, speak: opts.speak, silent: opts.silent, turnId: opts.turnId }); this._next(); }); }
+    ask(text, opts = {}) {
+      return new Promise((resolve) => {
+        const signal = opts.signal;
+        if (signal && signal.aborted) { resolve('(stopped)'); return; }
+        const turn = { text, speak: opts.speak, silent: opts.silent, turnId: opts.turnId,
+          cb: (reply) => { if (signal) signal.removeEventListener('abort', cancel); resolve(reply); } };
+        const cancel = () => {
+          if (this.current === turn) this.abort();
+          else {
+            const index = this.queue.indexOf(turn);
+            if (index >= 0) { this.queue.splice(index, 1); turn.cb('(stopped)'); }
+          }
+        };
+        if (signal) signal.addEventListener('abort', cancel, { once: true });
+        this.queue.push(turn); this._next();
+      });
+    }
     // Abort the in-flight turn (if any): mirror the timeout path — clear the watchdog, SIGKILL the proc,
     // discard it, resolve the waiter with '(stopped)', then drain the queue. No-op when idle.
     abort() {
