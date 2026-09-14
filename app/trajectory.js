@@ -112,7 +112,7 @@ function buildLessons(ledgerItems, opts) {
   const minConf = Number.isFinite(o.minConfidence) ? o.minConfidence : 0;
   const out = []; let redactions = 0;
   for (const it of (Array.isArray(ledgerItems) ? ledgerItems : [])) {
-    if (!it || it.status !== 'trusted') continue;
+    if (!it || it.status !== 'trusted' || it.forgottenAt != null) continue;
     const conf = Number(it.confidence) || 0;
     if (conf < minConf) continue;
     let ref = clean(it.ref); if (!ref) continue;

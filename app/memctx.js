@@ -94,7 +94,7 @@ function buildContext(input) {
   // 2) relevant TRUSTED LESSONS: rank by relevance x (0.5 + confidence), keep only those clearing minRel
   const ranked = lessons
     .map((it) => ({ it, rel: lessonRelevance(query, it && it.ref), conf: clamp01(it && it.confidence) }))
-    .filter((x) => x.it && typeof x.it.ref === 'string' && x.it.ref.trim() && x.rel >= minRel)
+    .filter((x) => x.it && x.it.forgottenAt == null && typeof x.it.ref === 'string' && x.it.ref.trim() && x.rel >= minRel)
     .sort((a, b) => (b.rel * (0.5 + b.conf)) - (a.rel * (0.5 + a.conf)));
   for (const x of ranked) {
     if (surfacedLessons.length >= maxLessons) break;

@@ -90,6 +90,7 @@ function parse(text) {
 //   trusted  -> 1 + clamp(confidence,0,1)  (1..2; high-confidence trusted items outrank proposed)
 // Anything unrecognized is treated as proposed-floor's safest case: 0 (fail-closed -- don't surface it).
 function weight(item) {
+  if (item && item.forgottenAt != null) return 0;
   const status = item && typeof item.status === 'string' ? item.status : '';
   if (status === 'retired') return 0;
   if (status === 'proposed') return 0.5;

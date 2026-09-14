@@ -2106,31 +2106,22 @@ async function verifyLearnings() {
   verifying = false;
 }
 
-// ---- consented forgetting: remove matching belief lines + leave a git TOMBSTONE, so DELETION is provable -----
-// Owner-invoked (the command IS the consent). Deterministic line removal (no brain), serialized against the
-// memory passes (shared repo). The removed content is preserved in TOMBSTONES.md with date + reason, then the
-// whole change is committed — so "what was forgotten, and when" is itself auditable. Both competitors only accrue.
+// ---- owner-requested forgetting: remove active beliefs and preserve a local audit record -----------------
+// Deterministic removal (no brain), serialized against the memory passes. TOMBSTONES.md records what was
+// removed and when; Git commit/push is requested asynchronously and may fail independently of local removal.
 const MEMORY_FILES = ['MEMORY.md', 'USER.md', 'WORKFLOW.md', 'LESSONS.md'];
 const TOMBSTONES = path.join(MEMORY_DIR, 'TOMBSTONES.md');
 function forgetPhrase(phrase) {
   if (distilling || reviewing || curating || modelingUser || verifying) return { error: 'a memory pass is running; try again in a moment' };
-  const p = String(phrase || '').trim();
-  if (!p) return { error: 'need a phrase to forget' };
-  const removed = [], lc = p.toLowerCase();
-  for (const f of MEMORY_FILES) {
-    const fp = path.join(MEMORY_DIR, f);
-    let txt; try { txt = fs.readFileSync(fp, 'utf8'); } catch { continue; }
-    const kept = []; let hit = false;
-    for (const ln of txt.split('\n')) { if (ln.trim() && ln.toLowerCase().includes(lc)) { removed.push({ file: f, line: ln.trim() }); hit = true; } else kept.push(ln); }
-    if (hit) { try { fs.writeFileSync(fp, kept.join('\n')); } catch {} }
+  const result = require('./forget').forgetMemory(MEMORY_DIR, phrase, MEMORY_FILES);
+  if (result.error) {
+    logEvent({ ev: 'forget_error', count: result.count, err: result.error });
+    return result;
   }
-  if (!removed.length) return { removed: [], count: 0 };
-  const t = new Date().toISOString();
-  const tomb = '\n## ' + t.slice(0, 16).replace('T', ' ') + ' — forgotten by owner request: "' + p.slice(0, 100).replace(/"/g, "'") + '"\n' + removed.map((r) => '- (' + r.file + ') ' + r.line).join('\n') + '\n';
-  try { fs.appendFileSync(TOMBSTONES, tomb); } catch {}
-  logEvent({ ev: 'forget', count: removed.length });   // also enters the tamper-evident Ledger of Record
-  try { gitChain(MEMORY_DIR, [['add', '-A'], ['commit', '-m', 'forget: ' + removed.length + ' line(s)'], ['push']]); } catch {}
-  return { removed, count: removed.length, at: t };
+  if (!result.count && !result.auditRecovered) return result;
+  logEvent({ ev: 'forget', count: result.count, auditRecovered: result.auditRecovered });   // also enters the tamper-evident Ledger of Record
+  try { gitChain(MEMORY_DIR, [['add', '-A'], ['commit', '-m', 'forget: ' + result.count + ' line(s)'], ['push']]); } catch {}
+  return result;
 }
 
 // ---- per-turn background review (opt-in via URFAEL_REVIEW; the lighter, more-frequent cousin of distill).

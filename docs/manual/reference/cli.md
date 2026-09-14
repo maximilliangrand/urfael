@@ -207,7 +207,7 @@ See also: `why` · `forget`
 
 ### `urfael forget`
 
-remove matching beliefs + leave a provable git tombstone.
+remove active beliefs and keep a local audit record.
 
 ```bash
 urfael forget ["<phrase>"]

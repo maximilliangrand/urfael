@@ -115,7 +115,7 @@ function upsert(items, opts) {
 function applyVerdict(items, itemId, verdict, now) {
   const list = Array.isArray(items) ? items : [];
   const item = list.find((it) => it && it.id === itemId);
-  if (!item) return list;
+  if (!item || item.forgottenAt != null) return list; // owner retirement cannot be undone by a late verdict
   const v = verdict && typeof verdict === 'object' && !Array.isArray(verdict) ? verdict : null;
   item.verify = v;
   item.status = (v && v.correct === true && v.safe === true) ? 'trusted' : 'retired'; // strict: only a real `true` trusts
@@ -189,7 +189,7 @@ function consolidate(items, now, opts) {
 // Trusted items, strongest first - what the brain should actually surface.
 function trusted(items) {
   return (Array.isArray(items) ? items : [])
-    .filter((it) => it && it.status === 'trusted')
+    .filter((it) => it && it.status === 'trusted' && it.forgottenAt == null)
     .sort((a, b) => (Number(b.confidence) || 0) - (Number(a.confidence) || 0));
 }
 
