@@ -14,12 +14,36 @@
 // NOTE: this lives in packaging/ rather than build/ on purpose, build/ is gitignored, so
 // a hook placed there would never reach CI and the release would ship unsigned again.
 const { execFileSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
+// electron-builder drops .gitkeep files and their otherwise-empty directories.
+// Preserve the template's folder scaffold without copying/overwriting any files
+// or following source/destination symlinks.
+function restoreTemplateDirectories(source, destination) {
+  const src = fs.lstatSync(source);
+  if (!src.isDirectory() || src.isSymbolicLink()) throw new Error('vault template must be a directory');
+  const ensureDirectory = (dir) => {
+    let stat; try { stat = fs.lstatSync(dir); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+    if (stat) {
+      if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('vault scaffold destination is not a directory: ' + dir);
+      return;
+    }
+    ensureDirectory(path.dirname(dir));
+    fs.mkdirSync(dir);
+  };
+  ensureDirectory(destination);
+  for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+    if (entry.isDirectory() && !entry.isSymbolicLink()) restoreTemplateDirectories(path.join(source, entry.name), path.join(destination, entry.name));
+  }
+}
+
 exports.default = async function afterPack(context) {
-  if (context.electronPlatformName !== 'darwin') return;
   const appName = context.packager.appInfo.productFilename; // "Urfael"
   const appPath = path.join(context.appOutDir, `${appName}.app`);
+  const resources = context.electronPlatformName === 'darwin' ? path.join(appPath, 'Contents', 'Resources') : path.join(context.appOutDir, 'resources');
+  restoreTemplateDirectories(path.join(context.packager.projectDir, '..', 'vault-template'), path.join(resources, 'vault-template'));
+  if (context.electronPlatformName !== 'darwin') return;
   console.log(`afterPack: ad-hoc signing ${appPath}`);
   // --deep recursively signs the nested Electron frameworks and helpers, then the outer
   // bundle, sealing resources so the signature is internally consistent.
@@ -27,3 +51,5 @@ exports.default = async function afterPack(context) {
   execFileSync('codesign', ['--verify', '--verbose=2', appPath], { stdio: 'inherit' });
   console.log('afterPack: ad-hoc signature applied and verified');
 };
+
+exports.restoreTemplateDirectories = restoreTemplateDirectories;
