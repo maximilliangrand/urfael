@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <!-- Urfael: the Uruz rune (ᚢ) of the Elder Futhark on a dark disc. One shape, one stroke,
-       rounded at its two bends and cut flat at its feet. -->
-  <circle cx="64" cy="64" r="60" fill="#16110a"/>
-  <path d="M46 96.5V35.5L82 56.5V96.5" fill="none" stroke="#e7c280" stroke-width="11" stroke-linejoin="round"/>
+  <!-- Urfael: the rune Uruz (ᚢ) of the Elder Futhark on a disc, in black and white. White, for the dark console. -->
+  <circle class="d" cx="64" cy="64" r="60" fill="#ffffff"/>
+  <path class="r" d="M46 96.5V35.5L82 56.5V96.5" fill="none" stroke-width="11" stroke-linejoin="round" stroke="#0e0e0f"/>
 </svg>

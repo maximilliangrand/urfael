@@ -9,8 +9,8 @@ export const EMAIL = 'contact@myg-media.com'
 /** The default social card: the ᚢ mark, the Uru concept drawing and the tagline. */
 const OG_IMAGE = { src: `${ORIGIN}/media/og-urfael.png`, width: 1200, height: 630 }
 
-/** The mark, exactly as media/urfael-logo.svg draws it: the rune Uruz on a dark disc. */
-export const MARK = '<svg class="mark" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><circle cx="64" cy="64" r="60" fill="#16110a"/><path d="M46 96.5V35.5L82 56.5V96.5" fill="none" stroke="#e7c280" stroke-width="11" stroke-linejoin="round"/></svg>'
+/** The mark, exactly as media/urfael-logo.svg draws it: the rune Uruz in white on a black disc. */
+export const MARK = '<svg class="mark" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><circle cx="64" cy="64" r="60" fill="#0e0e0f"/><path d="M46 96.5V35.5L82 56.5V96.5" fill="none" stroke-width="11" stroke-linejoin="round" stroke="#ffffff"/></svg>'
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
