@@ -50,6 +50,7 @@ export function head(page, robot) {
     `<meta name="twitter:title" content="${esc(ogTitle)}">`,
     `<meta name="twitter:description" content="${esc(ogDescription)}">`,
     `<meta name="twitter:image" content="${OG_IMAGE.src}">`,
+    '<link rel="preload" href="/assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>',
     '<link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>',
     '<link rel="preload" href="/assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>',
     '<link rel="stylesheet" href="/assets/site.css">',
@@ -103,7 +104,7 @@ ${links.map(([href, text]) => `          <li><a href="${href}">${text}</a></li>`
   return `<footer class="site-footer">
   <div class="wrap">
     <div class="footer__mast">
-      <p class="footer__lockup">${MARK}<span>Urfael</span><span class="footer__dot" aria-hidden="true">·</span><span class="footer__tag">Help that lives with you.</span></p>
+      <p class="footer__lockup">${MARK}<span class="footer__word">Urfael</span><span class="footer__dot" aria-hidden="true">·</span><span class="footer__tag">Help that lives with you.</span></p>
       <p class="footer__about">Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. ${name}, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.</p>
     </div>
     <div class="footer__cols">

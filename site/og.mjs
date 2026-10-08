@@ -39,7 +39,7 @@ const card = `<!DOCTYPE html>
 <style>
   html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--oat); }
   .card { box-sizing: border-box; width: 1200px; height: 630px; padding: 40px 56px 40px 72px; display: grid; grid-template-columns: minmax(0, 1fr) 512px; gap: 48px; align-items: center; }
-  .card__brand { display: flex; align-items: center; gap: 18px; margin: 0 0 46px; font: 600 40px/1 var(--serif); font-variation-settings: "SOFT" 100, "WONK" 0; letter-spacing: -0.02em; color: var(--ink); }
+  .card__brand { display: flex; align-items: center; gap: 18px; margin: 0 0 46px; font: 600 40px/1 var(--word); letter-spacing: -0.01em; color: var(--logo); }
   .card__brand .mark { width: 60px; height: 60px; flex: none; }
   .card h1 { margin: 0 0 34px; font: 600 76px/0.98 var(--serif); font-variation-settings: "SOFT" 100, "WONK" 0; letter-spacing: -0.03em; color: var(--ink); }
   .card__line { margin: 0; max-width: 30rem; font: 400 25px/1.45 var(--sans); color: var(--ink-2); }
