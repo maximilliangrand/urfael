@@ -36,3 +36,7 @@ vault-template/**/03_Resources/visuals/*.html
 .idea/
 .vscode/
 .claude/worktrees/
+
+# --- vercel cli link for the site ---
+docs/.vercel
+.vercel

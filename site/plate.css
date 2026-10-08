@@ -1,0 +1,124 @@
+/* ---------- figure plates: the hairline figures in their instrument plates ----------
+   Ported from MYG's .of-fig (myg-media-v3 src/styles/offer.css), in Urfael's palette: a paper plate on the oat
+   page, ink hairlines, clay as the one bright stroke, and apricot only as a fill on the ink (eyes, cheeks).
+   No light: no glow, no night plate, no filter. site/plate.ts builds the markup from
+   <figure class="plate" data-figure="name" data-fig="1">, and the build puts one rule per registered figure
+   above this, `.plate[data-figure="name"] { --fig-ratio: … }`, so a plate holds its height before the script runs.
+
+   The plate is the chip: a hairline border that follows a cut top-right corner. The border is the frame
+   showing through a 1px inset, so the cut gets its line too. The surface is the figure's ground colour,
+   which keeps the solids opaque, and the --hairline-* properties theme the figure. The hairline greys are
+   the ink mixed into the paper in oklch (44, 27 and 13% on a card; 62, 40 and 20% on a dense sheet), as hex,
+   so no colour is resolved per element. */
+.plate {
+  --plate-paper: #fffdf9;
+  --plate-ink: #2b211a;
+  --plate-muted: #665446;
+  --plate-line: #cbc7c2;
+  /* a fixed header's height: the scroll tour ends as the figure passes under it */
+  --plate-nav: 64px;
+  --chip: 18px;
+  --band: 2.6rem;
+  margin: 0;
+  min-width: 0;
+  container-type: inline-size;
+}
+.plate__frame {
+  padding: 1px;
+  background: var(--plate-line);
+  clip-path: polygon(0 0, calc(100% - var(--chip)) 0, 100% var(--chip), 100% 100%, 0 100%);
+  transition: background-color 160ms cubic-bezier(0.5, 0, 0.1, 1);
+}
+.plate__surface {
+  position: relative;
+  padding-block: var(--band);
+  background: var(--plate-paper);
+  color-scheme: light;
+  clip-path: polygon(0 0, calc(100% - var(--chip) + 0.42px) 0, 100% calc(var(--chip) - 0.42px), 100% 100%, 0 100%);
+  --hairline-plate: var(--plate-paper);
+  /* clay: the one bright stroke, 6.5:1 on the paper */
+  --hairline-hi: #9e3f17;
+  /* the outline grey, 3:1 on the paper, the floor for a graphic's edge */
+  --hairline-edge: #98928b;
+  --hairline-mid: #c0bcb6;
+  --hairline-lo: #e0ddd8;
+  /* the one dark solid, and what may sit on it: apricot at 7.2:1 on the ink, the blush softer */
+  --hairline-ink: #2b211a;
+  --hairline-warm: #f59a57;
+  --hairline-blush: #a26940;
+}
+.plate__stage { width: 100%; aspect-ratio: var(--fig-ratio, 1.25); }
+/* the keyboard ring sits inside the stage: outside it, the surface's clip-path would cut its sides off */
+.plate__stage:focus-visible { outline-offset: -3px; }
+
+/* the corner text sits in the bands above and below the drawing, so a lifted part never runs into it */
+.plate__corner {
+  position: absolute;
+  z-index: 1;
+  max-width: 58%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.6875rem;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  /* muted on paper: 7.1:1 */
+  color: var(--plate-muted);
+}
+.plate__corner--tl { top: calc(var(--band) / 2); left: 1.1rem; translate: 0 -50%; text-transform: uppercase; }
+.plate__corner--tr { top: calc(var(--band) / 2); right: calc(var(--chip) + 0.6rem); translate: 0 -50%; max-width: calc(100% - var(--chip) - 7.5rem); text-transform: uppercase; }
+.plate__corner--bl { bottom: calc(var(--band) / 2); left: 1.1rem; translate: 0 50%; max-width: 64%; text-transform: uppercase; }
+.plate__corner--br { bottom: calc(var(--band) / 2); right: 1.1rem; translate: 0 50%; max-width: 32%; }
+.plate__read { color: var(--plate-ink); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+
+/* touch screens get touch words in the hint */
+.plate__hint--touch { display: none; }
+@media (hover: none) { .plate__hint--pointer { display: none; } .plate__hint--touch { display: inline; } }
+
+/* a narrow plate keeps the number, the hint and the read-out; the subject is in the accessible name anyway */
+@container (max-width: 300px) {
+  .plate__corner--tr { display: none; }
+  .plate__corner--bl { max-width: 74%; }
+  .plate__corner--br { max-width: 24%; }
+}
+
+/* a plate inside a link: the frame darkens with the link */
+a:is(:hover, :focus-visible) .plate__frame { background: var(--plate-muted); }
+
+/* hero beside a headline, sheet across the page: a larger chip and bands, and a heavier stroke */
+.plate:is([data-size="hero"], [data-size="sheet"]) { --chip: 26px; --band: 3.2rem; }
+.plate:is([data-size="hero"], [data-size="sheet"]) .plate__corner { font-size: 0.72rem; }
+.plate:is([data-size="hero"], [data-size="sheet"]) :is(.plate__corner--tl, .plate__corner--bl) { left: 1.4rem; }
+.plate:is([data-size="hero"], [data-size="sheet"]) .plate__corner--br { right: 1.4rem; }
+.plate:is([data-size="hero"], [data-size="sheet"]) .plate__surface { --hairline-stroke: 1; }
+/* a dense sheet's strokes sit further from the paper than a card's */
+.plate[data-size="sheet"] .plate__surface { --hairline-edge: #746c65; --hairline-mid: #a39d97; --hairline-lo: #d0ccc7; }
+/* on a wide screen a hero or a sheet takes the drawing's own shape and stays inside the first screen */
+@media (min-width: 64rem) {
+  .plate:is([data-size="hero"], [data-size="sheet"]) .plate__stage {
+    width: min(100%, calc((100svh - var(--plate-nav) - 9rem) * var(--fig-ratio, 1.25)));
+    margin-inline: auto;
+  }
+}
+
+/* before the script: an empty plate of exactly the dressed plate's height, so nothing below it moves.
+   Its content box is the stage, its padding the bands, its border the frame's 1px line. */
+.plate:not([data-plate])::before {
+  content: "";
+  display: block;
+  box-sizing: content-box;
+  padding-block: var(--band);
+  border: 1px solid transparent;
+  aspect-ratio: var(--fig-ratio, 1.25);
+  background: linear-gradient(var(--plate-paper) 0 0) padding-box, linear-gradient(var(--plate-line) 0 0) border-box;
+  clip-path: polygon(0 0, calc(100% - var(--chip)) 0, 100% var(--chip), 100% 100%, 0 100%);
+}
+@media (min-width: 64rem) {
+  .plate:is([data-size="hero"], [data-size="sheet"]):not([data-plate])::before { max-height: calc(100svh - var(--plate-nav) - 9rem); }
+}
+/* without scripting the figure never comes, so neither does its empty plate */
+@media (scripting: none) { .plate:not([data-plate])::before { display: none; } }
+
+@media (prefers-reduced-motion: reduce) { .plate__frame { transition: none; } }

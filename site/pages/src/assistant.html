@@ -1,0 +1,255 @@
+<!--page
+{
+  "out": "assistant.html",
+  "path": "/assistant",
+  "title": "Urfael Assistant | Your own AI, on your own machine",
+  "description": "A free, open-source (MIT) personal AI you run on your own machine: local voice, a desktop console, searchable memory, coding checkpoints and reminders.",
+  "ogTitle": "Urfael Assistant: your own AI, on your own machine",
+  "nav": "assistant",
+  "figures": true,
+  "iconsCss": true
+}
+-->
+<!--head-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "@id": "https://urfael.com/assistant#software",
+  "name": "Urfael Assistant",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "macOS, Linux, Windows (beta)",
+  "description": "A personal AI assistant you run on your own machine, with local voice, a desktop console, and a searchable archive. It drives your installed Claude Code CLI.",
+  "url": "https://urfael.com/assistant",
+  "downloadUrl": "https://github.com/maximilliangrand/urfael",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "publisher": { "@type": "Organization", "name": "MYG Media SRL" }
+}
+</script>
+<!--/head-->
+  <section class="hero hero--assistant">
+    <div class="wrap hero__grid">
+      <div class="hero__copy">
+        <p class="eyebrow">Urfael Assistant · Free and open source (MIT)</p>
+        <h1 class="h1--long">Your own assistant, on your own machine.</h1>
+        <p class="lede">Urfael Assistant is a personal AI you run on your own computer, with local voice, a desktop console and a searchable archive.</p>
+        <p class="hero__more">It drives the Claude Code CLI you already have installed and can use your existing login. Optional API providers and cloud voice have separate costs.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="#install">Install <span class="arr" aria-hidden="true">↓</span></a>
+          <a class="btn btn--quiet" href="/manual/">Read the manual</a>
+          <a class="link-arrow" href="https://github.com/maximilliangrand/urfael">View on GitHub <span class="arr" aria-hidden="true">→</span></a>
+        </div>
+        <p class="micro">macOS first. Linux is newer. Native Windows is in beta.</p>
+      </div>
+      <figure class="plate hero__plate" data-figure="assistant-desk" data-fig="1" data-size="sheet">
+        <figcaption class="plate-cap"><span>The assistant’s parts, drawn as a desk. Point at a part, or focus the drawing and use the arrow keys.</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section section--tight" id="features" aria-labelledby="features-h">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="features-h">What it does</h2>
+      </div>
+      <div class="sheet">
+        <div class="sheet__in">
+          <ul class="ledger ledger--two">
+            <li>{{icon:voice}}<h3>Local voice.</h3><p>Hold to talk, or set up an optional wake word. whisper.cpp turns your voice into text, and macOS <code>say</code> or Linux <code>espeak-ng</code> speaks the reply. Other voice backends are opt-in.</p></li>
+            <li>{{icon:console}}<h3>One assistant, several doors.</h3><p>The Console, a small orb HUD, the terminal and a full-screen TUI all talk to the same daemon. An optional web dashboard and an OpenAI-compatible API are there if you want them.</p></li>
+            <li>{{icon:memory}}<h3>A memory you can search.</h3><p>An Obsidian vault holds the archive, and a local git repository holds what it learns. BM25 search, with optional local embeddings, helps it recall earlier conversations.</p></li>
+            <li>{{icon:coding}}<h3>Coding with an undo.</h3><p><code>urfael code "&lt;task&gt;"</code> adds per-project context and checkpoints your working tree. <code>urfael rewind</code> puts a checkpoint back.</p></li>
+            <li>{{icon:automation}}<h3>Reminders, jobs and chat.</h3><p>Set reminders and scheduled jobs, and connect optional chat bridges. Messages that arrive from elsewhere are allowlisted and use a restricted profile by default.</p></li>
+            <li>{{icon:integrations}}<h3>Room to grow, carefully.</h3><p>MCP connectors and plugins extend what it can do on your own local turns. Review their permissions and code before you turn them on.</p></li>
+          </ul>
+        </div>
+      </div>
+      <figure class="shot">
+        <img src="/media/console.png" alt="Urfael Console with chat, voice input, reminders, jobs, and settings" width="2640" height="1730" loading="lazy" decoding="async">
+        <figcaption><span class="shot__title">The Urfael Console.</span> Ask things like “What did we discuss yesterday?” or “Remind me to stretch in 45 minutes.”</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section band-oat" id="security" aria-labelledby="security-h">
+    <div class="wrap">
+      <div class="head head--icon">
+        <div class="head__text">
+          <h2 id="security-h">Local by design, honest about the edges</h2>
+          <p class="head__intro">The assistant’s main door is a local one. On macOS and Linux, the daemon listens on a <code>0600</code> Unix socket, not a network port. Windows uses a named pipe with token authentication. That describes the daemon, not every optional service, so here is the whole picture:</p>
+        </div>
+        <div class="head__icon">{{icon:security}}</div>
+      </div>
+      <div class="sheet">
+        <div class="sheet__in sheet__in--table">
+          <div class="table-wrap" role="region" aria-labelledby="surface-cap" tabindex="0">
+            <table>
+              <caption id="surface-cap" class="sr-only">How each part of the assistant is reached</caption>
+              <thead><tr><th scope="col">Part</th><th scope="col">How it’s reached</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Daemon</th><td>Local only. Access relies on your operating system and, on Windows, the IPC token.</td></tr>
+                <tr><th scope="row">Dashboard and OpenAI-compatible API</th><td>Off unless you turn them on. Then they listen on <code>127.0.0.1</code> and need a token.</td></tr>
+                <tr><th scope="row">Webhook receiver</th><td>Off unless you turn it on. Loopback only, with a secret per hook.</td></tr>
+                <tr><th scope="row">WhatsApp and phone (PSTN) bridges</th><td>Off unless you turn them on. Loopback only, with provider signature checks and sender allowlists. Reaching them from outside needs a tunnel or proxy you set up.</td></tr>
+                <tr><th scope="row">Other bridges, model providers and connectors</th><td>May connect outward. Check each one’s setup.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="cols">
+        <div class="prose">
+          <p>Loopback keeps your local network out under normal settings. Programs on your own machine can still reach these listeners, and a tunnel or reverse proxy can make them reachable from outside. Authentication and configuration still matter.</p>
+          <p><strong>Fortress is the default.</strong> Messages from chat apps get read-only tools, with no web and no shell. <strong>Full</strong> mode adds web tools for owner and member turns. These are permission profiles inside the harness, not operating-system isolation. Unknown profiles fail closed.</p>
+        </div>
+        <div class="prose">
+          <p><strong>Coding can run where you choose:</strong> on your machine, in Docker or over SSH. Docker isolation has to be selected on purpose. <code>URFAEL_YOLO=1</code> turns on unrestricted shell access and widens the risk a lot, so keep it for throwaway environments. Skills are scanned and previewed, but a scan can’t prove that arbitrary code is safe.</p>
+          <p><strong>Where your words go.</strong> The model you connect does the thinking, so your messages go to that provider, just as they would if you used it directly. By default, that’s your Claude Code CLI. Bridges and connectors you turn on may connect outward too.</p>
+        </div>
+      </div>
+      <ul class="links">
+        <li><a href="https://github.com/maximilliangrand/urfael/blob/main/SECURITY.md">Security policy</a></li>
+        <li><a href="/manual/#/security/threat-model">Threat model</a></li>
+        <li><a href="/manual/#/security/modes">Fortress vs Full</a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" id="evidence" aria-labelledby="evidence-h">
+    <div class="wrap">
+      <div class="head head--icon">
+        <div class="head__text">
+          <h2 id="evidence-h">Tests you can run yourself</h2>
+          <p class="head__intro">The repository includes its own regression tests. They are not an independent security audit, and they don’t guarantee protection against a whole class of attack. Here is what each one covers.</p>
+        </div>
+        <div class="head__icon">{{icon:tests}}</div>
+      </div>
+      <div class="sheet">
+        <div class="sheet__in sheet__in--table">
+          <div class="table-wrap" role="region" aria-labelledby="tests-cap" tabindex="0">
+            <table class="table--tests">
+              <caption id="tests-cap" class="sr-only">The test commands and what each covers</caption>
+              <thead><tr><th scope="col">Command (from <code>app/</code>)</th><th scope="col">What it covers</th><th scope="col">Runs in CI</th></tr></thead>
+              <tbody>
+                <tr><th scope="row"><code>npm test</code></th><td>Unit tests, no model credentials needed</td><td>Yes</td></tr>
+                <tr><th scope="row"><code>npm run fuzz</code></th><td>Input-boundary fuzzing</td><td>Yes, with a bounded budget</td></tr>
+                <tr><th scope="row"><code>npm run redteam</code></th><td>SSRF regressions against local test servers</td><td>Yes</td></tr>
+                <tr><th scope="row"><code>npm run security</code></th><td>Live daemon and dashboard probes, module checks, source assertions</td><td>Manual</td></tr>
+                <tr><th scope="row"><code>npm run e2e</code></th><td>Selected integration scenarios against a live daemon</td><td>Manual</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="cols">
+        <div class="prose">
+          <p>The security benchmark source defines 11 groups and 128 <code>check(...)</code> call sites. Those are counts in the source, not a verified passing result. The live harnesses use local state and may use authenticated model turns, so read the methodology before you run them.</p>
+        </div>
+        <div class="prose">
+          <p>A configured CI workflow isn’t proof that a particular version passed. Keep the full output when you run a check.</p>
+          <ul class="links links--tight">
+            <li><a href="https://github.com/maximilliangrand/urfael/blob/main/docs/SECURITY-BENCHMARK.md">Benchmark methodology and limits</a></li>
+            <li><a href="https://github.com/maximilliangrand/urfael/blob/main/.github/workflows/ci.yml">CI workflow</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--flush-top" id="lightly-tested" aria-labelledby="lightly">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="lightly">What’s lightly tested</h2>
+        <p class="head__intro">We’d rather you hear this from us.</p>
+        <a class="link-arrow" href="/honesty">The full maturity report <span class="arr" aria-hidden="true">→</span></a>
+      </div>
+      <ul class="tilde-list">
+        <li><strong>Many chat channels</strong> are code-complete but still need checking against live accounts: Matrix, Signal, WhatsApp, QQ, SimpleX, PSTN phone, Mattermost, Google Chat, SMS, DingTalk, Home Assistant, BlueBubbles, Feishu and WeCom.</li>
+        <li><strong>The live harnesses</strong> cover selected scenarios, not every feature or integration. Parsing and allowlist tests don’t certify operation against real provider accounts.</li>
+        <li><strong>Linux and native Windows</strong> need more hardware and day-to-day testing. CI doesn’t replace desktop or voice testing on those systems.</li>
+        <li><strong>This is a personal project</strong> with limited deployment experience. No independent security audit is documented.</li>
+        <li><strong>Experimental features</strong>, including the council, native engines and the optional learning and verification loops, need supervision. A second model’s review is not an independent security audit.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section section--flush-top" id="cost-section" aria-labelledby="cost">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="cost">What it costs</h2>
+      </div>
+      <div class="prose">
+        <p class="big">The assistant itself is free under the MIT license. The default backend uses your Claude Code account, within its plan limits and terms. API providers and optional paid voice services bill you separately. The spend shown in the app is an estimate, not your provider’s bill.</p>
+        <ul class="links links--tight">
+          <li><a href="/manual/#/features/models">Model setup</a></li>
+          <li><a href="https://github.com/maximilliangrand/urfael/blob/main/docs/LOCAL-GPU.md">Local GPU configuration</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-night" id="install" aria-labelledby="install-h">
+    <div class="wrap install">
+      <div class="install__text">
+        <div class="install__icon u-icon-night">{{icon-inline:install}}</div>
+        <h2 id="install-h">Install</h2>
+        <div class="prose">
+          <p>macOS is the main development platform. Linux is newer, and native Windows support is in beta. You’ll need Node.js 20 or later and a model backend. The default is an installed, signed-in Claude Code CLI. Voice and vault integration need a few extra pieces, which are listed in the setup guide.</p>
+          <p>Clone into <code>urfael-src</code>, because <code>~/urfael</code> can clash with the <code>~/Urfael</code> vault on a case-insensitive disk. Read <code>install.sh</code> before you run it.</p>
+        </div>
+      </div>
+      <div class="install__steps">
+        <div class="code">
+          <button class="copy" type="button" aria-label="Copy install commands" data-copy>Copy</button>
+          <pre tabindex="0" role="region" aria-label="Install commands"><code>git clone https://github.com/maximilliangrand/urfael.git urfael-src
+cd urfael-src
+./install.sh
+urfael setup</code></pre>
+        </div>
+        <p>The installer sets up the vault, the memory repository, your configuration, the CLI link and the service files.</p>
+        <p>Then start the daemon with your platform’s service manager:</p>
+        <div class="code">
+          <button class="copy" type="button" aria-label="Copy daemon commands" data-copy>Copy</button>
+          <pre tabindex="0" role="region" aria-label="Daemon commands"><code><span class="c"># macOS</span>
+launchctl load -w ~/Library/LaunchAgents/com.urfael.daemon.plist
+<span class="c"># Linux</span>
+<span class="c"># systemctl --user enable --now urfael-daemon</span></code></pre>
+        </div>
+        <p>Open the Console with <code>cd app &amp;&amp; npm start</code>, or use <code>urfael "&lt;question&gt;"</code> and <code>urfael tui</code> in a terminal.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="/manual/#/start/install">Installation guide</a>
+          <a class="btn btn--quiet" href="/manual/#/start/quickstart">Quickstart</a>
+          <a class="link-arrow" href="/manual/#/reference/cli">CLI reference <span class="arr" aria-hidden="true">→</span></a>
+        </div>
+        <p class="micro">Windows steps and platform prerequisites are in the installation guide.</p>
+        <p class="sr-only" aria-live="polite" data-copy-status></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="deciding">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="deciding">Still deciding?</h2>
+      </div>
+      <ul class="more">
+        <li><a href="/compare"><span><strong>Compare</strong> the assistant with Hermes Agent and OpenClaw, gaps included</span></a></li>
+        <li><a href="/faq"><span><strong>Questions</strong>, answered honestly</span></a></li>
+        <li><a href="https://github.com/maximilliangrand/urfael/blob/main/ARCHITECTURE.md"><span><strong>How it’s built</strong>: the architecture notes</span></a></li>
+        <li><a href="https://github.com/maximilliangrand/urfael/blob/main/CONTRIBUTING.md"><span><strong>Contribute</strong>: issues, reproducible failures and pull requests are welcome. Report security issues using the security policy.</span></a></li>
+      </ul>
+    </div>
+  </section>
+
+  <div class="section section--flush-top">
+    <div class="wrap">
+      <div class="peek">
+        <div class="peek__uru">{{icon:uru}}</div>
+        <p class="peek__text"><strong>The assistant is the first thing we’ve built.</strong> {{ROBOT}}, a soft helper robot for the home, is at the research stage.</p>
+        <a class="link-arrow" href="/uru">Meet {{ROBOT}} <span class="arr" aria-hidden="true">→</span></a>
+      </div>
+      <p class="fineprint">An independent open-source project, not affiliated with or endorsed by Anthropic. Claude and Claude Code are trademarks of Anthropic. Provided as is, without warranty, under the MIT license.</p>
+    </div>
+  </div>

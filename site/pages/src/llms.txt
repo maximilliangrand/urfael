@@ -1,0 +1,84 @@
+# Urfael
+
+> Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. {{robot}}, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.
+
+Urfael is a brand with two products: Urfael Assistant, the open-source (MIT) software, available now, and {{robot}}, a soft helper robot for the home, at the research stage (not a medical device). The mark is the Elder Futhark rune ᚢ (Uruz), often read as strength, health and vitality, and {{robot}}'s name comes from it. Urfael is published by MYG Media SRL. It is an independent project, not affiliated with or endorsed by Anthropic.
+
+## Site
+- [Home](https://urfael.com/): The brand: help that lives with you. The assistant today, {{robot}} in research.
+- [Urfael Assistant](https://urfael.com/assistant): What the software does, its security posture, the tests you can run, what is lightly tested, what it costs, and how to install it.
+- [{{robot}}](https://urfael.com/uru): The helper robot we are researching: goals, principles, what it won't do, and where it stands.
+- [FAQ](https://urfael.com/faq): Questions about the assistant.
+- [Compare](https://urfael.com/compare): The assistant beside Hermes Agent and OpenClaw, gaps included.
+- [What's tested](https://urfael.com/honesty): The assistant's maturity report.
+
+## Urfael Assistant, from the README
+The repository README is the current source for these facts. Where a manual page below says otherwise, the README wins.
+- A personal AI assistant you run on your own machine, with local voice, a desktop console, and a searchable archive. It drives your installed Claude Code CLI and can use your existing login; optional API providers and cloud voice have separate costs.
+- Local voice: push-to-talk or an optional wake word; whisper.cpp transcribes, and macOS `say` or Linux `espeak-ng` speaks. Other voice backends are opt-in.
+- Several interfaces, one daemon: Console, orb HUD, terminal, full-screen TUI, plus an optional web dashboard and OpenAI-compatible API.
+- Searchable memory: an Obsidian vault stores the archive; a local git repository stores learned memory; BM25 search and optional local embeddings support recall.
+- Coding tools: `urfael code "<task>"` adds per-project context and working-tree checkpoints; `urfael rewind` restores a checkpoint.
+- Automation and channels: reminders, scheduled jobs, and optional chat bridges. Remote turns are allowlisted and use a restricted profile by default.
+- Security: the daemon's client endpoint is a `0600` Unix socket on macOS/Linux (a token-authenticated named pipe on Windows), not a TCP listener. The dashboard, API, webhook and WhatsApp/PSTN bridges are opt-in loopback listeners. Default Fortress mode gives remote turns read-only tools without web or shell; Full mode adds web tools. These are harness permission profiles, not OS-level isolation.
+- Tests: `npm test`, `npm run fuzz` and `npm run redteam` run in CI; `npm run security` and `npm run e2e` are manual. They are self-authored regression tests, not an independent audit. The security benchmark source defines 11 groups and 128 `check(...)` call sites: source counts, not a verified passing result.
+- Lightly tested: many chat channels still need live-account validation; Linux and native Windows need more testing; this is a personal project with limited deployment experience and no documented independent audit; experimental features (the council, native engines, learning and verification loops) need supervision.
+- Cost: the software is free (MIT). The default backend uses your Claude Code account within its plan limits and terms; API providers and paid voice services bill separately.
+- Platforms: macOS is primary, Linux is newer, native Windows is beta. Needs Node.js 20 or later.
+
+## Manual
+The human-readable manual is at https://urfael.vercel.app/manual/#/. Each link below is the raw markdown of a manual page.
+
+## Getting started
+- [Introduction](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/README.md): A personal, voice-capable AI you run on your own machine, on the flat-rate Claude subscription you already pay for. No API key to start, no inbound network port
+- [Installation](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/start/install.md): Urfael is an always-on local brain that runs your installed claude CLI as a subprocess. There is no API key and nothing to connect: if claude works in your term
+- [Quickstart](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/start/quickstart.md): This page gets you from a fresh install to a real answer in about five minutes. It assumes you have already cloned the repo and run ./install.sh. If you have no
+- [Learning path](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/start/learning-path.md): A route from first run to power user. Each step is small. Do them in order, or skip ahead once a step feels routine. This page is a map, not a deep dive: every
+
+## Using Urfael
+- [The CLI](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/using/cli.md): urfael is a thin client. It talks to the daemon over a unix socket and shares the same brain, memory, and warm sessions as the rest of the system. The whole com
+- [The surfaces](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/using/surfaces.md): One brain, several ways to reach it. Every surface is a thin client of the same local daemon, talking to it over the 0600 unix socket. So a conversation you sta
+- [Configuration](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/using/configuration.md): Urfael has two layers of configuration, and you rarely touch more than a few values.
+
+## Features
+- [Overview](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/overview.md): This is the map. Each entry is one honest sentence and a link to the page that goes deep. Everything below ships off by default unless noted, and you turn power
+- [Coding](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/coding.md): urfael code "<task>" runs Claude Code in your repo with per-project memory, an attempted checkpoint of the working tree, and a rewind command. Background coding
+- [Memory & active recall](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/memory.md): Urfael remembers across sessions. Every turn is archived, the whole archive is indexed for ranked search, and the most relevant past turns plus trusted lessons
+- [Skills](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/skills.md): A skill is a procedure Urfael writes down and reuses. When it solves something with a non-obvious path, the brain saves the steps as a short markdown file under
+- [Connectors (MCP)](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/connectors.md): Channels are how people reach Urfael. Connectors are how Urfael reaches your tools: GitHub, Notion, Slack, Postgres, Stripe, your calendar, a vector store, more
+- [Plugins](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/plugins.md): A plugin is the most capable way to extend Urfael. It can ship tools the brain calls, read or write a scoped set of your vault files, and reach an allowlisted s
+- [Voice](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/voice.md): Urfael listens and speaks on your own machine. whisper.cpp turns your speech into text, macOS say (or a local Kokoro server) turns Urfael's reply into audio, an
+- [Personas](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/personas.md): A persona changes how Urfael talks, nothing else. It is a voice overlay: a stance that gets appended to the system prompt when a session spawns. The tools, the
+- [Automation](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/automation.md): Urfael can act without you asking. Four mechanisms cover it: reminders that speak a fixed text, scheduled jobs that run the brain and report back, background jo
+- [Models & providers](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/models.md): The brain is your installed claude CLI. Urfael does not host weights and runs no inference of its own. Every model choice is really a choice of which backend th
+- [Training data export](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/datasets.md): Urfael turns your own archived runs into clean training datasets, locally and owner-only. This is the same idea as exporting agent trajectories for fine-tuning
+- [A2UI safe canvas](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/features/a2ui.md): A2UI lets the brain emit interactive UI, a card with a table and buttons, a progress bar, a form, instead of only text. The agent writes a fenced block:
+
+## Channels
+- [Overview](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/channels/overview.md): A channel is a way for a person to reach Urfael from somewhere other than the machine it runs on. Urfael knows nineteen of them (eleven native bridges plus eigh
+- [Setup, channel by channel](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/channels/setup.md): This page is the practical wiring. Where the tokens go, how you put yourself (and teammates) on the allowlist, and how a one-off pairing code works. For the why
+
+## Security
+- [The security model](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/security/model.md): The daemon endpoint uses local IPC: a 0600 Unix socket on macOS/Linux and a token-authenticated named pipe on Windows. It does not listen on TCP.
+- [Fortress vs Full](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/security/modes.md): Urfael ships two modes and you pick one per your risk tolerance. The default is the locked-down one.
+- [Team mode](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/security/team.md): Team mode lets several people share one Urfael. Each person is a sandboxed principal forced through the same fail-closed kernel. Adding a teammate can only add
+- [Threat model & benchmark](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/security/threat-model.md): Urfael's security benchmark is a self-authored regression harness, not an independent audit. It mixes live daemon/dashboard probes, direct module checks, and so
+
+## Guides
+- [Run on Android (Termux)](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/guides/android-termux.md): Urfael's daemon and CLI are plain Node, so they run under Termux on Android. A portability layer (app/platform.js) detects the host and adapts the platform-spec
+- [Run on your own GPU](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/guides/local-gpu.md): By default Urfael runs on your Claude subscription. It can also run entirely on your own hardware: a local model for the brain, a local model for the embedder.
+- [Drive it from your editor (ACP)](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/guides/acp.md): urfael acp lets an editor drive Urfael as its backend brain over the Agent Client Protocol, the JSON-RPC surface that Zed, JetBrains, Neovim, and the VS Code AC
+- [Autonomous coding](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/guides/coding.md): Background coding goals run Claude turns in a repository, collect configured completion evidence, and stop when the goal is complete or a limit is reached. Mana
+
+## Developer
+- [Architecture](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/developer/architecture.md): Urfael is a local Node daemon driving the installed claude CLI. Console, orb, CLI, and TUI clients use HTTP over local IPC: a 0600 Unix socket on macOS/Linux an
+- [Contributing](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/developer/contributing.md): Urfael is a personal AI assistant on Claude Code. Issues, ideas, and pull requests are welcome. This page summarises what to run before you open a PR and the co
+
+## Reference
+- [CLI commands](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/cli.md): Every command Urfael ships, generated straight from the source of truth so it always matches the binary. Run urfael help for the same list in your terminal, or
+- [Configuration reference](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/config.md): Every knob Urfael reads is a URFAEL_* environment variable. There is no config file format to learn. Set a variable in your shell, in the service unit, or let u
+- [FAQ](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/faq.md): The questions people actually ask before they install. Short answers, grounded in what the code does.
+- [Troubleshooting](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/troubleshooting.md): Most problems have a one-command answer. Start with urfael doctor, fix what it flags, and only dig deeper if a symptom survives that.
+
+## {{robot}}
+- [{{robot}}](https://urfael.com/uru): A soft, friendly helper robot for the home, at the research stage. Not a medical device. No product or release date.

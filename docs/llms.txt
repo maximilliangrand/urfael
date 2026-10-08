@@ -1,8 +1,33 @@
 # Urfael
 
-> A personal, voice-capable AI you run on your own machine, on the flat-rate Claude subscription you already pay for. No inbound network port, no per-token meter. Security-first: the brain listens only on a 0600 unix socket, remote messages are allowlisted before the brain and sandboxed read-only, and the security-critical paths ship with adversarial regression tests.
+> Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. Uru, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.
 
-This is the documentation index. The human-readable manual is at https://urfael.vercel.app/manual/#/. Each link below is the raw markdown.
+Urfael is a brand with two products: Urfael Assistant, the open-source (MIT) software, available now, and Uru, a soft helper robot for the home, at the research stage (not a medical device). The mark is the Elder Futhark rune ᚢ (Uruz), often read as strength, health and vitality, and Uru's name comes from it. Urfael is published by MYG Media SRL. It is an independent project, not affiliated with or endorsed by Anthropic.
+
+## Site
+- [Home](https://urfael.com/): The brand: help that lives with you. The assistant today, Uru in research.
+- [Urfael Assistant](https://urfael.com/assistant): What the software does, its security posture, the tests you can run, what is lightly tested, what it costs, and how to install it.
+- [Uru](https://urfael.com/uru): The helper robot we are researching: goals, principles, what it won't do, and where it stands.
+- [FAQ](https://urfael.com/faq): Questions about the assistant.
+- [Compare](https://urfael.com/compare): The assistant beside Hermes Agent and OpenClaw, gaps included.
+- [What's tested](https://urfael.com/honesty): The assistant's maturity report.
+
+## Urfael Assistant, from the README
+The repository README is the current source for these facts. Where a manual page below says otherwise, the README wins.
+- A personal AI assistant you run on your own machine, with local voice, a desktop console, and a searchable archive. It drives your installed Claude Code CLI and can use your existing login; optional API providers and cloud voice have separate costs.
+- Local voice: push-to-talk or an optional wake word; whisper.cpp transcribes, and macOS `say` or Linux `espeak-ng` speaks. Other voice backends are opt-in.
+- Several interfaces, one daemon: Console, orb HUD, terminal, full-screen TUI, plus an optional web dashboard and OpenAI-compatible API.
+- Searchable memory: an Obsidian vault stores the archive; a local git repository stores learned memory; BM25 search and optional local embeddings support recall.
+- Coding tools: `urfael code "<task>"` adds per-project context and working-tree checkpoints; `urfael rewind` restores a checkpoint.
+- Automation and channels: reminders, scheduled jobs, and optional chat bridges. Remote turns are allowlisted and use a restricted profile by default.
+- Security: the daemon's client endpoint is a `0600` Unix socket on macOS/Linux (a token-authenticated named pipe on Windows), not a TCP listener. The dashboard, API, webhook and WhatsApp/PSTN bridges are opt-in loopback listeners. Default Fortress mode gives remote turns read-only tools without web or shell; Full mode adds web tools. These are harness permission profiles, not OS-level isolation.
+- Tests: `npm test`, `npm run fuzz` and `npm run redteam` run in CI; `npm run security` and `npm run e2e` are manual. They are self-authored regression tests, not an independent audit. The security benchmark source defines 11 groups and 128 `check(...)` call sites: source counts, not a verified passing result.
+- Lightly tested: many chat channels still need live-account validation; Linux and native Windows need more testing; this is a personal project with limited deployment experience and no documented independent audit; experimental features (the council, native engines, learning and verification loops) need supervision.
+- Cost: the software is free (MIT). The default backend uses your Claude Code account within its plan limits and terms; API providers and paid voice services bill separately.
+- Platforms: macOS is primary, Linux is newer, native Windows is beta. Needs Node.js 20 or later.
+
+## Manual
+The human-readable manual is at https://urfael.vercel.app/manual/#/. Each link below is the raw markdown of a manual page.
 
 ## Getting started
 - [Introduction](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/README.md): A personal, voice-capable AI you run on your own machine, on the flat-rate Claude subscription you already pay for. No API key to start, no inbound network port
@@ -54,3 +79,6 @@ This is the documentation index. The human-readable manual is at https://urfael.
 - [Configuration reference](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/config.md): Every knob Urfael reads is a URFAEL_* environment variable. There is no config file format to learn. Set a variable in your shell, in the service unit, or let u
 - [FAQ](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/faq.md): The questions people actually ask before they install. Short answers, grounded in what the code does.
 - [Troubleshooting](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/troubleshooting.md): Most problems have a one-command answer. Start with urfael doctor, fix what it flags, and only dig deeper if a symptom survives that.
+
+## Uru
+- [Uru](https://urfael.com/uru): A soft, friendly helper robot for the home, at the research stage. Not a medical device. No product or release date.

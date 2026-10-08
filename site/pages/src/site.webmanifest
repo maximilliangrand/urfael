@@ -1,0 +1,14 @@
+{
+  "name": "Urfael",
+  "short_name": "Urfael",
+  "description": "Friendly AI that lives with you. An open-source assistant that runs on your own machine, and {{robot}}, a helper robot in research.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FBF4EA",
+  "theme_color": "#FBF4EA",
+  "icons": [
+    { "src": "/media/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/media/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/media/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

@@ -1,0 +1,164 @@
+<!--page
+{
+  "out": "index.html",
+  "path": "/",
+  "title": "Urfael | Friendly AI that lives with you",
+  "description": "Urfael makes friendly, honest AI that works for you. Our open-source assistant runs on your own machine today. {{robot}}, a soft helper robot for home, is in research.",
+  "ogTitle": "Urfael: help that lives with you",
+  "figures": true
+}
+-->
+<!--head-->
+<script>
+  // Links to the old homepage's sections arrive here with their hash, which a redirect rule never sees.
+  (function () {
+    var to = {
+      '#install': '/assistant#install', '#proof': '/assistant#evidence', '#trust': '/assistant#evidence',
+      '#coding': '/assistant#features', '#scan': '/assistant#features', '#cockpit': '/assistant#features',
+      '#personas': '/manual/#/features/personas', '#council': '/faq', '#wheel': '/faq',
+      '#compare': '/compare', '#faq': '/faq', '#villain': '/assistant#evidence',
+      '#editions': '/assistant', '#stay': '/#along', '#emailform': '/#along'
+    }[location.hash];
+    if (to) location.replace(to);
+  })();
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization", "@id": "https://urfael.com/#org", "name": "Urfael", "url": "https://urfael.com/",
+      "logo": "https://urfael.com/media/icon-512.png",
+      "parentOrganization": { "@type": "Organization", "name": "MYG Media SRL" },
+      "sameAs": ["https://github.com/maximilliangrand/urfael"]
+    },
+    {
+      "@type": "WebSite", "@id": "https://urfael.com/#website", "url": "https://urfael.com/", "name": "Urfael",
+      "description": "Friendly AI that lives with you. An open-source assistant that runs on your own machine, and {{robot}}, a helper robot in research.",
+      "publisher": { "@id": "https://urfael.com/#org" }
+    }
+  ]
+}
+</script>
+<!--/head-->
+  <section class="hero hero--home">
+    <div class="wrap hero__grid">
+      <div class="hero__copy">
+        <p class="eyebrow"><span class="rune" aria-hidden="true">ᚢ</span> Urfael</p>
+        <h1>Help that lives with you.</h1>
+        <p class="lede">We make friendly AI that stays on your side. Today that means an open-source assistant that runs on your own computer. Next, we’re starting work on {{ROBOT}}, a soft, cheerful helper for the home.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="/assistant">Meet the assistant <span class="arr" aria-hidden="true">→</span></a>
+          <a class="btn btn--quiet" href="/uru">Meet {{ROBOT}}</a>
+        </div>
+        <p class="micro">The assistant is free and open source (MIT). {{ROBOT}} is at the research stage and is not a medical device.</p>
+      </div>
+      <figure class="plate hero__plate" data-figure="uru-home" data-fig="1" data-size="hero">
+        <figcaption class="plate-cap">
+          <span class="bubble" data-bubble>Hi! I’m {{ROBOT}}.</span>
+          <span>Concept drawing. {{ROBOT}} isn’t built yet.</span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="section section--tight" aria-labelledby="shapes">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="shapes">One idea, in two shapes</h2>
+      </div>
+      <div class="duo">
+        <article class="sheet duo__card">
+          <div class="sheet__in">
+            <p class="chip chip--now">Available now · Open source</p>
+            {{icon:console}}
+            <h3>Urfael Assistant</h3>
+            <p>A personal AI that runs on your own machine. It listens and speaks with local voice, keeps a searchable archive of your conversations, sets reminders and scheduled jobs, and helps you code with checkpoints you can roll back.</p>
+            <a class="link-arrow" href="/assistant">See what it does <span class="arr" aria-hidden="true">→</span></a>
+          </div>
+        </article>
+        <article class="sheet duo__card">
+          <div class="sheet__in">
+            <p class="chip chip--research">Research stage</p>
+            {{icon:uru}}
+            <h3>{{ROBOT}}</h3>
+            <p>A soft, friendly robot we want to build for the home. Something warm to say good morning to, a gentle nudge for the routines you choose, and an easy way to reach the people you love. It’s an idea we’re working on, not a product.</p>
+            <a class="link-arrow" href="/uru">Follow {{ROBOT}}’s story <span class="arr" aria-hidden="true">→</span></a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-oat" aria-labelledby="why">
+    <div class="wrap why">
+      <figure class="sheet specimen">
+        <div class="sheet__in">
+          <div class="specimen__mark">
+            <svg class="specimen__guides" viewBox="0 0 240 240" aria-hidden="true" focusable="false">
+              <circle cx="120" cy="120" r="112" fill="none" stroke="#cbc7c2" stroke-width="1" stroke-dasharray="2 5"/>
+              <circle cx="120" cy="120" r="96" fill="none" stroke="#e2d6c5" stroke-width="1"/>
+              <path d="M120 0v20M120 220v20M0 120h20M220 120h20" stroke="#cbc7c2" stroke-width="1"/>
+            </svg>
+            <svg class="specimen__logo" viewBox="0 0 128 128" role="img" aria-label="The Urfael mark: the rune Uruz in a gold ring"><circle cx="64" cy="64" r="58" fill="#16110a" stroke="#d4a85a" stroke-width="2.5"/><g stroke="#e7c280" stroke-width="7" fill="none"><path d="M47 30 L47 98"/><path d="M47 30 L81 52"/><path d="M81 52 L81 98"/></g></svg>
+          </div>
+          <figcaption class="specimen__cap">
+            <span class="specimen__name"><span class="rune" aria-hidden="true">ᚢ</span> Uruz</span>
+            <span>Elder Futhark</span>
+            <span>strength · health · vitality</span>
+          </figcaption>
+        </div>
+      </figure>
+      <div class="why__text">
+        <h2 id="why">Why <span class="rune">ᚢ</span></h2>
+        <div class="prose">
+          <p>Our mark is ᚢ, Uruz, a rune from the Elder Futhark. It is often read as strength, health and vitality. We took it as a brief: make AI that leaves people a little stronger and a little better looked after.</p>
+          <p>We started with software, because that’s where trust is earned. The assistant lives on your machine, works for you, starts in its safest setting, and says plainly what hasn’t been tested yet.</p>
+          <p>{{ROBOT}} carries the same rules into a body, for the place where help matters most: home.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="hold">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="hold">What we hold to</h2>
+      </div>
+      <div class="sheet">
+        <div class="sheet__in">
+          <ul class="ledger ledger--wide">
+            <li>{{icon:on-your-side}}<h3>On your side.</h3><p>Our AI works for the person it lives with. The assistant runs on your hardware, under your settings.</p></li>
+            <li>{{icon:private}}<h3>Locked down by default.</h3><p>The safest setting comes first. Your archive and memory stay on your machine, and your messages go to the model you choose. You decide what to open up, and we tell you what each choice means.</p></li>
+            <li>{{icon:honest-about-limits}}<h3>Honest about limits.</h3><p>We publish what’s lightly tested right next to what works. If we don’t know yet, we say so.</p></li>
+            <li>{{icon:gentle}}<h3>Gentle by design.</h3><p>Soft words, soft shapes, no pressure. Help should feel like a kind neighbor, not a sales pitch.</p></li>
+            <li>{{icon:open-to-inspection}}<h3>Open to inspection.</h3><p>The assistant is open source under the MIT license. Anyone can read the code, run the tests and tell us where we’re wrong.</p></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section section--flush-top">
+    <div class="wrap pair">
+      <section class="pair__item" aria-labelledby="open">
+        <div class="pair__icon">{{icon:tests}}</div>
+        <h2 id="open">Built in the open</h2>
+        <p>The assistant’s code, tests and threat model are public on GitHub. Read them, run them, and open an issue when something’s off. A clear bug report is one of the kindest things you can send us.</p>
+        <div class="actions">
+          <a class="btn btn--quiet" href="https://github.com/maximilliangrand/urfael">Visit GitHub <span class="arr" aria-hidden="true">→</span></a>
+          <a class="link-arrow" href="/honesty">Read what’s lightly tested <span class="arr" aria-hidden="true">→</span></a>
+        </div>
+      </section>
+      <section class="pair__item pair__item--warm" aria-labelledby="along">
+        <div class="pair__icon">{{icon:follow}}</div>
+        <h2 id="along">Come along for the build</h2>
+        <p>Star the project on GitHub to follow releases, or write to us. We’d especially like to hear from people who give care, people who receive it, and people who build robots.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="https://github.com/maximilliangrand/urfael">Star on GitHub</a>
+          <a class="btn btn--quiet" href="mailto:contact@myg-media.com?subject=Hello%20Urfael">Email us</a>
+        </div>
+        <p class="micro">Email goes to MYG Media, the small company behind Urfael. Please don’t include health or medical details in your message.</p>
+      </section>
+    </div>
+  </div>

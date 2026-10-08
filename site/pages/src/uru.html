@@ -1,0 +1,202 @@
+<!--page
+{
+  "out": "uru.html",
+  "path": "/uru",
+  "title": "{{robot}} | The friendly helper robot we’re building | Urfael",
+  "description": "{{robot}} is a soft, friendly helper for the home, at the research stage. What we’re building, what it won’t do, and how to follow along. Not a medical device.",
+  "ogTitle": "Meet {{robot}}, the friendly helper we’re building",
+  "nav": "uru",
+  "figures": true,
+  "faqSchema": true
+}
+-->
+  <section class="hero hero--uru">
+    <div class="wrap hero__grid">
+      <div class="hero__copy">
+        <p class="eyebrow">{{ROBOT}} · Research stage</p>
+        <h1 class="h1--long">Meet {{ROBOT}}, a friendly helper we’re building for the home.</h1>
+        <p class="lede">{{ROBOT}} is a soft, rounded robot we want to build to keep people company and lend a hand at home. Today it’s a research project, not a product, and it is not a medical device. This page is where we share what we’re making and why.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="#follow">Follow along <span class="arr" aria-hidden="true">↓</span></a>
+          <a class="btn btn--quiet" href="#why">Why we’re building it</a>
+        </div>
+      </div>
+      <figure class="plate hero__plate" data-figure="uru-faces" data-fig="1" data-size="hero">
+        <figcaption class="plate-cap plate-cap--hello">
+          <button class="hello-btn" type="button" data-say-hello="uru-faces" aria-describedby="hello-line">Say hello</button>
+          <span class="bubble bubble--left" id="hello-line" aria-live="polite" data-hello-bubble>Hi! I’m {{ROBOT}}.</span>
+          <span class="plate-cap__note">Concept drawing. {{ROBOT}}’s look will change as we learn.</span>
+        </figcaption>
+      </figure>
+      <ol hidden data-hello-lines>
+        <li>Hi! I’m {{ROBOT}}.</li>
+        <li>I’m still in the workshop. Thanks for stopping by.</li>
+        <li>I can’t give medical advice. But I can wave!</li>
+        <li>Want to follow along? There’s a link just below.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="status" aria-labelledby="today">
+    <div class="wrap">
+      <div class="tag">
+        <div class="tag__in">
+          <span class="tag__hole" aria-hidden="true"></span>
+          <div class="tag__head">
+            {{icon:research:compact}}
+            <h2 id="today" class="h-small">Where {{ROBOT}} is today</h2>
+          </div>
+          <dl class="tag__list">
+            <div><dt>Stage</dt><dd>Research</dd></div>
+            <div><dt>Product to buy</dt><dd>None yet</dd></div>
+            <div><dt>Release date</dt><dd>None set</dd></div>
+            <div><dt>Medical device</dt><dd>No</dd></div>
+            <div class="tag__wide"><dt>What you can do</dt><dd>Follow along and tell us what would help</dd></div>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="why" aria-labelledby="why-h">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="why-h">Why {{ROBOT}}</h2>
+      </div>
+      <div class="prose prose--big">
+        <p>Care is some of the most important work there is, and much of it happens at home, in small moments: a reminder, a glass of water, a chat on a quiet afternoon. The people doing that work are often stretched thin. The people receiving it can spend long hours on their own.</p>
+        <p>We don’t think a robot should replace any of those people. We think a kind, unhurried helper could take a little weight off their shoulders, and make the quiet hours a little less quiet.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-oat" aria-labelledby="goals">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="goals">What we want {{ROBOT}} to be</h2>
+        <p class="head__intro">These are goals, not features. They’ll change as we learn.</p>
+      </div>
+      <div class="goals">
+        <figure class="plate goals__plate" data-figure="uru-study" data-fig="2">
+          <figcaption class="plate-cap"><span>Illustration only, not a design. {{ROBOT}} isn’t built yet, and how it’s made will change as we learn.</span></figcaption>
+        </figure>
+        <div class="sheet goals__list">
+          <div class="sheet__in">
+            <ul class="ledger">
+              <li>{{icon:good-company}}<h3>Good company.</h3><p>Something to say good morning to. {{ROBOT}} should listen, chat and remember the things you’ve chosen to tell it.</p></li>
+              <li>{{icon:gentle-nudge}}<h3>A gentle nudge.</h3><p>Friendly reminders for the routines you set yourself: a walk, a phone call, a glass of water.</p></li>
+              <li>{{icon:bridge-to-your-people}}<h3>A bridge to your people.</h3><p>An easy way to reach family, friends or a carer when you’d like to.</p></li>
+              <li>{{icon:soft-presence}}<h3>A soft presence.</h3><p>Rounded, light and quiet. Made to be easy to be around, not to look like a machine.</p></li>
+              <li>{{icon:on-your-side}}<h3>Your helper, not ours.</h3><p>{{ROBOT}} should work for the people it lives with, just like our assistant does.</p></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="promises">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="promises">The promises we’re designing around</h2>
+      </div>
+      <div class="sheet">
+        <div class="sheet__in">
+          <ul class="ledger ledger--two">
+            <li>{{icon:gentle}}<h3>Gentle by design.</h3><p>Soft materials, slow movements, a calm voice. {{ROBOT}} should never startle, rush or pressure anyone.</p></li>
+            <li>{{icon:private}}<h3>Private by default.</h3><p>What happens at home should stay as private as possible. We’re designing {{ROBOT}} to keep as much as it can on the device, to ask before it shares anything, and to make its settings easy to read.</p></li>
+            <li>{{icon:honest-about-limits}}<h3>Honest about limits.</h3><p>{{ROBOT}} will say when it doesn’t know or can’t help. It won’t pretend to be a doctor, a nurse or a person.</p></li>
+            <li>{{icon:human-in-the-loop}}<h3>A human in the loop.</h3><p>Important decisions stay with people. {{ROBOT}} is meant to support the people who give care, never to stand in for them.</p></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--flush-top" aria-labelledby="wont">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="wont">What {{ROBOT}} won’t do</h2>
+      </div>
+      <div>
+        <ul class="wont">
+          <li>It won’t diagnose, treat or give medical advice.</li>
+          <li>It won’t replace doctors, nurses, carers or family.</li>
+          <li>It won’t make decisions about anyone’s health or care.</li>
+          <li>It won’t listen in secret. When {{ROBOT}} is listening, you’ll be able to see it.</li>
+          <li>It won’t pretend to be a person.</li>
+          <li>It won’t share what it sees or hears without permission.</li>
+        </ul>
+        <div class="callout" role="note">
+          <div class="callout__icon">{{icon:call}}</div>
+          <p><strong>{{ROBOT}} is not an emergency service.</strong> In an emergency, call 112 in Europe, or your local emergency number.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section band-oat" aria-labelledby="where">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="where">Where we are</h2>
+        <div class="split__icon">{{icon:research}}</div>
+      </div>
+      <div class="prose">
+        <p class="big">{{ROBOT}} is at the research stage. There’s no product to buy, no release date and no specification yet. Right now we’re working through the questions that come first:</p>
+        <ul class="questions">
+          <li>What would make a helper like this welcome at home, and what would make it unwelcome?</li>
+          <li>How should it look, move and sound so that it feels calm and kind?</li>
+          <li>How can it be useful while keeping a home’s private life private?</li>
+          <li>Where are the lines it must never cross?</li>
+        </ul>
+        <p>When there’s real progress to show, it will appear here first. Until then, we’d rather show you our questions than make you promises.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="rules">
+    <div class="wrap">
+      <div class="same">
+        <div class="same__icons">{{icon:uru}}<span class="same__amp" aria-hidden="true">+</span>{{icon:console}}</div>
+        <div class="same__text">
+          <h2 id="rules">Same rune, same rules</h2>
+          <p>{{ROBOT}} starts from the same principles as Urfael Assistant, our open-source AI that runs on your own machine. Building the assistant taught us to keep things local where we can, to make the safe setting the default, and to say plainly what isn’t tested. {{ROBOT}} inherits those rules.</p>
+          <a class="link-arrow" href="/assistant">Meet the assistant <span class="arr" aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--flush-top" id="follow" aria-labelledby="follow-h">
+    <div class="wrap">
+      <div class="sheet follow">
+        <div class="sheet__in">
+          <div class="follow__icon">{{icon:follow}}</div>
+          <div class="follow__text">
+            <h2 id="follow-h">Follow along</h2>
+            <p>We’d love some company on the way. If you give care, receive care or build robots, tell us what would help and what would worry you. Both are useful.</p>
+            <div class="actions">
+              <a class="btn btn--primary" href="mailto:contact@myg-media.com?subject=About%20{{robot}}">Write to us</a>
+              <a class="btn btn--quiet" href="https://github.com/maximilliangrand/urfael">Follow on GitHub</a>
+            </div>
+            <p class="micro">Email goes to MYG Media, the small company behind Urfael. Please don’t include health or medical details in your message. GitHub is where our assistant is built in the open.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--flush-top" id="questions" aria-labelledby="questions-h">
+    <div class="wrap split">
+      <div class="split__aside">
+        <h2 id="questions-h">Questions about {{ROBOT}}</h2>
+      </div>
+      <div class="qa">
+        <details><summary><span>Can I buy {{ROBOT}}?</span></summary><div class="ans"><p>Not yet. {{ROBOT}} is a research project, and there’s nothing to buy or pre-order.</p></div></details>
+        <details><summary><span>When will it be ready?</span></summary><div class="ans"><p>We don’t know yet, and we won’t guess. We’ll share real progress here when there is some.</p></div></details>
+        <details><summary><span>Is {{ROBOT}} a medical device?</span></summary><div class="ans"><p>No. {{ROBOT}} is not a medical device. It isn’t designed to diagnose, treat, monitor or prevent any disease or condition.</p></div></details>
+        <details><summary><span>Is this what {{ROBOT}} will look like?</span></summary><div class="ans"><p>The drawings here are concept art. {{ROBOT}}’s look will change as we design and test it.</p></div></details>
+        <details><summary><span>Why the name?</span></summary><div class="ans"><p>{{ROBOT}} comes from ᚢ Uruz, the rune in our mark, often read as strength, health and vitality. It’s a working name for now.</p></div></details>
+      </div>
+    </div>
+  </section>

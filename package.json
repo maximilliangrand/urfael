@@ -1,0 +1,17 @@
+{
+  "name": "urfael-site",
+  "private": true,
+  "description": "Tooling for urfael.com: builds the hairline figures, the icons and the pages in site/ into docs/. The site itself is the static docs/ folder; the app is in app/.",
+  "scripts": {
+    "build:site": "node site/build.mjs",
+    "build:pages": "node site/pages/build.mjs",
+    "build:og": "node site/og.mjs",
+    "build:icons": "node site/icons/build.mjs",
+    "sheet:icons": "node site/icons/sheet.mjs",
+    "check:site": "tsc -p site"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
+  }
+}

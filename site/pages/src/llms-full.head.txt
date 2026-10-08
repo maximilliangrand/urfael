@@ -1,0 +1,8 @@
+# Urfael — full documentation
+
+> Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. {{robot}}, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.
+
+The repository README comes first: it is the current source for every software fact, and where a manual page disagrees, the README wins. {{robot}}, the helper robot, is a research project: not a medical device, with no product and no release date. See https://urfael.com/uru.
+
+Every page of the Urfael manual, concatenated for machine reading. Source: https://github.com/maximilliangrand/urfael
+

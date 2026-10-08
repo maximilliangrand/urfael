@@ -1,0 +1,55 @@
+<!--page
+{
+  "out": "compare.html",
+  "path": "/compare",
+  "title": "Urfael Assistant vs Hermes vs OpenClaw, honestly | Urfael",
+  "description": "An honest side-by-side of the Urfael assistant, Hermes Agent and OpenClaw: blast radius, cost, provability, and where each one wins or falls short.",
+  "ogTitle": "Urfael Assistant vs Hermes vs OpenClaw, honestly"
+}
+--><!--head-->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Urfael", "item": "https://urfael.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Comparison", "item": "https://urfael.com/compare"}
+  ]
+}
+</script>
+<!--/head-->
+  <section class="page-head">
+    <div class="wrap">
+      <h1>The honest comparison</h1>
+      <p class="lede">The Urfael assistant, Hermes Agent and OpenClaw: every win and every gap in one table. Urfael wins where it counts for a machine that lives on your desk and acts for you: the smallest blast radius, a flat bill within your plan’s limits, and the ability to prove what it did. We are smaller and newer, and we say so in the same table.</p>
+    </div>
+  </section>
+  <section class="section section--flush-top" aria-label="Comparison">
+    <div class="wrap">
+      <div class="sheet">
+        <div class="sheet__in sheet__in--table">
+          <div class="table-wrap" role="region" aria-labelledby="compare-cap" tabindex="0">
+            <table class="compare">
+              <caption id="compare-cap" class="sr-only">Urfael Assistant, Hermes Agent and OpenClaw, capability by capability</caption>
+              <thead><tr><th scope="col">Capability</th><th scope="col">Urfael Assistant</th><th scope="col">Hermes</th><th scope="col">OpenClaw</th></tr></thead>
+              <tbody>
+              <tr><th scope="row">No inbound network port</th><td class="y">none on the daemon; optional services loopback-only</td><td class="w">varies</td><td class="w">gateway/DMs</td></tr>
+              <tr><th scope="row">Ships an attack benchmark</th><td class="y">yes, <span class="mono">npm run security</span></td><td class="n">no</td><td class="n">no</td></tr>
+              <tr><th scope="row">Flat-rate cost (no per-token)</th><td class="y">yes, on your Claude Code plan (its limits and terms apply)</td><td class="n">no</td><td class="n">no</td></tr>
+              <tr><th scope="row">Can prove what it did (ledger + seal)</th><td class="y">yes</td><td class="n">no</td><td class="n">no</td></tr>
+              <tr><th scope="row">Live, watchable multi-agent Council</th><td class="y">yes (experimental)</td><td class="w">see their docs</td><td class="w">see their docs</td></tr>
+              <tr><th scope="row">Undoable coding turns (checkpoint + rewind)</th><td class="y">yes, auto-checkpoint + reversible rewind</td><td class="w">none documented</td><td class="w">none documented</td></tr>
+              <tr><th scope="row">Skill hub supply-chain checks</th><td class="y">scanned + previewed + sha-pinned</td><td class="w">external standard</td><td class="w">third-party registry; see their docs</td></tr>
+              <tr><th scope="row">Proactive memory recall (every turn)</th><td class="y">retrieves per turn</td><td class="w">frozen snapshot</td><td class="w">agent must search</td></tr>
+              <tr><th scope="row">Generative UI that can't run code</th><td class="y">sanitized canvas (validator shipped; live rendering not built yet)</td><td class="n">no</td><td class="w">renders agent UI</td></tr>
+              <tr><th scope="row">Chat-channel breadth</th><td class="y">19 (11 native + 8 webhook)</td><td class="y">many</td><td class="y">20+</td></tr>
+              <tr><th scope="row">Battle-tested at scale</th><td class="w">small, and we say so</td><td class="y">large</td><td class="y">very large</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <p class="table-note">Where it counts for a machine on your desk: blast radius, cost, provability, and not overstating maturity. OpenClaw and Hermes are genuinely excellent at breadth and scale.</p>
+      <p class="xlink">Want the caveats, not just the wins? <a href="/honesty">See what's lightly tested <span class="arr" aria-hidden="true">→</span></a></p>
+    </div>
+  </section>
