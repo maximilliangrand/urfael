@@ -12,7 +12,11 @@
    which keeps the solids opaque, and the --hairline-* properties theme the figure. A plate in a cell
    (.plate--cell) drops its own frame: the cell's borders, which sit on the page's guides, are its frame, and
    its corner labels line up with the cell's padding. The greys are plain hex, so no colour is resolved per
-   element. */
+   element.
+   The palette itself is the engine's: site/build.mjs writes LIGHT (site/hairline/core/styles.ts) into every
+   .plate__surface and DARK into the night band's, ahead of this file, so a change to either reaches every plate.
+   This file holds only the plate's own colours and the few deliberate steps away from those palettes: a dense
+   sheet's darker greys, and Uru's white body on the night band. */
 .plate {
   --plate-paper: #ffffff;
   --plate-ink: #0a0a0a;
@@ -39,17 +43,10 @@
   background: var(--plate-paper);
   color-scheme: light;
   clip-path: polygon(0 0, calc(100% - var(--chip) + 0.42px) 0, 100% calc(var(--chip) - 0.42px), 100% 100%, 0 100%);
+  /* the figure's ground is the plate's own colour, so its solids are opaque on it. From the engine's LIGHT: ink
+     #0a0a0a is the one bright stroke (19.8:1 on the white), the outline grey #949494 is 3:1, the floor for a
+     graphic's edge, and the face window is the page's black, white dome eyes on it (19.8:1) and grey cheeks (3.3:1) */
   --hairline-plate: var(--plate-paper);
-  /* ink: the one bright stroke, 19.8:1 on the white */
-  --hairline-hi: #0a0a0a;
-  /* the outline grey, 3:1 on the white, the floor for a graphic's edge */
-  --hairline-edge: #949494;
-  --hairline-mid: #c4c4c4;
-  --hairline-lo: #e3e3e3;
-  /* the one dark solid, the face window, in the page's black; white dome eyes on it, 19.8:1, and grey cheeks, 3.3:1 */
-  --hairline-ink: #0a0a0a;
-  --hairline-warm: #ffffff;
-  --hairline-blush: #646464;
 }
 .plate__stage { width: 100%; aspect-ratio: var(--fig-ratio, 1.25); }
 /* the drawing on its own layer: when a figure breathes or blinks only the drawing repaints, never the plate
@@ -127,15 +124,9 @@ a:is(:hover, :focus-visible) .plate--cell .plate__frame { background: none; }
   --plate-line: #3d3d3d;
 }
 .band-night .plate__surface {
+  /* the engine's DARK (written by site/build.mjs): white linework on the black, and a screen a step above the
+     black, #1c1c1c, so it reads as a screen */
   color-scheme: dark;
-  --hairline-hi: #ffffff;
-  --hairline-edge: #8c8c8c;
-  --hairline-mid: #4d4d4d;
-  --hairline-lo: #262626;
-  /* a screen stays the drawing's one dark solid, a step above the black so it reads as a screen */
-  --hairline-ink: #1c1c1c;
-  --hairline-warm: #ffffff;
-  --hairline-blush: #6e6e6e;
   /* Uru's body, the drawing's light part: a white solid in black line, with the page's black face window,
      white dome eyes on it (19.8:1) and grey cheeks (3.3:1), so Uru is the one white figure in the room */
   --hairline-light-plate: #ffffff;
