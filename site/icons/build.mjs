@@ -66,20 +66,22 @@ const css = `/* Urfael icons: optional rules for icons pasted inline. Generated 
 /* on the wash band rather than white: the solids take the band's colour */
 :is(.u-icon-wash .u-icon, .u-icon.u-icon-wash), .u-icon-wash .ui-f-g { fill: ${WASH}; }
 
-/* on the night band */
-:is(.u-icon-night .u-icon, .u-icon.u-icon-night) { fill: ${NIGHT.ground}; stroke: ${NIGHT.edge}; }
-.u-icon-night .ui-f-g { fill: ${NIGHT.ground}; }
-.u-icon-night .ui-s-e { stroke: ${NIGHT.edge}; }
-.u-icon-night .ui-s-m { stroke: ${NIGHT.mid}; }
-.u-icon-night .ui-s-l { stroke: ${NIGHT.lo}; }
-.u-icon-night .ui-s-a { stroke: ${NIGHT.accent}; }
-.u-icon-night .ui-f-e { fill: ${NIGHT.edge}; }
-.u-icon-night .ui-f-m { fill: ${NIGHT.mid}; }
-.u-icon-night .ui-f-l { fill: ${NIGHT.lo}; }
-.u-icon-night .ui-f-a { fill: ${NIGHT.accent}; }
-.u-icon-night .ui-f-k { fill: ${NIGHT.ink}; }
-.u-icon-night .ui-f-w { fill: ${NIGHT.warm}; }
-.u-icon-night .ui-f-b { fill: ${NIGHT.blush}; }
+/* on the night band, on screen: on paper the band is white, so the icon keeps its own light palette */
+@media not print {
+  :is(.u-icon-night .u-icon, .u-icon.u-icon-night) { fill: ${NIGHT.ground}; stroke: ${NIGHT.edge}; }
+  .u-icon-night .ui-f-g { fill: ${NIGHT.ground}; }
+  .u-icon-night .ui-s-e { stroke: ${NIGHT.edge}; }
+  .u-icon-night .ui-s-m { stroke: ${NIGHT.mid}; }
+  .u-icon-night .ui-s-l { stroke: ${NIGHT.lo}; }
+  .u-icon-night .ui-s-a { stroke: ${NIGHT.accent}; }
+  .u-icon-night .ui-f-e { fill: ${NIGHT.edge}; }
+  .u-icon-night .ui-f-m { fill: ${NIGHT.mid}; }
+  .u-icon-night .ui-f-l { fill: ${NIGHT.lo}; }
+  .u-icon-night .ui-f-a { fill: ${NIGHT.accent}; }
+  .u-icon-night .ui-f-k { fill: ${NIGHT.ink}; }
+  .u-icon-night .ui-f-w { fill: ${NIGHT.warm}; }
+  .u-icon-night .ui-f-b { fill: ${NIGHT.blush}; }
+}
 
 /* forced colours: lines and the accent in the text colour, solids in the canvas; Uru's eyes and cheeks in the canvas on its window */
 @media (forced-colors: active) {

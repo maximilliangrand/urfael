@@ -7,20 +7,22 @@
 /* on the wash band rather than white: the solids take the band's colour */
 :is(.u-icon-wash .u-icon, .u-icon.u-icon-wash), .u-icon-wash .ui-f-g { fill: #fafafa; }
 
-/* on the night band */
-:is(.u-icon-night .u-icon, .u-icon.u-icon-night) { fill: #000000; stroke: #b3b3b3; }
-.u-icon-night .ui-f-g { fill: #000000; }
-.u-icon-night .ui-s-e { stroke: #b3b3b3; }
-.u-icon-night .ui-s-m { stroke: #808080; }
-.u-icon-night .ui-s-l { stroke: #4d4d4d; }
-.u-icon-night .ui-s-a { stroke: #ffffff; }
-.u-icon-night .ui-f-e { fill: #b3b3b3; }
-.u-icon-night .ui-f-m { fill: #808080; }
-.u-icon-night .ui-f-l { fill: #4d4d4d; }
-.u-icon-night .ui-f-a { fill: #ffffff; }
-.u-icon-night .ui-f-k { fill: #1c1c1c; }
-.u-icon-night .ui-f-w { fill: #ffffff; }
-.u-icon-night .ui-f-b { fill: #6e6e6e; }
+/* on the night band, on screen: on paper the band is white, so the icon keeps its own light palette */
+@media not print {
+  :is(.u-icon-night .u-icon, .u-icon.u-icon-night) { fill: #000000; stroke: #b3b3b3; }
+  .u-icon-night .ui-f-g { fill: #000000; }
+  .u-icon-night .ui-s-e { stroke: #b3b3b3; }
+  .u-icon-night .ui-s-m { stroke: #808080; }
+  .u-icon-night .ui-s-l { stroke: #4d4d4d; }
+  .u-icon-night .ui-s-a { stroke: #ffffff; }
+  .u-icon-night .ui-f-e { fill: #b3b3b3; }
+  .u-icon-night .ui-f-m { fill: #808080; }
+  .u-icon-night .ui-f-l { fill: #4d4d4d; }
+  .u-icon-night .ui-f-a { fill: #ffffff; }
+  .u-icon-night .ui-f-k { fill: #1c1c1c; }
+  .u-icon-night .ui-f-w { fill: #ffffff; }
+  .u-icon-night .ui-f-b { fill: #6e6e6e; }
+}
 
 /* forced colours: lines and the accent in the text colour, solids in the canvas; Uru's eyes and cheeks in the canvas on its window */
 @media (forced-colors: active) {

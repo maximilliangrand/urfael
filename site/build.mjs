@@ -36,7 +36,7 @@ function ratios({ FIGURES, ratio }) {
 
 /**
  * The engine's palettes as the plates' theme, in plain hex so no colour is resolved per element: LIGHT on every
- * plate and DARK on the night band's plates.
+ * plate, DARK on the night band's plates, on screen only (on paper the band is white, so its plates are too).
  * The plate's own colour stays the page's (--plate-paper in plate.css); the rest come from the engine, so a change
  * to its palettes reaches every plate on the next build.
  */
@@ -46,7 +46,7 @@ function palettes({ LIGHT, DARK }) {
     if (!NEUTRAL.test(hex)) throw new Error(`hairline/core/styles.ts: ${key} ${hex} is not a neutral grey; the site is black, white and greys only`)
     return `--hairline-${key}:${hex}`
   }).join(';')
-  return `.plate__surface{${theme(LIGHT)}}\n.band-night .plate__surface{${theme(DARK)}}`
+  return `.plate__surface{${theme(LIGHT)}}\n@media not print{.band-night .plate__surface{${theme(DARK)}}}`
 }
 
 const kb = (text) => `${(Buffer.byteLength(text) / 1024).toFixed(1)} kB, ${(gzipSync(text).length / 1024).toFixed(1)} kB gzipped`

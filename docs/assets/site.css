@@ -128,23 +128,27 @@
   --fs-label: 0.71875rem;
 }
 
-/* a band sets its own colours: the night band is white linework on black */
-.band-night {
-  --paper: #000000;
-  --wash: #0a0a0a;
-  --ink: #fafafa;
-  --ink-2: #bdbdbd;
-  --muted: #949494;
-  --line: #262626;
-  --line-2: #3d3d3d;
-  --guide: #262626;
-  --cross: #6b6b6b;
-  --fill: #141414;
-  --fill-2: #1f1f1f;
-  --logo: #ffffff;
-  background: var(--paper);
-  color: var(--ink);
-  color-scheme: dark;
+/* a band sets its own colours: the night band is white linework on black. On paper every band is white, so
+   the night band's colours are for screens only: in print it reads the page's own tokens, and so does every
+   component on it (plate.css and icons.css hold their night palettes back from print the same way) */
+@media not print {
+  .band-night {
+    --paper: #000000;
+    --wash: #0a0a0a;
+    --ink: #fafafa;
+    --ink-2: #bdbdbd;
+    --muted: #949494;
+    --line: #262626;
+    --line-2: #3d3d3d;
+    --guide: #262626;
+    --cross: #6b6b6b;
+    --fill: #141414;
+    --fill-2: #1f1f1f;
+    --logo: #ffffff;
+    background: var(--paper);
+    color: var(--ink);
+    color-scheme: dark;
+  }
 }
 .band-wash { --paper: var(--wash); background: var(--wash); }
 
@@ -274,8 +278,11 @@ main:has(> .hero) > section.section::before {
   color: var(--muted);
 }
 .rule-top, .band-night, .band-wash, .site-footer { border-top: 1px solid var(--line); }
-.band-night { border-top-color: var(--paper); }
-.band-night + :not(.band-night) { border-top-color: transparent; }
+/* on screen the black band is its own edge; on paper it keeps the rule, like any other band */
+@media not print {
+  .band-night { border-top-color: var(--paper); }
+  .band-night + :not(.band-night) { border-top-color: transparent; }
+}
 .rule-top::after, .band-night::after, .band-wash::after, .site-footer::after, .status::after {
   content: "";
   position: absolute;
@@ -1187,7 +1194,13 @@ td { color: var(--ink-2); }
   .callout, .bubble, .chip { border: 1px solid CanvasText; }
   .chip::before { background: CanvasText; }
 }
+/* on paper: every band is white (the night band's colours are screen-only, above), and the marks drawn as
+   backgrounds, which print drops by default, print as drawn, so a primary button's white label stays on its black */
 @media print {
   .site-header, .skip, .menu-btn, .copy, .hello-btn { display: none !important; }
-  body, .band-night { background: #fff; color: #000; }
+  body { background: #fff; color: #000; }
+  .btn--primary, .bubble, .chip::before, .check-list li::before, .tilde-list li::before, .compare td::before {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

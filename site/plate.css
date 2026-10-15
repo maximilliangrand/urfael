@@ -116,30 +116,33 @@ a:is(:hover, :focus-visible) .plate__frame { background: var(--plate-muted); }
 .plate--cell > .plate-cap { margin: 0; padding: 0 var(--inset) var(--inset); }
 a:is(:hover, :focus-visible) .plate--cell .plate__frame { background: none; }
 
-/* ---------- on the night band: white linework on black, through the same properties ---------- */
-.band-night .plate {
-  --plate-paper: #000000;
-  --plate-ink: #fafafa;
-  --plate-muted: #949494;
-  --plate-line: #3d3d3d;
+/* ---------- on the night band: white linework on black, through the same properties ----------
+   On screen only: on paper the band is white, so its plates are drawn like every other. */
+@media not print {
+  .band-night .plate {
+    --plate-paper: #000000;
+    --plate-ink: #fafafa;
+    --plate-muted: #949494;
+    --plate-line: #3d3d3d;
+  }
+  .band-night .plate__surface {
+    /* the engine's DARK (written by site/build.mjs): white linework on the black, and a screen a step above the
+       black, #1c1c1c, so it reads as a screen */
+    color-scheme: dark;
+    /* Uru's body, the drawing's light part: a white solid in black line, with the page's black face window,
+       white dome eyes on it (19.8:1) and grey cheeks (3.3:1), so Uru is the one white figure in the room */
+    --hairline-light-plate: #ffffff;
+    --hairline-light-hi: #0a0a0a;
+    --hairline-light-edge: #8a8a8a;
+    --hairline-light-mid: #b4b4b4;
+    --hairline-light-lo: #dadada;
+    --hairline-light-ink: #0a0a0a;
+    --hairline-light-warm: #ffffff;
+    --hairline-light-blush: #646464;
+  }
+  .band-night .plate[data-size="sheet"] .plate__surface,
+  .band-night .plate[data-size="hero"] .plate__surface { --hairline-edge: #a3a3a3; --hairline-mid: #5c5c5c; --hairline-lo: #2b2b2b; --hairline-stroke: 0.9; }
 }
-.band-night .plate__surface {
-  /* the engine's DARK (written by site/build.mjs): white linework on the black, and a screen a step above the
-     black, #1c1c1c, so it reads as a screen */
-  color-scheme: dark;
-  /* Uru's body, the drawing's light part: a white solid in black line, with the page's black face window,
-     white dome eyes on it (19.8:1) and grey cheeks (3.3:1), so Uru is the one white figure in the room */
-  --hairline-light-plate: #ffffff;
-  --hairline-light-hi: #0a0a0a;
-  --hairline-light-edge: #8a8a8a;
-  --hairline-light-mid: #b4b4b4;
-  --hairline-light-lo: #dadada;
-  --hairline-light-ink: #0a0a0a;
-  --hairline-light-warm: #ffffff;
-  --hairline-light-blush: #646464;
-}
-.band-night .plate[data-size="sheet"] .plate__surface,
-.band-night .plate[data-size="hero"] .plate__surface { --hairline-edge: #a3a3a3; --hairline-mid: #5c5c5c; --hairline-lo: #2b2b2b; --hairline-stroke: 0.9; }
 
 /* before the script: an empty plate of exactly the dressed plate's height, so nothing below it moves.
    Its content box is the stage, its padding the bands, its border the frame's 1px line. */
@@ -161,3 +164,6 @@ a:is(:hover, :focus-visible) .plate--cell .plate__frame { background: none; }
 @media (scripting: none) { .plate:not([data-plate])::before { display: none; } }
 
 @media (prefers-reduced-motion: reduce) { .plate__frame { transition: none; } }
+/* on paper a plate stays on one page: the drawing is one piece, and split by a page break it would land whole on
+   the next page, over what follows */
+@media print { .plate { break-inside: avoid; } }
