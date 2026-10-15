@@ -1,5 +1,5 @@
 // Builds the social card: `npm run build:og` from the repo root, after `npm run build:site`.
-//   docs/media/og-urfael.png  1200 × 630: the mark, the line, and Fig. 1, Uru at home, labelled as a concept drawing
+//   docs/media/og-urfael.png  1200 × 630, black and white: the mark, the line, and Fig. 1, Uru at home, labelled as a concept drawing
 // The card is the real Fig. 1 plate from docs/assets (figures.js, plate.css, site.css), drawn at rest under reduced
 // motion, so it changes when the figure does and names the robot from site/figures/uru-kit.ts (ROBOT), like every
 // page. It takes a screenshot, so it needs playwright-core and its Chromium; it looks for `playwright-core` from
@@ -37,24 +37,33 @@ const card = `<!DOCTYPE html>
 <link rel="stylesheet" href="/assets/plate.css">
 <script type="module" src="/assets/figures.js"></script>
 <style>
-  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: var(--oat); }
-  .card { box-sizing: border-box; width: 1200px; height: 630px; padding: 40px 56px 40px 72px; display: grid; grid-template-columns: minmax(0, 1fr) 512px; gap: 48px; align-items: center; }
-  .card__brand { display: flex; align-items: center; gap: 18px; margin: 0 0 46px; font: 600 40px/1 var(--word); letter-spacing: -0.01em; color: var(--logo); }
-  .card__brand .mark { width: 60px; height: 60px; flex: none; }
-  .card h1 { margin: 0 0 34px; font: 600 76px/0.98 var(--serif); font-variation-settings: "SOFT" 100, "WONK" 0; letter-spacing: -0.03em; color: var(--ink); }
-  .card__line { margin: 0; max-width: 30rem; font: 400 25px/1.45 var(--sans); color: var(--ink-2); }
-  .card__line b { color: var(--clay); font-weight: 700; }
-  .card .plate { width: 512px; }
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; background: #ffffff; }
+  .card { --pad: 44px; position: relative; box-sizing: border-box; width: 1200px; height: 630px; padding: 0 40px; }
+  /* the page's frame: two guides, a hairline across the top and the bottom, and a crosshair at each corner */
+  .card__frame { position: relative; box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) 560px; height: 100%; padding-block: 35px; border-inline: 1px solid #e6e6e6; }
+  .card__frame::before, .card__frame::after { content: ""; position: absolute; z-index: 1; left: -40px; right: -40px; height: 1px; background: #e6e6e6; }
+  .card__frame::before { top: 34px; }
+  .card__frame::after { bottom: 34px; }
+  .card__copy { display: flex; flex-direction: column; justify-content: center; padding: 0 var(--pad); }
+  .card__brand { display: flex; align-items: center; gap: 14px; margin: 0 0 54px; font: 600 34px/1 var(--word); letter-spacing: -0.01em; color: #0e0e0f; }
+  .card__brand .mark { width: 50px; height: 50px; flex: none; }
+  .card h1 { margin: 0 0 30px; font: 600 74px/0.98 var(--sans); letter-spacing: -0.05em; color: #0a0a0a; }
+  .card__line { margin: 0; max-width: 30rem; font: 400 23px/1.45 var(--sans); letter-spacing: -0.005em; color: #454545; }
+  .card__line b { color: #0a0a0a; font-weight: 600; }
+  .card .plate { align-self: stretch; width: 560px; border-left: 1px solid #e6e6e6; }
+  .card .plate .plate__surface { padding-inline: 18px; }
 </style>
 </head>
 <body>
 <div class="card">
-  <div>
-    <p class="card__brand">${MARK}<span>Urfael</span></p>
-    <h1>Help that lives with&nbsp;you.</h1>
-    <p class="card__line">An open-source assistant on your own machine today. <b>${esc(ROBOT)}</b>, a soft helper robot for the home, in research.</p>
+  <div class="card__frame">
+    <div class="card__copy">
+      <p class="card__brand">${MARK}<span>Urfael</span></p>
+      <h1>Help that lives with&nbsp;you.</h1>
+      <p class="card__line">An open-source assistant on your own machine today. <b>${esc(ROBOT)}</b>, a soft helper robot for the home, in research.</p>
+    </div>
+    <figure class="plate plate--cell" data-figure="uru-home" data-fig="1" data-size="hero"></figure>
   </div>
-  <figure class="plate" data-figure="uru-home" data-fig="1" data-size="hero"></figure>
 </div>
 </body>
 </html>`

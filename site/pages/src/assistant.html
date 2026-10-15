@@ -30,8 +30,9 @@
 </script>
 <!--/head-->
   <section class="hero hero--assistant">
-    <div class="wrap hero__grid">
-      <div class="hero__copy">
+    <div class="wrap">
+      <div class="cells cells--2 hero__grid">
+      <div class="cell hero__copy">
         <p class="eyebrow">Urfael Assistant · Free and open source (MIT)</p>
         <h1 class="h1--long">Your own assistant, on your own machine.</h1>
         <p class="lede">Urfael Assistant is a personal AI you run on your own computer, with local voice, a desktop console and a searchable archive.</p>
@@ -43,31 +44,28 @@
         </div>
         <p class="micro">macOS first. Linux is newer. Native Windows is in beta.</p>
       </div>
-      <figure class="plate hero__plate" data-figure="assistant-desk" data-fig="1" data-size="sheet">
+      <figure class="plate plate--cell hero__plate" data-figure="assistant-desk" data-fig="1" data-size="sheet">
         <figcaption class="plate-cap"><span>The assistant’s parts, drawn as a desk. Point at a part, or focus the drawing and use the arrow keys.</span></figcaption>
       </figure>
+      </div>
     </div>
   </section>
 
-  <section class="section section--tight" id="features" aria-labelledby="features-h">
+  <section class="section rule-top" id="features" aria-labelledby="features-h">
     <div class="wrap">
       <div class="head">
         <h2 id="features-h">What it does</h2>
       </div>
-      <div class="sheet">
-        <div class="sheet__in">
-          <ul class="ledger ledger--two">
-            <li>{{icon:voice}}<h3>Local voice.</h3><p>Hold to talk, or set up an optional wake word. whisper.cpp turns your voice into text, and macOS <code>say</code> or Linux <code>espeak-ng</code> speaks the reply. Other voice backends are opt-in.</p></li>
-            <li>{{icon:console}}<h3>One assistant, several doors.</h3><p>The Console, a small orb HUD, the terminal and a full-screen TUI all talk to the same daemon. An optional web dashboard and an OpenAI-compatible API are there if you want them.</p></li>
-            <li>{{icon:memory}}<h3>A memory you can search.</h3><p>An Obsidian vault holds the archive, and a local git repository holds what it learns. BM25 search, with optional local embeddings, helps it recall earlier conversations.</p></li>
-            <li>{{icon:coding}}<h3>Coding with an undo.</h3><p><code>urfael code "&lt;task&gt;"</code> adds per-project context and checkpoints your working tree. <code>urfael rewind</code> puts a checkpoint back.</p></li>
-            <li>{{icon:automation}}<h3>Reminders, jobs and chat.</h3><p>Set reminders and scheduled jobs, and connect optional chat bridges. Messages that arrive from elsewhere are allowlisted and use a restricted profile by default.</p></li>
-            <li>{{icon:integrations}}<h3>Room to grow, carefully.</h3><p>MCP connectors and plugins extend what it can do on your own local turns. Review their permissions and code before you turn them on.</p></li>
-          </ul>
-        </div>
-      </div>
+      <ul class="grid-cells">
+        <li>{{icon:voice}}<h3>Local voice.</h3><p>Hold to talk, or set up an optional wake word. whisper.cpp turns your voice into text, and macOS <code>say</code> or Linux <code>espeak-ng</code> speaks the reply. Other voice backends are opt-in.</p></li>
+        <li>{{icon:console}}<h3>One assistant, several doors.</h3><p>The Console, a small orb HUD, the terminal and a full-screen TUI all talk to the same daemon. An optional web dashboard and an OpenAI-compatible API are there if you want them.</p></li>
+        <li>{{icon:memory}}<h3>A memory you can search.</h3><p>An Obsidian vault holds the archive, and a local git repository holds what it learns. BM25 search, with optional local embeddings, helps it recall earlier conversations.</p></li>
+        <li>{{icon:coding}}<h3>Coding with an undo.</h3><p><code>urfael code "&lt;task&gt;"</code> adds per-project context and checkpoints your working tree. <code>urfael rewind</code> puts a checkpoint back.</p></li>
+        <li>{{icon:automation}}<h3>Reminders, jobs and chat.</h3><p>Set reminders and scheduled jobs, and connect optional chat bridges. Messages that arrive from elsewhere are allowlisted and use a restricted profile by default.</p></li>
+        <li>{{icon:integrations}}<h3>Room to grow, carefully.</h3><p>MCP connectors and plugins extend what it can do on your own local turns. Review their permissions and code before you turn them on.</p></li>
+      </ul>
       <figure class="shot">
-        <img src="/media/console.png" alt="Urfael Console with chat, voice input, reminders, jobs, and settings" width="2640" height="1730" loading="lazy" decoding="async">
+        <img src="/media/console-mono.png" alt="Urfael Console with chat, voice input, reminders, jobs, and settings" width="2640" height="1730" loading="lazy" decoding="async">
         <figcaption><span class="shot__title">The Urfael Console.</span> Ask things like “What did we discuss yesterday?” or “Remind me to stretch in 45 minutes.”</figcaption>
       </figure>
     </div>

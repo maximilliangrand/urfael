@@ -63,6 +63,6 @@ export const ABOUT: Record<IconName, { page: string; card: string; shows: string
   call: { page: '/uru', card: 'Uru is not an emergency service. (the callout)', shows: 'A rotary telephone with its handset on the cradle; the handset is the accent. Deliberately not a cross.' },
   tests: { page: '/assistant', card: 'Tests you can run yourself', shows: 'A multimeter with leads and probes; the selector knob is the accent.' },
   install: { page: '/assistant', card: 'Install', shows: 'An opened box with its flaps folded out, its contents lifting free; the contents are the accent.' },
-  research: { page: '/uru', card: 'Where we are. Also: the "Research stage" status.', shows: 'A banding wheel with a clay study of Uru on it and a modelling tool; the study is the accent.' },
+  research: { page: '/uru', card: 'Where we are. Also: the "Research stage" status.', shows: 'A banding wheel with a sculpted study of Uru on it and a modelling tool; the study is the accent.' },
   follow: { page: '/ and /uru', card: 'Follow along. Also: Come along for the build.', shows: 'A mailbox on its post with the flag up; the flag is the accent.' },
 };

@@ -15,7 +15,7 @@
  *
  *   .ink    the drawing's one dark solid: a screen, a face window. Filled and
  *           stroked with --hairline-ink, unless .hi or .sil gives it a stroke.
- *   .warm   a mark in the accent, filled, for what sits on the ink: eyes.
+ *   .warm   a mark filled in the light, for what sits on the ink: eyes.
  *   .blush  the same, softer: cheeks.
  *   .trace  a line that draws itself in once on `.go` (the path needs
  *           pathLength="1000"); stage's `replay` runs it again.
@@ -26,13 +26,14 @@
  * transitions or draws in: every change lands at once and traces stand drawn.
  */
 
+// Urfael's palettes are black, white and neutral greys only: the eyes are white on the face window, the cheeks grey.
 const LIGHT = {
-  plate: "#ffffff", hi: "#232327", edge: "#a4a4ac", mid: "#c3c3c9", lo: "#e0e0e4",
-  ink: "#232327", warm: "#f59a57", blush: "#b36f4a",
+  plate: "#ffffff", hi: "#0a0a0a", edge: "#949494", mid: "#c4c4c4", lo: "#e3e3e3",
+  ink: "#0e0e0f", warm: "#ffffff", blush: "#646464",
 };
 const DARK = {
-  plate: "#08090a", hi: "#d0d6e0", edge: "#5b5d64", mid: "#3e3e44", lo: "#29292d",
-  ink: "#020203", warm: "#f59a57", blush: "#b36f4a",
+  plate: "#000000", hi: "#ffffff", edge: "#8c8c8c", mid: "#4d4d4d", lo: "#262626",
+  ink: "#1c1c1c", warm: "#ffffff", blush: "#6e6e6e",
 };
 const KEYS = ["plate", "hi", "edge", "mid", "lo", "ink", "warm", "blush"] as const;
 type Palette = Record<(typeof KEYS)[number], string>;

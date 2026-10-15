@@ -7,12 +7,14 @@
   "ogTitle": "Meet {{robot}}, the friendly helper we’re building",
   "nav": "uru",
   "figures": true,
+  "iconsCss": true,
   "faqSchema": true
 }
 -->
   <section class="hero hero--uru">
-    <div class="wrap hero__grid">
-      <div class="hero__copy">
+    <div class="wrap">
+      <div class="cells cells--2 hero__grid">
+      <div class="cell hero__copy">
         <p class="eyebrow">{{ROBOT}} · Research stage</p>
         <h1 class="h1--long">Meet {{ROBOT}}, a friendly helper we’re building for the home.</h1>
         <p class="lede">{{ROBOT}} is a soft, rounded robot we want to build to keep people company and lend a hand at home. Today it’s a research project, not a product, and it is not a medical device. This page is where we share what we’re making and why.</p>
@@ -21,13 +23,14 @@
           <a class="btn btn--quiet" href="#why">Why we’re building it</a>
         </div>
       </div>
-      <figure class="plate hero__plate" data-figure="uru-faces" data-fig="1" data-size="hero">
+      <figure class="plate plate--cell hero__plate" data-figure="uru-faces" data-fig="1" data-size="hero">
         <figcaption class="plate-cap plate-cap--hello">
           <button class="hello-btn" type="button" data-say-hello="uru-faces" aria-describedby="hello-line">Say hello</button>
           <span class="bubble bubble--left" id="hello-line" aria-live="polite" data-hello-bubble>Hi! I’m {{ROBOT}}.</span>
           <span class="plate-cap__note">Concept drawing. {{ROBOT}}’s look will change as we learn.</span>
         </figcaption>
       </figure>
+      </div>
       <ol hidden data-hello-lines>
         <li>Hi! I’m {{ROBOT}}.</li>
         <li>I’m still in the workshop. Thanks for stopping by.</li>
@@ -70,7 +73,7 @@
     </div>
   </section>
 
-  <section class="section band-oat" aria-labelledby="goals">
+  <section class="section band-night" aria-labelledby="goals">
     <div class="wrap">
       <div class="head">
         <h2 id="goals">What we want {{ROBOT}} to be</h2>
@@ -80,14 +83,14 @@
         <figure class="plate goals__plate" data-figure="uru-study" data-fig="2">
           <figcaption class="plate-cap"><span>Illustration only, not a design. {{ROBOT}} isn’t built yet, and how it’s made will change as we learn.</span></figcaption>
         </figure>
-        <div class="sheet goals__list">
+        <div class="sheet goals__list u-icon-night">
           <div class="sheet__in">
             <ul class="ledger">
-              <li>{{icon:good-company}}<h3>Good company.</h3><p>Something to say good morning to. {{ROBOT}} should listen, chat and remember the things you’ve chosen to tell it.</p></li>
-              <li>{{icon:gentle-nudge}}<h3>A gentle nudge.</h3><p>Friendly reminders for the routines you set yourself: a walk, a phone call, a glass of water.</p></li>
-              <li>{{icon:bridge-to-your-people}}<h3>A bridge to your people.</h3><p>An easy way to reach family, friends or a carer when you’d like to.</p></li>
-              <li>{{icon:soft-presence}}<h3>A soft presence.</h3><p>Rounded, light and quiet. Made to be easy to be around, not to look like a machine.</p></li>
-              <li>{{icon:on-your-side}}<h3>Your helper, not ours.</h3><p>{{ROBOT}} should work for the people it lives with, just like our assistant does.</p></li>
+              <li>{{icon-inline:good-company}}<h3>Good company.</h3><p>Something to say good morning to. {{ROBOT}} should listen, chat and remember the things you’ve chosen to tell it.</p></li>
+              <li>{{icon-inline:gentle-nudge}}<h3>A gentle nudge.</h3><p>Friendly reminders for the routines you set yourself: a walk, a phone call, a glass of water.</p></li>
+              <li>{{icon-inline:bridge-to-your-people}}<h3>A bridge to your people.</h3><p>An easy way to reach family, friends or a carer when you’d like to.</p></li>
+              <li>{{icon-inline:soft-presence}}<h3>A soft presence.</h3><p>Rounded, light and quiet. Made to be easy to be around, not to look like a machine.</p></li>
+              <li>{{icon-inline:on-your-side}}<h3>Your helper, not ours.</h3><p>{{ROBOT}} should work for the people it lives with, just like our assistant does.</p></li>
             </ul>
           </div>
         </div>

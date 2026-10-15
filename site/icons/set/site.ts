@@ -93,7 +93,7 @@ export const install: IconDraw = (k) => {
 };
 
 /**
- * Where Uru is today, the research stage: a sculptor's banding wheel with a clay study of Uru on it and a
+ * Where Uru is today, the research stage: a sculptor's banding wheel with a sculpted study of Uru on it and a
  * modelling tool laid by; the study is the accent.
  */
 export const research: IconDraw = (k) => {

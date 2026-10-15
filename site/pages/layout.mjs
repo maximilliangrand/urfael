@@ -35,7 +35,7 @@ export function head(page, robot) {
     '<link rel="icon" type="image/svg+xml" href="/media/favicon.svg">',
     '<link rel="apple-touch-icon" sizes="180x180" href="/media/apple-touch-icon.png">',
     '<link rel="manifest" href="/site.webmanifest">',
-    '<meta name="theme-color" content="#fbf4ea">',
+    '<meta name="theme-color" content="#ffffff">',
     `<meta property="og:type" content="${page.ogType ?? 'website'}">`,
     '<meta property="og:site_name" content="Urfael">',
     '<meta property="og:locale" content="en_US">',
@@ -50,9 +50,9 @@ export function head(page, robot) {
     `<meta name="twitter:title" content="${esc(ogTitle)}">`,
     `<meta name="twitter:description" content="${esc(ogDescription)}">`,
     `<meta name="twitter:image" content="${OG_IMAGE.src}">`,
+    '<link rel="preload" href="/assets/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>',
+    '<link rel="preload" href="/assets/fonts/geist-mono-latin.woff2" as="font" type="font/woff2" crossorigin>',
     '<link rel="preload" href="/assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>',
-    '<link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>',
-    '<link rel="preload" href="/assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>',
     '<link rel="stylesheet" href="/assets/site.css">',
     page.figures ? '<link rel="stylesheet" href="/assets/plate.css">' : '',
     page.iconsCss ? '<link rel="stylesheet" href="/assets/icons/icons.css">' : '',
@@ -123,7 +123,8 @@ ${group('hello', 'Say hello', [[GITHUB, 'GitHub'], [`mailto:${EMAIL}?subject=Hel
 </footer>`
 }
 
-/** A whole page: `body` is the inside of <main>. */
+/** A whole page: `body` is the inside of <main>. A page with its own main class (the legal documents) sits in a
+ * band that draws the page's guides, outside <main>, so the verbatim body still ends exactly at </main>. */
 export function document(page, body, robot, name) {
   const mainClass = page.mainClass ? ` class="${page.mainClass}"` : ''
   return `<!DOCTYPE html>
@@ -134,7 +135,7 @@ ${head(page, robot)}
 </head>
 <body>
 ${header(page.nav, name)}
-<main id="main"${mainClass}>${body}</main>
+${page.mainClass ? '<div class="doc-band">' : ''}<main id="main"${mainClass}>${body}</main>${page.mainClass ? '</div>' : ''}
 ${footer(name)}
 </body>
 </html>

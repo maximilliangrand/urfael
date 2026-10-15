@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 110" width="380" height="110">
   <!-- U R F A E L in Elder Futhark: Uruz, Raido, Fehu, Ansuz, Ehwaz, Laguz (public domain) -->
-  <g stroke="#d4a85a" stroke-width="6" stroke-linecap="butt" stroke-linejoin="miter" fill="none">
+  <g stroke="#0e0e0f" stroke-width="6" stroke-linecap="butt" stroke-linejoin="miter" fill="none">
     <!-- ᚢ Uruz -->
     <g transform="translate(10,0)"><path d="M15 10 L15 100"/><path d="M15 10 L45 32"/><path d="M45 32 L45 100"/></g>
     <!-- ᚱ Raido -->

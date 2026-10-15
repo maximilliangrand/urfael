@@ -31,22 +31,22 @@ const themes = join(ICON_DIR, '..', '..', 'docs', 'assets', 'icons', 'icons.css'
 const iconCss = existsSync(themes) ? readFileSync(themes, 'utf8') : ''
 
 const page = `<!doctype html><html><head><meta charset="utf-8"><style>
-body{margin:0;padding:24px;background:#fbf4ea;font:12px ui-monospace,monospace;color:#665446}
+body{margin:0;padding:24px;background:#ffffff;font:12px ui-monospace,monospace;color:#6b6b6b}
 .sheet{display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:16px}
-figure{margin:0;padding:14px 16px 10px;border:1px solid #e7d9c5;border-radius:6px}
-figure.paper{background:#fffdf9}
-figure.oat{background:#fbf4ea}
-figure.night{background:#1a140f;border-color:#1a140f;color:#c3baae}
+figure{margin:0;padding:14px 16px 10px;border:1px solid #e6e6e6;border-radius:6px}
+figure.paper{background:#ffffff}
+figure.oat{background:#fafafa}
+figure.night{background:#000000;border-color:#000000;color:#b3b3b3}
 .row{display:flex;align-items:end;gap:22px}
 figcaption{margin-top:6px}
-h2{font:600 13px ui-monospace,monospace;color:#2b211a;margin:24px 0 10px}
+h2{font:600 13px ui-monospace,monospace;color:#0a0a0a;margin:24px 0 10px}
 ${iconCss}
 </style></head><body>
-<h2>On the paper card (#fffdf9): compact 28 and 56, full 96 and 192</h2>
+<h2>On white (#ffffff): compact 28 and 56, full 96 and 192</h2>
 <div class="sheet">${names.map((n) => cell(n, 'paper')).join('')}</div>
-${zoom ? '' : `<h2>On the oat page (#fbf4ea): .u-icon-oat from icons.css</h2>
+${zoom ? '' : `<h2>On the wash band (#fafafa): .u-icon-oat from icons.css</h2>
 <div class="sheet">${names.map((n) => cell(n, 'oat u-icon-oat')).join('')}</div>
-<h2>On the night band (#1a140f): .u-icon-night from icons.css</h2>
+<h2>On the night band (#000000): .u-icon-night from icons.css</h2>
 <div class="sheet">${names.map((n) => cell(n, 'night u-icon-night')).join('')}</div>`}
 </body></html>`
 

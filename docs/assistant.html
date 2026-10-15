@@ -31,7 +31,7 @@
 <link rel="icon" type="image/svg+xml" href="/media/favicon.svg">
 <link rel="apple-touch-icon" sizes="180x180" href="/media/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#fbf4ea">
+<meta name="theme-color" content="#ffffff">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Urfael">
 <meta property="og:locale" content="en_US">
@@ -46,9 +46,9 @@
 <meta name="twitter:title" content="Urfael Assistant: your own AI, on your own machine">
 <meta name="twitter:description" content="A free, open-source (MIT) personal AI you run on your own machine: local voice, a desktop console, searchable memory, coding checkpoints and reminders.">
 <meta name="twitter:image" content="https://urfael.com/media/og-urfael.png">
+<link rel="preload" href="/assets/fonts/geist-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/geist-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonts/atkinson-next-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/site.css">
 <link rel="stylesheet" href="/assets/plate.css">
 <link rel="stylesheet" href="/assets/icons/icons.css">
@@ -75,8 +75,9 @@
 </header>
 <main id="main">
   <section class="hero hero--assistant">
-    <div class="wrap hero__grid">
-      <div class="hero__copy">
+    <div class="wrap">
+      <div class="cells cells--2 hero__grid">
+      <div class="cell hero__copy">
         <p class="eyebrow">Urfael Assistant · Free and open source (MIT)</p>
         <h1 class="h1--long">Your own assistant, on your own machine.</h1>
         <p class="lede">Urfael Assistant is a personal AI you run on your own computer, with local voice, a desktop console and a searchable archive.</p>
@@ -88,31 +89,28 @@
         </div>
         <p class="micro">macOS first. Linux is newer. Native Windows is in beta.</p>
       </div>
-      <figure class="plate hero__plate" data-figure="assistant-desk" data-fig="1" data-size="sheet">
+      <figure class="plate plate--cell hero__plate" data-figure="assistant-desk" data-fig="1" data-size="sheet">
         <figcaption class="plate-cap"><span>The assistant’s parts, drawn as a desk. Point at a part, or focus the drawing and use the arrow keys.</span></figcaption>
       </figure>
+      </div>
     </div>
   </section>
 
-  <section class="section section--tight" id="features" aria-labelledby="features-h">
+  <section class="section rule-top" id="features" aria-labelledby="features-h">
     <div class="wrap">
       <div class="head">
         <h2 id="features-h">What it does</h2>
       </div>
-      <div class="sheet">
-        <div class="sheet__in">
-          <ul class="ledger ledger--two">
-            <li><img class="icon" src="/assets/icons/voice.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Local voice.</h3><p>Hold to talk, or set up an optional wake word. whisper.cpp turns your voice into text, and macOS <code>say</code> or Linux <code>espeak-ng</code> speaks the reply. Other voice backends are opt-in.</p></li>
-            <li><img class="icon" src="/assets/icons/console.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>One assistant, several doors.</h3><p>The Console, a small orb HUD, the terminal and a full-screen TUI all talk to the same daemon. An optional web dashboard and an OpenAI-compatible API are there if you want them.</p></li>
-            <li><img class="icon" src="/assets/icons/memory.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>A memory you can search.</h3><p>An Obsidian vault holds the archive, and a local git repository holds what it learns. BM25 search, with optional local embeddings, helps it recall earlier conversations.</p></li>
-            <li><img class="icon" src="/assets/icons/coding.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Coding with an undo.</h3><p><code>urfael code "&lt;task&gt;"</code> adds per-project context and checkpoints your working tree. <code>urfael rewind</code> puts a checkpoint back.</p></li>
-            <li><img class="icon" src="/assets/icons/automation.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Reminders, jobs and chat.</h3><p>Set reminders and scheduled jobs, and connect optional chat bridges. Messages that arrive from elsewhere are allowlisted and use a restricted profile by default.</p></li>
-            <li><img class="icon" src="/assets/icons/integrations.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Room to grow, carefully.</h3><p>MCP connectors and plugins extend what it can do on your own local turns. Review their permissions and code before you turn them on.</p></li>
-          </ul>
-        </div>
-      </div>
+      <ul class="grid-cells">
+        <li><img class="icon" src="/assets/icons/voice.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Local voice.</h3><p>Hold to talk, or set up an optional wake word. whisper.cpp turns your voice into text, and macOS <code>say</code> or Linux <code>espeak-ng</code> speaks the reply. Other voice backends are opt-in.</p></li>
+        <li><img class="icon" src="/assets/icons/console.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>One assistant, several doors.</h3><p>The Console, a small orb HUD, the terminal and a full-screen TUI all talk to the same daemon. An optional web dashboard and an OpenAI-compatible API are there if you want them.</p></li>
+        <li><img class="icon" src="/assets/icons/memory.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>A memory you can search.</h3><p>An Obsidian vault holds the archive, and a local git repository holds what it learns. BM25 search, with optional local embeddings, helps it recall earlier conversations.</p></li>
+        <li><img class="icon" src="/assets/icons/coding.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Coding with an undo.</h3><p><code>urfael code "&lt;task&gt;"</code> adds per-project context and checkpoints your working tree. <code>urfael rewind</code> puts a checkpoint back.</p></li>
+        <li><img class="icon" src="/assets/icons/automation.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Reminders, jobs and chat.</h3><p>Set reminders and scheduled jobs, and connect optional chat bridges. Messages that arrive from elsewhere are allowlisted and use a restricted profile by default.</p></li>
+        <li><img class="icon" src="/assets/icons/integrations.svg" alt="" width="96" height="96" loading="lazy" decoding="async"><h3>Room to grow, carefully.</h3><p>MCP connectors and plugins extend what it can do on your own local turns. Review their permissions and code before you turn them on.</p></li>
+      </ul>
       <figure class="shot">
-        <img src="/media/console.png" alt="Urfael Console with chat, voice input, reminders, jobs, and settings" width="2640" height="1730" loading="lazy" decoding="async">
+        <img src="/media/console-mono.png" alt="Urfael Console with chat, voice input, reminders, jobs, and settings" width="2640" height="1730" loading="lazy" decoding="async">
         <figcaption><span class="shot__title">The Urfael Console.</span> Ask things like “What did we discuss yesterday?” or “Remind me to stretch in 45 minutes.”</figcaption>
       </figure>
     </div>
@@ -238,7 +236,7 @@
   <section class="section band-night" id="install" aria-labelledby="install-h">
     <div class="wrap install">
       <div class="install__text">
-        <div class="install__icon u-icon-night"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-9.13 -10.85 19.55 19.55" width="96" height="96" class="u-icon u-icon--full" fill="#fffdf9" stroke="#6c645d" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" data-icon="install" aria-hidden="true" focusable="false"><path d="M.11-4.8l1.12-3.64.11 0 6.86 3.43-1.12 3.65-.11-.01z" vector-effect="non-scaling-stroke"/><path d="M-6.73-5.53l5.44-2.72.12-.01 1.06 3.46-5.44 2.73-.12 0z" vector-effect="non-scaling-stroke"/><path d="M-5.51-2.02l.02-.07.08-.06 5.16-2.58.12-.03.13-.02.13.02.12.03 6.57 3.29.08.06.03.07 0 4.85-.03.06-.08.06-5.16 2.58-.11.04-.14.01-.13-.01-.11-.04-6.58-3.29-.08-.05-.02-.07z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#aba7a0" stroke-width="0.8" fill="none" d="M6.64-1.31l-.03.05-.06.05-4.92 2.46-.1.04-.12.01-.11-.01-.1-.04-6.33-3.17-.07-.04-.02-.06M1.59 1.21l-.08.03-.1.01-.09-.01-.08-.03-6.3-3.14-.05-.04-.02-.05.02-.05.05-.04 4.88-2.44.08-.03.1-.01.1.01.08.03 6.29 3.15.05.04.02.05-.02.04-.05.04zM-2.12-.08l0 1.39M-2.97 1.92l-.04-.14-.05-.06-.05-.04-1.56-.78-.05-.02-.05.02-.03.04-.01.06 0 1.04.04.14.05.06.05.04 1.56.78.05.02.05-.02.03-.04.01-.06zM2.26 4.03l.04-.14.05-.06.05-.04 1.28-.64.05-.01.05.01.03.05.01.06-.01.59-.08.13-.05.04-1.28.64-.05.01-.05-.01-.03-.05-.01-.06z" vector-effect="non-scaling-stroke"/><path class="ui-s-a ui-f-g" stroke="#9e3f17" d="M-1.92-4.37l.08-.19.21-.17 1.35-.67.32-.11.38-.03.39.03.32.11 1.84.92.22.16.07.2 0 3.19-.07.2-.22.16-1.34.67-.33.11-.38.04-.38-.04-.33-.11-1.84-.92-.21-.16-.08-.19z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#aba7a0" stroke-width="0.8" fill="none" d="M2.86-4.12l-.04.11-.13.1-1.35.67-.19.06-.23.03-.23-.03-.2-.06-1.83-.92-.13-.1-.05-.11M.14-1.75l-.03-.21-.09-.22-.14-.18-.16-.12-.85-.42-.16-.05-.14.05-.09.12-.04.18.04.22.09.21.14.18.16.12.85.43.16.04.14-.04.09-.13z" vector-effect="non-scaling-stroke"/><path d="M1.52 1.46l5.45-2.72 2.35-.23.05.17-5.44 2.72-2.35.23z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#aba7a0" stroke-width="0.8" fill="none" d="M4.37.09l2.1-.21" vector-effect="non-scaling-stroke"/><path d="M-8.09-2.04l.06-.17 2.48.24 6.86 3.43-.06.17-2.48-.24z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#aba7a0" stroke-width="0.8" fill="none" d="M-2.25-.27l-2.22-.21" vector-effect="non-scaling-stroke"/></svg></div>
+        <div class="install__icon u-icon-night"><svg xmlns="http://www.w3.org/2000/svg" viewBox="-9.13 -10.85 19.55 19.55" width="96" height="96" class="u-icon u-icon--full" fill="#ffffff" stroke="#666666" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" data-icon="install" aria-hidden="true" focusable="false"><path d="M.11-4.8l1.12-3.64.11 0 6.86 3.43-1.12 3.65-.11-.01z" vector-effect="non-scaling-stroke"/><path d="M-6.73-5.53l5.44-2.72.12-.01 1.06 3.46-5.44 2.73-.12 0z" vector-effect="non-scaling-stroke"/><path d="M-5.51-2.02l.02-.07.08-.06 5.16-2.58.12-.03.13-.02.13.02.12.03 6.57 3.29.08.06.03.07 0 4.85-.03.06-.08.06-5.16 2.58-.11.04-.14.01-.13-.01-.11-.04-6.58-3.29-.08-.05-.02-.07z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#ababab" stroke-width="0.8" fill="none" d="M6.64-1.31l-.03.05-.06.05-4.92 2.46-.1.04-.12.01-.11-.01-.1-.04-6.33-3.17-.07-.04-.02-.06M1.59 1.21l-.08.03-.1.01-.09-.01-.08-.03-6.3-3.14-.05-.04-.02-.05.02-.05.05-.04 4.88-2.44.08-.03.1-.01.1.01.08.03 6.29 3.15.05.04.02.05-.02.04-.05.04zM-2.12-.08l0 1.39M-2.97 1.92l-.04-.14-.05-.06-.05-.04-1.56-.78-.05-.02-.05.02-.03.04-.01.06 0 1.04.04.14.05.06.05.04 1.56.78.05.02.05-.02.03-.04.01-.06zM2.26 4.03l.04-.14.05-.06.05-.04 1.28-.64.05-.01.05.01.03.05.01.06-.01.59-.08.13-.05.04-1.28.64-.05.01-.05-.01-.03-.05-.01-.06z" vector-effect="non-scaling-stroke"/><path class="ui-s-a ui-f-g" stroke="#0a0a0a" d="M-1.92-4.37l.08-.19.21-.17 1.35-.67.32-.11.38-.03.39.03.32.11 1.84.92.22.16.07.2 0 3.19-.07.2-.22.16-1.34.67-.33.11-.38.04-.38-.04-.33-.11-1.84-.92-.21-.16-.08-.19z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#ababab" stroke-width="0.8" fill="none" d="M2.86-4.12l-.04.11-.13.1-1.35.67-.19.06-.23.03-.23-.03-.2-.06-1.83-.92-.13-.1-.05-.11M.14-1.75l-.03-.21-.09-.22-.14-.18-.16-.12-.85-.42-.16-.05-.14.05-.09.12-.04.18.04.22.09.21.14.18.16.12.85.43.16.04.14-.04.09-.13z" vector-effect="non-scaling-stroke"/><path d="M1.52 1.46l5.45-2.72 2.35-.23.05.17-5.44 2.72-2.35.23z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#ababab" stroke-width="0.8" fill="none" d="M4.37.09l2.1-.21" vector-effect="non-scaling-stroke"/><path d="M-8.09-2.04l.06-.17 2.48.24 6.86 3.43-.06.17-2.48-.24z" vector-effect="non-scaling-stroke"/><path class="ui-s-l" stroke="#ababab" stroke-width="0.8" fill="none" d="M-2.25-.27l-2.22-.21" vector-effect="non-scaling-stroke"/></svg></div>
         <h2 id="install-h">Install</h2>
         <div class="prose">
           <p>macOS is the main development platform. Linux is newer, and native Windows support is in beta. You’ll need Node.js 20 or later and a model backend. The default is an installed, signed-in Claude Code CLI. Voice and vault integration need a few extra pieces, which are listed in the setup guide.</p>

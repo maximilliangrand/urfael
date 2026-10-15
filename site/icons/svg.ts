@@ -17,13 +17,14 @@ import { ICONS, type IconName } from './index';
 export type Variant = 'full' | 'compact';
 
 /**
- * The light palette: the ink mixed into the paper in oklch (66, 50 and 36% for the full variant; 72, 54
- * and 40% for the compact one, which is drawn smaller), clay as the one bright stroke (6.5:1 on the paper),
- * and Uru's face: ink, apricot eyes (7.2:1 on the ink) and the blush. site/icons/build.mjs checks the ratios.
+ * The light palette, black, white and neutral greys only: three greys for the hairlines (darker for the
+ * compact variant, which is drawn smaller), pure ink as the one bright stroke (19.8:1 on the white), and
+ * Uru's face: the mark's black, white dome eyes on it (19.6:1) and grey cheeks. site/icons/build.mjs checks
+ * the ratios.
  */
 export const PALETTE: Record<Variant, Record<Tone | 'ground', string>> = {
-  full: { ground: '#fffdf9', edge: '#6c645d', mid: '#8d8780', lo: '#aba7a0', accent: '#9e3f17', ink: '#2b211a', warm: '#f59a57', blush: '#a26940' },
-  compact: { ground: '#fffdf9', edge: '#605750', mid: '#857e77', lo: '#a39e97', accent: '#9e3f17', ink: '#2b211a', warm: '#f59a57', blush: '#a26940' },
+  full: { ground: '#ffffff', edge: '#666666', mid: '#8a8a8a', lo: '#ababab', accent: '#0a0a0a', ink: '#0e0e0f', warm: '#ffffff', blush: '#646464' },
+  compact: { ground: '#ffffff', edge: '#5c5c5c', mid: '#808080', lo: '#a3a3a3', accent: '#0a0a0a', ink: '#0e0e0f', warm: '#ffffff', blush: '#646464' },
 };
 
 /** Stroke widths in CSS pixels: the line, and the dim crease. */
