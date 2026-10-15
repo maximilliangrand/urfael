@@ -763,6 +763,14 @@ a:hover .arr { transform: translateX(3px); }
 .open__title .icon { display: block; width: 5rem; height: 5rem; margin-left: -0.25rem; }
 .open__body { display: flex; flex-direction: column; gap: 1.75rem; }
 .open__body p { font-size: var(--fs-lede); line-height: 1.55; color: var(--ink-2); max-width: 36rem; }
+/* stacked on a phone, the two cells read as one block: the icon goes above the heading, as in Install, and the
+   text follows the heading with no rule between */
+@media (max-width: 55.99rem) {
+  .open__title { gap: 1.5rem; }
+  .open__title .icon { order: -1; }
+  .open > .cell:first-child { padding-bottom: 1.25rem; }
+  .open > .cell + .cell { border-top: 0; padding-top: 0; }
+}
 
 /* the closing call: the page's last word, on the night band */
 .cta { padding-block: clamp(5rem, 3rem + 7vw, 10rem); }
