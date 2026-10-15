@@ -469,7 +469,9 @@ main:has(> .hero) > .section::before {
   text-decoration-color: transparent;
 }
 .link-arrow:hover { text-decoration-color: currentColor; }
-.arr { display: inline-block; margin-left: 0.3em; transition: transform 200ms var(--ease); }
+/* the arrow follows its last word with no space between, so an underline ends on the last letter and the arrow
+   never wraps alone; its margin is the space it replaces */
+.arr { display: inline-block; margin-left: 0.55em; transition: transform 200ms var(--ease); }
 a:hover .arr { transform: translateX(3px); }
 .micro { font-size: 0.875rem; line-height: 1.55; color: var(--muted); max-width: 34rem; }
 .chip {
