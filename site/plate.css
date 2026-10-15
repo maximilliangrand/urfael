@@ -1,7 +1,8 @@
 /* ---------- figure plates: the hairline figures in their instrument plates ----------
    Ported from MYG's .of-fig (myg-media-v3 src/styles/offer.css), in Urfael's black and white: a white plate,
    neutral grey hairlines, pure ink as the one bright stroke, and on the night band the same drawing in white
-   linework on black. Uru's face window is the drawing's one dark solid, with white dome eyes and grey cheeks.
+   linework on black, where Uru's body is a white solid. Uru's face window is the drawing's one dark solid, with
+   white dome eyes and grey cheeks, and nothing between the eyes.
    No hue anywhere, and no light: no glow, no filter. site/plate.ts builds the markup from
    <figure class="plate" data-figure="name" data-fig="1">, and the build puts one rule per registered figure
    above this, `.plate[data-figure="name"] { --fig-ratio: … }`, so a plate holds its height before the script runs.
@@ -45,8 +46,8 @@
   --hairline-edge: #949494;
   --hairline-mid: #c4c4c4;
   --hairline-lo: #e3e3e3;
-  /* the one dark solid, the face window, in the mark's black; white dome eyes on it, 19.6:1, and grey cheeks, 3.4:1 */
-  --hairline-ink: #0e0e0f;
+  /* the one dark solid, the face window, in the page's black; white dome eyes on it, 19.8:1, and grey cheeks, 3.3:1 */
+  --hairline-ink: #0a0a0a;
   --hairline-warm: #ffffff;
   --hairline-blush: #646464;
 }
@@ -126,10 +127,20 @@ a:is(:hover, :focus-visible) .plate--cell .plate__frame { background: none; }
   --hairline-edge: #8c8c8c;
   --hairline-mid: #4d4d4d;
   --hairline-lo: #262626;
-  /* the face window stays the drawing's one dark solid, a step above the black so it reads as a screen */
+  /* a screen stays the drawing's one dark solid, a step above the black so it reads as a screen */
   --hairline-ink: #1c1c1c;
   --hairline-warm: #ffffff;
   --hairline-blush: #6e6e6e;
+  /* Uru's body, the drawing's light part: a white solid in black line, with the page's black face window,
+     white dome eyes on it (19.8:1) and grey cheeks (3.3:1), so Uru is the one white figure in the room */
+  --hairline-light-plate: #ffffff;
+  --hairline-light-hi: #0a0a0a;
+  --hairline-light-edge: #8a8a8a;
+  --hairline-light-mid: #b4b4b4;
+  --hairline-light-lo: #dadada;
+  --hairline-light-ink: #0a0a0a;
+  --hairline-light-warm: #ffffff;
+  --hairline-light-blush: #646464;
 }
 .band-night .plate[data-size="sheet"] .plate__surface,
 .band-night .plate[data-size="hero"] .plate__surface { --hairline-edge: #a3a3a3; --hairline-mid: #5c5c5c; --hairline-lo: #2b2b2b; --hairline-stroke: 0.9; }

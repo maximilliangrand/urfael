@@ -20,6 +20,12 @@
  *   .trace  a line that draws itself in once on `.go` (the path needs
  *           pathLength="1000"); stage's `replay` runs it again.
  *
+ * A group inside the drawing may carry `data-hairline-theme="light"`: a part
+ * that is a light solid whatever the plate, as Uru's body is. It is painted in
+ * `--hairline-light-*` where the page sets them, so a dark plate can draw it
+ * white; where the page sets none it follows the figure's own `--hairline-*`,
+ * and only then the light palette, so on a light plate it is drawn like the rest.
+ *
  * `--hl-delay` on an element delays its stroke or fill change and its trace,
  * so stage's `wave` can stagger a switch along a row without a tick. Traces
  * pause while the stage is offscreen, and under reduced motion nothing
@@ -29,7 +35,7 @@
 // Urfael's palettes are black, white and neutral greys only: the eyes are white on the face window, the cheeks grey.
 const LIGHT = {
   plate: "#ffffff", hi: "#0a0a0a", edge: "#949494", mid: "#c4c4c4", lo: "#e3e3e3",
-  ink: "#0e0e0f", warm: "#ffffff", blush: "#646464",
+  ink: "#0a0a0a", warm: "#ffffff", blush: "#646464",
 };
 const DARK = {
   plate: "#000000", hi: "#ffffff", edge: "#8c8c8c", mid: "#4d4d4d", lo: "#262626",
@@ -39,6 +45,8 @@ const KEYS = ["plate", "hi", "edge", "mid", "lo", "ink", "warm", "blush"] as con
 type Palette = Record<(typeof KEYS)[number], string>;
 
 const vars = (p: Palette) => KEYS.map((k) => `--hl-${k}:var(--hairline-${k},${p[k]});`).join("");
+/** A light part's palette: the page's light-part theme, else the figure's theme, else the light palette. */
+const lightPart = KEYS.map((k) => `--hl-${k}:var(--hairline-light-${k},var(--hairline-${k},${LIGHT[k]}));`).join("");
 const EASE = "cubic-bezier(0.5,0,0.1,1)";
 /** A colour change: how long it takes, after its place in a wave. */
 const SWITCH = (prop: string) => `${prop} 260ms ${EASE} var(--hl-delay,0ms)`;
@@ -57,6 +65,8 @@ export function css(lightDark: boolean): string {
     // the figure's own theme option
     `:where([data-hairline][data-hairline-theme="light"]){${vars(LIGHT)}}`,
     `:where([data-hairline][data-hairline-theme="dark"]){${vars(DARK)}}`,
+    // a part of the drawing that is a light solid on any plate
+    `:where([data-hairline] g[data-hairline-theme="light"]){${lightPart}}`,
     `:where([data-hairline]:focus-visible){outline:1.5px solid var(--hl-hi);outline-offset:2px}`,
     `${SVG}{position:absolute;inset:0;width:100%;height:100%;display:block}`,
     // Riffle's live region: read, not seen

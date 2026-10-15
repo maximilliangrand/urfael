@@ -12,7 +12,10 @@ import { mk } from "../hairline/core/stage";
  * cuffs and a thumb; the lantern bead on its soft stalk, which lags the body a
  * little on a spring; and the face window, the drawing's one dark solid, with
  * two dome eyes and two blush cheeks, and nothing ever drawn between the eyes.
- * Everything but the window, the eyes and the cheeks is line work.
+ * Everything but the window, the eyes and the cheeks is line work. The body is
+ * a light part (data-hairline-theme="light"): on a light plate it is drawn like
+ * the room, and on a dark one the page can paint it as a white solid with the
+ * dark window, so Uru stays the friendly white figure in a room drawn in white line.
  *
  * Uru is drawn in its own frame (forward, left, up, in Uru units: its widest
  * radius is 8.8), turned, leaned and tilted about its foot, then scaled and
@@ -152,7 +155,7 @@ export function uru(P: Projector, C: Camera, parent: Element, o: UruOptions): Ur
   const s = o.s ?? 1, z0 = o.z ?? 0, S = C.S * s, zf = Math.sqrt(1 - C.k * C.k), V: Vec3 = [Math.sin(C.az) * zf, Math.cos(C.az) * zf, C.k];
   const g = mk("g", {}, parent), pth = (cls: string, into: Element) => mk("path", { class: cls, d: "" }, into);
   if (o.ground !== false) mk("path", { class: "nf lo", d: poly(circ(RMAX + 1.3, 64).map((q) => P(o.x + q.u * s, o.y + q.v * s, z0))) }, g);
-  const body = mk("g", {}, g), backArm = mk("g", {}, body);
+  const body = mk("g", { "data-hairline-theme": "light" }, g), backArm = mk("g", {}, body);
   const U = {
     body: pth("sil", body), seams: pth("nf dash", body), skirt: pth("sil", body), skirtLine: pth(o.skirt === false ? "nf dash" : "nf lo", body),
     band: pth("hi", body), rib: pth("nf lo", body), knot: pth("", body), tails: pth("nf lo", body),
