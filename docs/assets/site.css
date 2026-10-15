@@ -1052,6 +1052,8 @@ td { color: var(--ink-2); }
 /* ---------- legal pages: the documents as written, set on a reading column ---------- */
 
 .legal-doc {
+  /* inside the frame on a phone too, so the text starts where every other page's does */
+  width: var(--frame);
   max-width: calc(46rem + 2 * var(--pad));
   margin-inline: auto;
   padding: clamp(3rem, 2rem + 3vw, 5rem) var(--pad) clamp(4rem, 3rem + 3vw, 6rem);
