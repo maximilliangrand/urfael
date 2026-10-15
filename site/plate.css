@@ -52,6 +52,9 @@
   --hairline-blush: #646464;
 }
 .plate__stage { width: 100%; aspect-ratio: var(--fig-ratio, 1.25); }
+/* the drawing on its own layer: when a figure breathes or blinks only the drawing repaints, never the plate
+   or the page round it */
+.plate__stage > svg { will-change: transform; }
 /* the keyboard ring sits inside the stage: outside it, the surface's clip-path would cut its sides off */
 .plate__stage:focus-visible { outline: 2px solid var(--plate-ink); outline-offset: -3px; }
 
