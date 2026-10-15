@@ -5,7 +5,7 @@
 .u-icon { display: inline-block; flex: none; vertical-align: middle; overflow: visible; }
 
 /* on the wash band rather than white: the solids take the band's colour */
-:is(.u-icon-oat .u-icon, .u-icon.u-icon-oat), .u-icon-oat .ui-f-g { fill: #fafafa; }
+:is(.u-icon-wash .u-icon, .u-icon.u-icon-wash), .u-icon-wash .ui-f-g { fill: #fafafa; }
 
 /* on the night band */
 :is(.u-icon-night .u-icon, .u-icon.u-icon-night) { fill: #000000; stroke: #b3b3b3; }

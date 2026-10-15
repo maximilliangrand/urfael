@@ -123,7 +123,7 @@
   color: var(--ink);
   color-scheme: dark;
 }
-.band-oat { --paper: var(--wash); background: var(--wash); }
+.band-wash { --paper: var(--wash); background: var(--wash); }
 
 /* ---------- base ---------- */
 
@@ -245,10 +245,10 @@ main:has(> .hero) > .section::before {
   letter-spacing: 0.08em;
   color: var(--muted);
 }
-.rule-top, .band-night, .band-oat, .site-footer { border-top: 1px solid var(--line); }
+.rule-top, .band-night, .band-wash, .site-footer { border-top: 1px solid var(--line); }
 .band-night { border-top-color: var(--paper); }
 .band-night + :not(.band-night) { border-top-color: transparent; }
-.rule-top::after, .band-night::after, .band-oat::after, .site-footer::after, .status::after {
+.rule-top::after, .band-night::after, .band-wash::after, .site-footer::after, .status::after {
   content: "";
   position: absolute;
   z-index: 2;

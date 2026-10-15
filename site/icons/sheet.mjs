@@ -1,5 +1,5 @@
 // The icon contact sheet, for drawing and checking icons: every icon (or the ones named) at 28 and 56px
-// (compact) and 96 and 192px (full), on the paper card, on the oat page and on the night band (the last two
+// (compact) and 96 and 192px (full), on white, on the wash band and on the night band (the last two
 // through the generated icons.css), written as HTML and as PNGs at 1x and 2x. Nothing here ships.
 //
 //   node site/icons/sheet.mjs [name ...] [--out /tmp/urfael-icons] [--cols 3] [--zoom 360]
@@ -26,7 +26,7 @@ const names = (picked.length ? picked : Object.keys(ICONS)).filter((n) => n in I
 
 const sizes = (name) => zoom ? svg(name, 'full', zoom) : `${svg(name, 'compact', 28)}${svg(name, 'compact', 56)}${svg(name, 'full', 96)}${svg(name, 'full', 192)}`
 const cell = (name, ground) => `<figure class="${ground}"><div class="row">${sizes(name)}</div><figcaption>${name}</figcaption></figure>`
-// the generated stylesheet, so the oat and night rows test it (run build.mjs first)
+// the generated stylesheet, so the wash and night rows test it (run build.mjs first)
 const themes = join(ICON_DIR, '..', '..', 'docs', 'assets', 'icons', 'icons.css')
 const iconCss = existsSync(themes) ? readFileSync(themes, 'utf8') : ''
 
@@ -35,7 +35,7 @@ body{margin:0;padding:24px;background:#ffffff;font:12px ui-monospace,monospace;c
 .sheet{display:grid;grid-template-columns:repeat(${cols},minmax(0,1fr));gap:16px}
 figure{margin:0;padding:14px 16px 10px;border:1px solid #e6e6e6;border-radius:6px}
 figure.paper{background:#ffffff}
-figure.oat{background:#fafafa}
+figure.wash{background:#fafafa}
 figure.night{background:#000000;border-color:#000000;color:#b3b3b3}
 .row{display:flex;align-items:end;gap:22px}
 figcaption{margin-top:6px}
@@ -44,8 +44,8 @@ ${iconCss}
 </style></head><body>
 <h2>On white (#ffffff): compact 28 and 56, full 96 and 192</h2>
 <div class="sheet">${names.map((n) => cell(n, 'paper')).join('')}</div>
-${zoom ? '' : `<h2>On the wash band (#fafafa): .u-icon-oat from icons.css</h2>
-<div class="sheet">${names.map((n) => cell(n, 'oat u-icon-oat')).join('')}</div>
+${zoom ? '' : `<h2>On the wash band (#fafafa): .u-icon-wash from icons.css</h2>
+<div class="sheet">${names.map((n) => cell(n, 'wash u-icon-wash')).join('')}</div>
 <h2>On the night band (#000000): .u-icon-night from icons.css</h2>
 <div class="sheet">${names.map((n) => cell(n, 'night u-icon-night')).join('')}</div>`}
 </body></html>`

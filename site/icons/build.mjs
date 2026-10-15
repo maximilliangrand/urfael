@@ -38,17 +38,17 @@ function contrast(a, b) {
 /** The night band's palette: white linework on black, greys for the hairlines, white as the bright mark. */
 const NIGHT = { ground: '#000000', edge: '#b3b3b3', mid: '#808080', lo: '#4d4d4d', accent: '#ffffff', ink: '#1c1c1c', warm: '#ffffff', blush: '#6e6e6e' }
 /** The wash band, the page's quiet grey, for an icon that sits on it rather than on white. */
-const OAT = '#fafafa'
+const WASH = '#fafafa'
 
 const failures = []
 const check = (ok, message) => { if (!ok) failures.push(message) }
 /** A neutral grey: a #rrggbb whose red, green and blue are equal. */
 const grey = (hex) => /^#([0-9a-f]{2})\1\1$/i.test(hex)
-for (const [where, paint] of [...Object.entries(PALETTE), ['night', NIGHT], ['wash band', { ground: OAT }]]) {
+for (const [where, paint] of [...Object.entries(PALETTE), ['night', NIGHT], ['wash band', { ground: WASH }]]) {
   for (const [tone, hex] of Object.entries(paint)) check(grey(hex), `${where} ${tone} ${hex} is not a neutral grey`)
 }
 for (const [variant, paint] of Object.entries(PALETTE)) {
-  for (const ground of [paint.ground, OAT]) {
+  for (const ground of [paint.ground, WASH]) {
     check(contrast(paint.edge, ground) >= 4.5, `${variant} edge on ${ground}: ${contrast(paint.edge, ground).toFixed(2)}:1`)
     check(contrast(paint.accent, ground) >= 4.5, `${variant} accent on ${ground}: ${contrast(paint.accent, ground).toFixed(2)}:1`)
   }
@@ -64,7 +64,7 @@ const css = `/* Urfael icons: optional rules for icons pasted inline. Generated 
 .u-icon { display: inline-block; flex: none; vertical-align: middle; overflow: visible; }
 
 /* on the wash band rather than white: the solids take the band's colour */
-:is(.u-icon-oat .u-icon, .u-icon.u-icon-oat), .u-icon-oat .ui-f-g { fill: ${OAT}; }
+:is(.u-icon-wash .u-icon, .u-icon.u-icon-wash), .u-icon-wash .ui-f-g { fill: ${WASH}; }
 
 /* on the night band */
 :is(.u-icon-night .u-icon, .u-icon.u-icon-night) { fill: ${NIGHT.ground}; stroke: ${NIGHT.edge}; }
