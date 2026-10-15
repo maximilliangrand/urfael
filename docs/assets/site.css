@@ -675,11 +675,6 @@ a:hover .arr { transform: translateX(3px); }
   .ledger > li { grid-template-columns: 5rem minmax(0, 1fr); column-gap: 1.75rem; padding-block: 1.6rem; }
   .ledger :is(.icon, .u-icon) { width: 5rem; height: 5rem; }
 }
-@media (min-width: 56rem) {
-  .ledger--two { display: grid; grid-template-columns: 1fr 1fr; column-gap: 3.5rem; }
-  .ledger--two > li:nth-child(2) { border-top: 0; padding-top: 0.2rem; }
-  .ledger--two > li:nth-last-child(2):nth-child(odd) { padding-bottom: 0.2rem; }
-}
 
 /* a grid of cells: one line between every pair, drawn by the 1px gaps over the line colour, the outer edges on the guides */
 .grid-cells {
