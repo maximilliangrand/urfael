@@ -306,6 +306,7 @@ code {
 .site-nav { margin-left: auto; }
 .site-nav ul { display: flex; align-items: center; gap: 0.125rem; list-style: none; margin: 0; padding: 0; }
 .site-nav a {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.3em;
@@ -318,8 +319,18 @@ code {
   text-decoration: none;
   transition: color 160ms var(--ease), background-color 160ms var(--ease);
 }
-.site-nav a:hover { color: #0a0a0a; background: #f4f4f4; }
-.site-nav a[aria-current="page"] { color: #0a0a0a; background: #f0f0f0; }
+.site-nav a:hover { color: #0a0a0a; }
+/* the page you are on: its name in black, and a black rule over the header's own bottom line beneath it */
+.site-nav a[aria-current="page"] { color: #0a0a0a; }
+.site-nav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  right: 0.8rem;
+  bottom: calc((2.25rem - var(--nav-h)) / 2 - 0.5px);
+  height: 1px;
+  background: #0a0a0a;
+}
 .site-nav .ext { font-size: 0.85em; opacity: 0.7; }
 /* the last item, GitHub, is the header's one button */
 .site-nav li:last-child a { margin-left: 0.5rem; padding-inline: 0.95rem; background: #0a0a0a; color: #ffffff; }
@@ -374,6 +385,7 @@ code {
   .js .site-nav li + li { border-top: 1px solid #ededed; }
   .js .site-nav a { min-height: 3.25rem; padding: 0 0.25rem; border-radius: 0; font-size: 1.0625rem; color: #0a0a0a; background: none; }
   .js .site-nav a[aria-current="page"] { background: none; text-decoration: underline; text-decoration-color: #0a0a0a; text-underline-offset: 0.35em; }
+  .js .site-nav a[aria-current="page"]::after { display: none; }
   .js .site-nav li:last-child { border-top: 0; margin-top: 0.75rem; }
   .js .site-nav li:last-child a { justify-content: center; margin: 0; border-radius: var(--radius); }
 }
