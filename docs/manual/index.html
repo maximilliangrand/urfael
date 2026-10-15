@@ -6,32 +6,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0" />
   <meta name="description" content="The Urfael manual: install, quickstart, features, channels, security, and the full CLI reference for the security-first personal AI you run on your own machine." />
   <link rel="icon" href="../media/urfael-logo.svg" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify@4/themes/vue.css" />
+  <link rel="stylesheet" href="/assets/docsify-vue.css" />
   <style>
-    /* Urfael: gold on dark. Overrides docsify's vue theme to match the brand. */
-    :root {
-      --gold: #d8a657; --gold-soft: #e9c787; --bg: #0e0b07; --bg-soft: #161109; --ink: #e7ddca; --ink-dim: #a99a7c;
-      --theme-color: var(--gold);
-    }
-    body { background: var(--bg); color: var(--ink); }
-    .sidebar { background: var(--bg-soft); border-right: 1px solid #2a2114; }
-    .sidebar a, .app-name-link { color: var(--ink) !important; }
-    .sidebar-nav li.active > a, .sidebar a:hover { color: var(--gold) !important; }
+    /* Urfael: black and white, as on urfael.com. Geist and Geist Mono come from the site's own fonts, so no
+       visitor's address goes to a third party; /assets/docsify-vue.css is docsify's theme without its web fonts. */
+    @font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/assets/fonts/geist-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/assets/fonts/geist-latin-ext.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    @font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/assets/fonts/geist-arrows.woff2) format("woff2"); unicode-range: U+2190, U+2192, U+2197; }
+    @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/assets/fonts/geist-mono-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url(/assets/fonts/geist-mono-latin-ext.woff2) format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    :root { --theme-color: #0a0a0a; --ink: #0a0a0a; --ink-2: #454545; --muted: #6b6b6b; --line: #e6e6e6; --line-2: #cfcfcf; --wash: #fafafa; --fill: #f4f4f4; }
+    body { background: #ffffff; color: var(--ink-2); }
+    ::selection { background: #0a0a0a; color: #ffffff; }
+    :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+    .progress { background-color: var(--ink) !important; }
+    /* the sidebar */
+    .sidebar { background: var(--wash); border-right: 1px solid var(--line); }
+    .sidebar a, .sidebar li, .app-name-link, .app-nav a { color: var(--ink-2) !important; }
     .sidebar-nav > ul > li > a { font-weight: 600; }
-    .markdown-section a { color: var(--gold); }
-    .markdown-section h1, .markdown-section h2 { color: var(--gold-soft); }
-    .markdown-section h2 { border-bottom: 1px solid #2a2114; padding-bottom: .3em; }
-    .markdown-section tr { background: transparent; border-top: 1px solid #2a2114; }
-    .markdown-section th, .markdown-section td { border: 1px solid #2a2114; }
-    .markdown-section code { background: #1d1609; color: var(--gold-soft); }
-    .markdown-section pre, .markdown-section pre > code { background: #120d06 !important; }
-    .markdown-section blockquote { border-left: 4px solid var(--gold); color: var(--ink-dim); background: #14100a; }
+    .sidebar-nav li.active > a, .sidebar a:hover, .app-nav a:hover { color: var(--ink) !important; border-right-color: var(--ink) !important; }
+    .sidebar-toggle { background: var(--wash); } .sidebar-toggle span { background-color: var(--ink); }
     .app-name-link img { height: 34px; }
-    .search input { background: #120d06; color: var(--ink); border: 1px solid #2a2114; }
-    .search .results-panel { background: var(--bg-soft); }
-    .cover.show { background: radial-gradient(circle at 30% 20%, #1c150b, #0e0b07) !important; }
-    .cover-main > p > a { border-color: var(--gold); color: var(--gold); }
-    .cover-main > p > a:last-child { background: var(--gold); color: #0e0b07; }
+    .search input { background: #ffffff; color: var(--ink); border: 1px solid var(--line-2); }
+    .search .results-panel { background: #ffffff; } .search .matching-post { border-bottom-color: var(--line); } .search .search-keyword { color: var(--ink); font-weight: 600; }
+    /* the page */
+    .markdown-section { color: var(--ink-2); }
+    .markdown-section :is(h1, h2, h3, h4, h5, h6, strong) { color: var(--ink); font-weight: 600; letter-spacing: -0.02em; }
+    .markdown-section h2 { border-bottom: 1px solid var(--line); padding-bottom: 0.3em; }
+    .markdown-section a { color: var(--ink); text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--line-2); text-underline-offset: 0.24em; }
+    .markdown-section a:hover { text-decoration-color: currentColor; }
+    .markdown-section .anchor { text-decoration: none; } .anchor span { color: var(--ink); }
+    .markdown-section tr { background: transparent !important; border-top: 1px solid var(--line); }
+    .markdown-section :is(th, td) { border: 1px solid var(--line); }
+    .markdown-section :is(code, pre, pre > code) { background: var(--fill) !important; color: var(--ink) !important; }
+    .markdown-section .token { color: var(--ink) !important; background: none !important; }
+    .markdown-section .token:is(.comment, .prolog, .doctype, .cdata, .punctuation) { color: var(--muted) !important; }
+    .markdown-section blockquote { border-left: 2px solid var(--ink); color: var(--ink-2); background: var(--wash); }
+    .markdown-section :is(p.tip, p.warn) { background: var(--wash); border-left-color: var(--ink); color: var(--ink-2); }
+    .markdown-section p.tip::before { background-color: var(--ink); color: #ffffff; }
+    .docsify-copy-code-button { background: var(--ink) !important; color: #ffffff !important; }
+    .docsify-pagination-container { border-top-color: var(--line) !important; } .pagination-item a, .pagination-item-title { color: var(--ink-2) !important; }
+    /* the cover: white, the name in ink, a black button and an outline one */
+    .cover, .cover.show { background: #ffffff !important; color: var(--ink); }
+    .cover-main > h1, .cover-main a { color: var(--ink) !important; }
+    section.cover .cover-main > h1 { font-weight: 600; letter-spacing: -0.04em; }
+    section.cover .cover-main > p:last-child a { border: 1px solid var(--ink); border-radius: 6px; color: var(--ink); font-weight: 500; letter-spacing: -0.005em; }
+    section.cover .cover-main > p:last-child a:last-child { background: var(--ink); color: #ffffff !important; }
+    .github-corner { color: var(--ink); border-bottom: 0; } .github-corner svg { fill: var(--ink); color: #ffffff; }
   </style>
 </head>
 <body>
