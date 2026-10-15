@@ -68,7 +68,7 @@ const NAV = [
   { key: 'assistant', href: '/assistant', label: () => 'Assistant' },
   { key: 'uru', href: '/uru', label: (name) => name },
   { key: 'faq', href: '/faq', label: () => 'FAQ' },
-  { key: 'manual', href: '/manual/', label: () => 'Manual' },
+  { key: 'manual', href: '/manual', label: () => 'Manual' },
   { key: 'github', href: GITHUB, label: () => 'GitHub', external: true },
 ]
 
@@ -109,7 +109,7 @@ ${links.map(([href, text]) => `          <li><a href="${href}">${text}</a></li>`
     </div>
     <div class="footer__cols">
 ${group('urfael', 'Urfael', [['/', 'Home'], ['/assistant', 'Assistant'], ['/uru', name]])}
-${group('learn', 'Learn', [['/manual/', 'Manual'], ['/faq', 'FAQ'], ['/compare', 'Compare'], ['/honesty', 'What’s tested']])}
+${group('learn', 'Learn', [['/manual', 'Manual'], ['/faq', 'FAQ'], ['/compare', 'Compare'], ['/honesty', 'What’s tested']])}
 ${group('legal', 'Legal', [['/privacy', 'Privacy'], ['/terms', 'Terms'], ['/imprint', 'Imprint'], [`${GITHUB}/blob/main/LICENSE`, 'MIT License']])}
 ${group('hello', 'Say hello', [[GITHUB, 'GitHub'], [`mailto:${EMAIL}?subject=Hello%20Urfael`, 'Email us']])}
     </div>
