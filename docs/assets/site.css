@@ -414,13 +414,15 @@ main:has(> .hero) > .section::before {
   .site-header[data-open] .menu-btn__bars { background: transparent; }
   .site-header[data-open] .menu-btn__bars::before { transform: rotate(45deg); }
   .site-header[data-open] .menu-btn__bars::after { transform: rotate(-45deg); }
+  /* the panel's side borders lie on the guides, so its padding is the column's less that 1px: the links and
+     their rules start on the page's text line */
   .js .site-nav {
     display: none;
     position: absolute;
     top: calc(100% + 1px);
     left: 0;
     right: 0;
-    padding: 0.5rem var(--pad) 1.25rem;
+    padding: 0.5rem calc(var(--pad) - 1px) 1.25rem;
     background: #ffffff;
     border: 1px solid #e6e6e6;
     border-top: 0;
@@ -428,7 +430,7 @@ main:has(> .hero) > .section::before {
   .js .site-header[data-open] .site-nav { display: block; }
   .js .site-nav ul { flex-direction: column; align-items: stretch; gap: 0; overflow: visible; }
   .js .site-nav li + li { border-top: 1px solid #ededed; }
-  .js .site-nav a { min-height: 3.25rem; padding: 0 0.25rem; border-radius: 0; font-size: 1.0625rem; color: #0a0a0a; background: none; }
+  .js .site-nav a { min-height: 3.25rem; padding: 0; border-radius: 0; font-size: 1.0625rem; color: #0a0a0a; background: none; }
   .js .site-nav a[aria-current="page"] { background: none; text-decoration: underline; text-decoration-color: #0a0a0a; text-underline-offset: 0.35em; }
   .js .site-nav a[aria-current="page"]::after { display: none; }
   .js .site-nav li:last-child { border-top: 0; margin-top: 0.75rem; }
