@@ -29,4 +29,6 @@
   .u-icon .ui-f-g { fill: Canvas; }
   .u-icon :is(.ui-f-e, .ui-f-m, .ui-f-l, .ui-f-k, .ui-f-a) { fill: CanvasText; }
   .u-icon :is(.ui-f-w, .ui-f-b) { fill: Canvas; }
+  .u-icon .ui-lt { stroke: CanvasText; }
+  .u-icon .ui-lt-g { fill: Canvas; }
 }

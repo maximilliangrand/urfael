@@ -11,7 +11,8 @@ import { along, arc, domeEye, NEAR, oval, rad, RIGHT, squircle, stone, UP } from
  * character: a one-piece pebble on a flared gliding base,
  * a knit band with its ribbing, mitten arms, a stitched rune badge, a lantern bead on a stalk, and a dark
  * face window holding two dome eyes and two blush cheeks, with nothing between the eyes. The window is the
- * drawing's one dark solid; the eyes and cheeks on it are its accent. Everything else is line work.
+ * drawing's one dark solid; the eyes and cheeks on it are its accent. Everything else is line work, and the
+ * body is a light solid, as the figures draw it: on the night band it stays white, with the dark window.
  */
 
 const dir = (deg: number): Vec3 => [Math.cos(rad(deg)), Math.sin(rad(deg)), 0];
@@ -25,6 +26,8 @@ export const uru: IconDraw = (k) => {
   const R = 4.5, s = R / URU.RMAX, H = (URU.ZT - URU.ZB) * s, foot = 0.5, front = 45, at = (z: number) => (z - URU.ZB) * s;
   const profile = Array.from({ length: 25 }, (_, i): [number, number] => { const z = URU.ZB + ((URU.ZT - URU.ZB) * i) / 24; return [uruR(z) * s, at(z)]; });
   k.disc(0, 0, R * 1.12, 0, { tone: 'lo', detail: true });
+  // the body is a light solid; the face window, its eyes and its cheeks take the card's paint
+  k.light(true);
   k.lathe([0, 0, 0], [[R * 0.9, 0], [R * 0.98, 0.2], [R * 0.99, 0.4], [R * 0.92, foot + 0.2]], { n: 56 });
   const body = k.lathe([0, 0, foot], profile, { n: 64 });
   for (const d of [-22, 112]) body.meridian(d, at(URU.band[1]) + 0.3, H * 0.95, { detail: true });
@@ -40,14 +43,17 @@ export const uru: IconDraw = (k) => {
   body.patch(front, badgeH, [[0.17, -0.22], [0.17, 0.22], [-0.16, 0.05], [-0.16, -0.22]], { tone: 'mid', open: true, out: 0.05, detail: true });
   const faceH = at(URU.face.v), hu = URU.face.hu * s, hv = URU.face.hv * s;
   body.patch(front, faceH, squircle(0, 0, hu + 0.3, hv + 0.26, 56), { tone: 'mid', fill: 'ground', out: 0.03 });
+  k.light(false);
   body.patch(front, faceH, squircle(0, 0, hu, hv, 56), { tone: 'ink', fill: 'tone', out: 0.05 });
   for (const e of [-1, 1]) body.patch(front, faceH, domeEye(e * 1.6 * s * 1.1, -0.35 * s, 1.75 * s * 1.15, 1.2 * s * 1.15, 16), { tone: 'warm', fill: 'tone', out: 0.07 });
   for (const e of [-1, 1]) body.patch(front, faceH, oval(e * 3.05 * s, -1.55 * s, 0.8 * s, 0.45 * s, 18), { tone: 'blush', fill: 'tone', out: 0.07 });
+  k.light(true);
   const arm = (deg: number, h: number, out: number, axis: Vec3) => k.lathe(body.at(deg, h, out), MITTEN, { axis: unit(axis), n: 36 });
   arm(135, at(10.6) + 0.3, 0.05, along(along(dir(135), UP, -3.2), NEAR, 0.5));
   arm(-45, at(10.6) - 0.3, -0.05, along(along(dir(-45), UP, 1.05), NEAR, 0.25));
   k.cyl(0, 0, 0.17, foot + H - 0.2, foot + H + 0.95, { b: 0.06 });
   k.ball([0, 0, foot + H + 1.42], 0.52, { crease: false });
+  k.light(false);
 };
 
 /** Good company: a teapot and two cups on a tray, set for two; the nearer cup, yours, is the accent. */

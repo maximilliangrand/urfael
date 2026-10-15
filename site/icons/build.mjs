@@ -5,7 +5,7 @@
 //   sprite.svg          every icon as a <symbol>, ids <name> and <name>-compact:
 //                       <svg width="56" height="56" aria-hidden="true"><use href="/assets/icons/sprite.svg#voice-compact"/></svg>
 //   icons.json          { name: { page, card, shows, full: { viewBox, svg }, compact: { viewBox, svg } } }
-//   icons.css           optional: re-themes icons pasted inline, by class (oat page, night band, forced colours)
+//   icons.css           optional: re-themes icons pasted inline, by class (wash band, night band, forced colours)
 //
 // Each file is inline-ready: paste it into the page, or use it as <img src alt="">. The text beside an icon
 // carries its meaning, so the icon is decorative (aria-hidden). The outputs are committed, so docs/ stays a
@@ -80,6 +80,8 @@ const css = `/* Urfael icons: optional rules for icons pasted inline. Generated 
   .u-icon .ui-f-g { fill: Canvas; }
   .u-icon :is(.ui-f-e, .ui-f-m, .ui-f-l, .ui-f-k, .ui-f-a) { fill: CanvasText; }
   .u-icon :is(.ui-f-w, .ui-f-b) { fill: Canvas; }
+  .u-icon .ui-lt { stroke: CanvasText; }
+  .u-icon .ui-lt-g { fill: Canvas; }
 }
 `
 
@@ -115,5 +117,5 @@ console.log(`${relative(ROOT, OUT)}/  ${names.length} icons, ${names.length * 2}
 console.log(`  full svg   ${(Math.min(...sizes) / 1024).toFixed(1)} to ${(Math.max(...sizes) / 1024).toFixed(1)} kB each`)
 console.log(`  sprite.svg ${kb(files['sprite.svg'])}`)
 console.log(`  icons.json ${kb(files['icons.json'])}`)
-console.log(`  contrast   edge ${contrast(PALETTE.full.edge, PALETTE.full.ground).toFixed(1)}:1, accent ${contrast(PALETTE.full.accent, PALETTE.full.ground).toFixed(1)}:1 on paper; eyes ${contrast(PALETTE.full.warm, PALETTE.full.ink).toFixed(1)}:1 on the face window`)
+console.log(`  contrast   edge ${contrast(PALETTE.full.edge, PALETTE.full.ground).toFixed(1)}:1, accent ${contrast(PALETTE.full.accent, PALETTE.full.ground).toFixed(1)}:1 on white; eyes ${contrast(PALETTE.full.warm, PALETTE.full.ink).toFixed(1)}:1 on the face window`)
 console.log(`  ${names.join(', ')}`)

@@ -24,8 +24,11 @@ import { cylinder, ellipse, encode, frontHalf } from './path';
  */
 export type Tone = 'edge' | 'mid' | 'lo' | 'accent' | 'ink' | 'warm' | 'blush';
 export type Fill = 'ground' | 'none' | 'tone';
-/** A drawn path in paint order; `box` is its extent on screen, or null for a crease inside a silhouette. */
-export type Mark = { d: string; tone: Tone; fill: Fill; detail: boolean; box: [number, number, number, number] | null };
+/**
+ * A drawn path in paint order; `box` is its extent on screen, or null for a crease inside a silhouette. A `light`
+ * mark is part of a light solid on any ground (Uru's body, as the figures draw it), so a re-theme never repaints it.
+ */
+export type Mark = { d: string; tone: Tone; fill: Fill; detail: boolean; box: [number, number, number, number] | null; light: boolean };
 
 type Look = { tone?: Tone; detail?: boolean };
 type ShapeLook = Look & { fill?: Fill };
@@ -99,10 +102,11 @@ export function kit(fine = true) {
   const eye: Vec3 = [Math.sin(C.az) * zf, Math.cos(C.az) * zf, C.k];
   const sees = (n: Vec3) => dot(n, eye) > 1e-6;
   const marks: Mark[] = [];
+  let light = false;
 
   /** Adds a mark; `box` frames the icon, and is null for a crease, which lies inside its silhouette. */
   const mark = (d: string, tone: Tone, fill: Fill, detail: boolean, box: Mark['box']) => {
-    if (d) marks.push({ d, tone, fill, detail, box });
+    if (d) marks.push({ d, tone, fill, detail, box, light });
   };
   const boxOf = (points: readonly Vec2[]): Mark['box'] => {
     if (!points.length) return null;
@@ -282,6 +286,8 @@ export function kit(fine = true) {
       const ring = inset.map((q) => F.at(q.u, q.v)), normals = inset.map((q) => add(mul(F.u, q.nu), mul(F.v, q.nv)));
       seam(ring, normals, { detail: o.detail });
     },
+    /** Marks the marks that follow as a light solid (on) or as the card's own paint (off): Uru's white body. */
+    light(on: boolean) { light = on; },
     /**
      * A ball about c: a circle from every side, as arcs; its crease the front of a ring inside its equator,
      * which lies flat, so it is the near half of an ellipse.
