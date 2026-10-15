@@ -260,10 +260,12 @@ code {
 }
 :is(.hero, .section, .page-head, .status, .lost, .site-footer) > * { position: relative; z-index: 1; }
 /* the sheet's index: on a page that opens with a hero, each section after it numbers itself, small, in the
-   corner where its top meets the left guide, like the zones of a drawing (muted: 5.3:1 on white, 6.6:1 on black) */
+   corner where its top meets the left guide, like the zones of a drawing (muted: 5.3:1 on white, 6.6:1 on black).
+   Only a <section> is a zone: a coda set as a div.section, like the strip that closes /assistant, keeps the
+   section's spacing and guides but no number */
 main:has(> .hero) { counter-reset: sheet; }
-main:has(> .hero) > .section { counter-increment: sheet; }
-main:has(> .hero) > .section::before {
+main:has(> .hero) > section.section { counter-increment: sheet; }
+main:has(> .hero) > section.section::before {
   content: counter(sheet, decimal-leading-zero);
   content: counter(sheet, decimal-leading-zero) / "";
   padding: 0.65rem 0.7rem;
