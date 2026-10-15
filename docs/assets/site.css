@@ -7,6 +7,11 @@
    the tokens, so a component looks right on any band without a variant of its own.
    Type: Geist for display and text, Geist Mono for labels, read-outs and code (both OFL, see fonts/), served
    from this site, so no visitor's address goes to a third party. Outfit sets the wordmark only.
+   Why Geist: one variable family carries the whole scale, from the 84px display, where it holds tight negative
+   tracking without its counters closing up, down to 15px text, where its open apertures stay readable. Its
+   mono is drawn on the same skeleton, so the labels and read-outs are the same voice in instrument form rather
+   than a second typeface. It is the plain, engineered grotesque of the developer-tool register this site
+   speaks in, with no hue or ornament to carry. And it is OFL, so it can be served from here.
    Motion touches transform, opacity and colour only, is short, and stops under reduced motion. */
 
 @font-face {
