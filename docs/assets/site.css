@@ -233,6 +233,18 @@ code {
   pointer-events: none;
 }
 :is(.hero, .section, .page-head, .status, .lost, .site-footer) > * { position: relative; z-index: 1; }
+/* the sheet's index: on a page that opens with a hero, each section after it numbers itself, small, in the
+   corner where its top meets the left guide, like the zones of a drawing (muted: 5.3:1 on white, 6.6:1 on black) */
+main:has(> .hero) { counter-reset: sheet; }
+main:has(> .hero) > .section { counter-increment: sheet; }
+main:has(> .hero) > .section::before {
+  content: counter(sheet, decimal-leading-zero);
+  content: counter(sheet, decimal-leading-zero) / "";
+  padding: 0.65rem 0.7rem;
+  font: 500 var(--fs-label)/1 var(--mono);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
 .rule-top, .band-night, .band-oat, .site-footer { border-top: 1px solid var(--line); }
 .band-night { border-top-color: var(--paper); }
 .band-night + :not(.band-night) { border-top-color: transparent; }
