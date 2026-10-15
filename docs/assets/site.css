@@ -549,6 +549,17 @@ a:hover .arr { transform: translateX(3px); }
 .sheet { margin-inline: calc(-1 * var(--pad)); border-block: 1px solid var(--line-2); }
 .sheet__in--table :is(th, td):first-child { padding-left: var(--pad); }
 .sheet__in--table :is(th, td):last-child { padding-right: var(--pad); }
+/* on a wide screen the columns are the page's own: every cell pads its left like a grid cell, the first column
+   ends on the third line, a three-column table is in thirds and the comparison in quarters, so each column's
+   text starts on a line the grids, splits and footer already use. Phones keep the sideways scroll. */
+@media (min-width: 56rem) {
+  .sheet__in--table table { table-layout: fixed; }
+  .sheet__in--table :is(th, td) { padding-left: var(--pad); padding-right: 0; }
+  .sheet__in--table :is(th, td):last-child { padding-right: var(--pad); }
+  .sheet__in--table :is(th, td):first-child { width: calc(100% / 3); }
+  .table--tests :is(th, td):last-child { width: calc(100% / 3); }
+  .compare :is(th, td), .compare :is(th, td):first-child { width: 25%; }
+}
 
 /* ---------- hero ---------- */
 
