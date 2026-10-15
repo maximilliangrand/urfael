@@ -110,7 +110,9 @@ a:is(:hover, :focus-visible) .plate__frame { background: var(--plate-muted); }
 }
 
 /* ---------- a plate in a cell: the cell is its frame ---------- */
-.plate--cell { --chip: 0px; --inset: var(--pad, 1.4rem); display: flex; flex-direction: column; }
+/* as specific as a size, and after it, so a hero or a sheet in a cell takes the cell's padding too: its corner text
+   and caption start on the same line as the text in the cell beside it */
+.plate.plate--cell { --chip: 0px; --inset: var(--pad, 1.4rem); display: flex; flex-direction: column; }
 .plate--cell .plate__frame { flex: 1; display: flex; flex-direction: column; padding: 0; background: none; clip-path: none; }
 .plate--cell .plate__surface { flex: 1; display: flex; flex-direction: column; justify-content: center; padding-inline: calc(var(--inset) * 0.5); clip-path: none; }
 .plate--cell .plate__corner--tr { right: var(--inset); max-width: calc(100% - 2 * var(--inset) - 5rem); }
