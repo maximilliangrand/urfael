@@ -87,6 +87,11 @@
   --edge: clamp(0.625rem, -0.2rem + 3.2vw, 2.5rem);
   --frame: min(100% - 2 * var(--edge), var(--frame-max));
   --pad: clamp(1.125rem, 0.4rem + 2.6vw, 3rem);
+  /* a first column that ends a third of the way across the frame, inside a grid in the column whose gap is
+     2 × --pad: its second column then starts on the same line as text in a cell of a three-cell row. With two
+     equal columns and the same gap, the second starts on the half line, as in a two-cell row. */
+  --col-third: calc((100% + 2 * var(--pad)) / 3 - 2 * var(--pad));
+  --gap: calc(2 * var(--pad));
   --nav-h: 4rem;
   --cut: 14px;
   --radius: 6px;
@@ -260,10 +265,11 @@ code {
 .cells > * + * { border-top: 1px solid var(--line); }
 @media (min-width: 56rem) {
   .cells--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cells--2 > * + * { border-top: 0; border-left: 1px solid var(--line); }
+  .cells--third { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+  :is(.cells--2, .cells--third) > * + * { border-top: 0; border-left: 1px solid var(--line); }
   /* a crosshair where the divider meets the band's edge: below the hero, above every other pair */
-  .cells--2 { position: relative; }
-  .cells--2::after {
+  :is(.cells--2, .cells--third) { position: relative; }
+  :is(.cells--2, .cells--third)::after {
     content: "";
     position: absolute;
     z-index: 3;
@@ -276,6 +282,7 @@ code {
       linear-gradient(var(--cross), var(--cross)) 0 5px / 11px 1px no-repeat,
       linear-gradient(var(--cross), var(--cross)) 5px 0 / 1px 11px no-repeat;
   }
+  .cells--third::after { left: calc(100% / 3 - 5px); }
   .hero__grid::after { top: auto; bottom: -6px; }
 }
 
@@ -414,7 +421,9 @@ code {
 .btn--quiet:hover { border-color: var(--ink); color: var(--ink); }
 .link-arrow {
   display: inline-block;
-  padding-block: 0.6rem;
+  /* the inline padding gives the keyboard ring room round the words; the margin puts the words back on the line */
+  padding: 0.6rem 0.25rem;
+  margin-inline: -0.25rem;
   font-weight: 500;
   font-size: 0.9375rem;
   color: var(--ink);
@@ -445,6 +454,7 @@ a:hover .arr { transform: translateX(3px); }
 
 .section { padding-block: clamp(4rem, 2.6rem + 5vw, 7.5rem); }
 .section--flush-top { padding-top: 0; }
+.section--tight { padding-block: clamp(3rem, 2rem + 3.5vw, 5.5rem); }
 .section--cells { padding-block: 0; }
 .head { max-width: 46rem; margin-bottom: clamp(2.25rem, 1.6rem + 2.2vw, 4rem); }
 .head__intro { margin-top: 1.25rem; font-size: var(--fs-lede); line-height: 1.5; color: var(--ink-2); max-width: 42rem; }
@@ -459,11 +469,12 @@ a:hover .arr { transform: translateX(3px); }
 .prose { color: var(--ink-2); }
 .prose > * + * { margin-top: 1em; }
 .big, .prose--big p { font-size: var(--fs-lede); line-height: 1.55; }
-.cols { display: grid; gap: 1.25rem 3.5rem; margin-top: clamp(1.75rem, 1.5rem + 1vw, 2.5rem); }
+.cols { display: grid; gap: 1.25rem var(--gap); margin-top: clamp(1.75rem, 1.5rem + 1vw, 2.5rem); }
 @media (min-width: 56rem) { .cols { grid-template-columns: 1fr 1fr; } }
-.split { display: grid; gap: 1.5rem 3rem; }
+/* an aside and its text: the text starts on the third line */
+.split { display: grid; gap: 1.5rem var(--gap); }
 @media (min-width: 56rem) {
-  .split { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
+  .split { grid-template-columns: var(--col-third) minmax(0, 1fr); }
   .split__aside { position: sticky; top: calc(var(--nav-h) + 2rem); align-self: start; }
 }
 .split__aside h2 { font-size: clamp(1.75rem, 1.4rem + 1.2vw, 2.5rem); }
@@ -492,20 +503,12 @@ a:hover .arr { transform: translateX(3px); }
 .links a:hover { border-color: var(--ink); }
 .links a:hover::after { transform: translateX(3px); color: var(--ink); }
 
-/* ---------- sheets: a hairline box with the plates' cut corner ---------- */
+/* ---------- sheets: a table set between two rules that run from guide to guide ----------
+   No box: the guides are its sides, and its first and last columns start and end where the column's text does. */
 
-.sheet {
-  padding: 1px;
-  background: var(--line-2);
-  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
-}
-.sheet__in {
-  height: 100%;
-  padding: clamp(1.4rem, 0.9rem + 2vw, 2.5rem);
-  background: var(--paper);
-  clip-path: polygon(0 0, calc(100% - var(--cut) + 0.42px) 0, 100% calc(var(--cut) - 0.42px), 100% 100%, 0 100%);
-}
-.sheet__in--table { padding: clamp(0.4rem, 0.2rem + 1vw, 1rem) clamp(0.5rem, 0.25rem + 1.2vw, 1.5rem); }
+.sheet { margin-inline: calc(-1 * var(--pad)); border-block: 1px solid var(--line-2); }
+.sheet__in--table :is(th, td):first-child { padding-left: var(--pad); }
+.sheet__in--table :is(th, td):last-child { padding-right: var(--pad); }
 
 /* ---------- hero ---------- */
 
@@ -661,10 +664,15 @@ a:hover .arr { transform: translateX(3px); }
 .grid-cells h3 { font-size: 1.125rem; }
 .grid-cells p { color: var(--ink-2); font-size: 1rem; }
 @media (min-width: 48rem) { .grid-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (min-width: 64rem) { .grid-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 64rem) { .grid-cells:not(.grid-cells--2) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* a section whose cells run to the next section's rule, which closes them */
+.section--to-rule { padding-bottom: 0; }
+.section--to-rule .grid-cells { border-bottom: 0; }
 
 /* the principles: a spec sheet whose rows run guide to guide, its columns on the quarter lines */
 .rows { list-style: none; margin: 0 calc(-1 * var(--pad)); padding: 0; border-top: 1px solid var(--line); counter-reset: row; }
+.rows > li:last-child { border-bottom: 0; }
+.principles { padding-bottom: 0; }
 .rows > li {
   counter-increment: row;
   display: grid;
@@ -704,34 +712,37 @@ a:hover .arr { transform: translateX(3px); }
   }
 }
 
-.open__title { display: flex; flex-direction: column-reverse; justify-content: space-between; align-items: flex-start; gap: 2.5rem; }
-.open__title .icon { display: block; width: 5rem; height: 5rem; }
-.open__body { display: flex; flex-direction: column; justify-content: flex-end; gap: 1.75rem; }
+.open > .cell { padding-block: clamp(3rem, 2rem + 4vw, 6rem); }
+.open__title { display: flex; flex-direction: column; align-items: flex-start; gap: 2rem; }
+.open__title .icon { display: block; width: 5rem; height: 5rem; margin-left: -0.25rem; }
+.open__body { display: flex; flex-direction: column; gap: 1.75rem; }
 .open__body p { font-size: var(--fs-lede); line-height: 1.55; color: var(--ink-2); max-width: 36rem; }
 
 /* the closing call: the page's last word, on the night band */
 .cta { padding-block: clamp(5rem, 3rem + 7vw, 10rem); }
-.cta__in { display: grid; gap: 2.5rem 3rem; align-items: end; }
+.cta__in { display: grid; gap: 2.5rem var(--gap); align-items: end; }
 .cta h2 { font-size: var(--fs-display); line-height: 0.98; letter-spacing: -0.05em; max-width: 14ch; }
 .cta__copy { display: grid; gap: 2rem; justify-items: start; }
+.cta__head { display: grid; gap: 2rem; justify-items: start; }
+.cta__icon svg { display: block; width: clamp(5rem, 4rem + 3vw, 7rem); height: auto; }
 .cta__copy > p:first-child { font-size: var(--fs-lede); line-height: 1.55; color: var(--ink-2); max-width: 32rem; }
 .cta .micro { max-width: 30rem; }
-@media (min-width: 64rem) { .cta__in { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); } }
+@media (min-width: 64rem) { .cta__in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
 /* ---------- assistant ---------- */
 
-.shot { display: grid; gap: 1rem 3rem; align-items: end; margin-top: clamp(2.25rem, 1.75rem + 2vw, 3.75rem); }
+.shot { display: grid; gap: 1rem var(--gap); align-items: end; margin-top: clamp(2.25rem, 1.75rem + 2vw, 3.75rem); }
 .shot img { display: block; width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--line-2); background: #0a0a0a; }
 .shot figcaption { font-size: 0.9375rem; color: var(--muted); max-width: 26rem; }
 .shot__title { display: block; margin-bottom: 0.4rem; font: 600 1.25rem/1.3 var(--sans); letter-spacing: -0.02em; color: var(--ink); }
-@media (min-width: 60rem) { .shot { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); } }
+@media (min-width: 60rem) { .shot { grid-template-columns: minmax(0, 1fr) var(--col-third); } }
 
 .table-wrap { overflow-x: auto; overscroll-behavior-x: contain; }
 .table-wrap:focus-visible { outline-offset: -3px; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; line-height: 1.5; }
 th, td { padding: 0.95rem 0.9rem; text-align: left; vertical-align: top; }
 thead th {
-  padding-block: 0.9rem;
+  padding-block: 1rem;
   border-bottom: 1px solid var(--line-2);
   font: 500 var(--fs-label)/1.35 var(--mono);
   letter-spacing: 0.08em;
@@ -750,7 +761,7 @@ td { color: var(--ink-2); }
     content: "Scroll sideways for every column \2192";
     content: "Scroll sideways for every column \2192" / "";
     display: block;
-    padding: 0.85rem 0.6rem 0.2rem;
+    padding: 0.85rem var(--pad) 0.2rem;
     font: 500 0.6875rem/1.3 var(--mono);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -809,7 +820,9 @@ td { color: var(--ink-2); }
 .band-night .micro { color: var(--muted); }
 .install { display: grid; gap: 2.5rem; }
 .install > * { min-width: 0; }
-@media (min-width: 60rem) { .install { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(3rem, 5vw, 5rem); } }
+@media (min-width: 60rem) { .install { grid-template-columns: var(--col-third) minmax(0, 1fr); gap: 2.5rem var(--gap); } }
+/* a short command in a sentence stays on one line */
+.install__steps p code { white-space: nowrap; }
 .install__icon svg { display: block; width: clamp(5rem, 4.25rem + 2.5vw, 7rem); height: auto; margin-bottom: 1.5rem; }
 .install__text h2 { margin-bottom: 1.25rem; }
 .install__steps { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; align-content: start; color: var(--ink-2); }
@@ -837,6 +850,8 @@ td { color: var(--ink-2); }
 }
 .copy:hover { border-color: var(--ink); }
 
+/* the last word on /assistant: a strip between two rules that run guide to guide, Uru peeking in past the left guide */
+.section--peek { padding-block: 0 clamp(2.5rem, 2rem + 2vw, 3.5rem); }
 .peek {
   position: relative;
   overflow: hidden;
@@ -844,16 +859,15 @@ td { color: var(--ink-2); }
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 0.5rem 1.5rem;
-  padding: 1.25rem 1.5rem 1.25rem 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
+  margin-inline: calc(-1 * var(--pad));
+  padding: 1.5rem var(--pad) 1.5rem 0;
+  border-bottom: 1px solid var(--line);
 }
 .peek__uru { grid-row: span 2; align-self: end; margin: 0 0 -2.4rem -1.3rem; }
 .peek__uru .icon { display: block; width: 7.5rem; height: 7.5rem; transform: rotate(9deg); }
 .peek__text { font-size: 1.0625rem; color: var(--ink-2); }
 @media (min-width: 48rem) {
-  .peek { grid-template-columns: auto minmax(0, 1fr) auto; padding-right: 2rem; }
+  .peek { grid-template-columns: auto minmax(0, 1fr) auto; }
   .peek__uru { grid-row: auto; }
 }
 
@@ -883,12 +897,17 @@ td { color: var(--ink-2); }
   .tag__wide { grid-column: auto; }
 }
 
-.goals { display: grid; gap: clamp(1.75rem, 1.25rem + 2vw, 3rem); align-items: start; }
-.goals__plate { width: 100%; max-width: 25rem; margin-inline: auto; }
-@media (min-width: 60rem) {
-  .goals { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
-  .goals__plate { max-width: none; }
+/* the goals: the study in a third, the five goals in two thirds, rows ruled from the divider to the guide */
+.goals-band { padding-bottom: 0; }
+.goals { border-top: 1px solid var(--line); }
+.goals__list { padding: 0; }
+.goals__list .ledger > li { padding: 1.6rem var(--pad); }
+/* beside the study the five rows share its height */
+@media (min-width: 56rem) {
+  .goals__list .ledger { height: 100%; display: grid; grid-auto-rows: 1fr; }
+  .goals__list .ledger > li { align-content: center; }
 }
+.goals__list .ledger p { max-width: 36rem; }
 
 .wont { list-style: none; margin: 0; padding: 0; }
 .wont li { position: relative; padding: 1rem 0 1rem 2.4rem; border-top: 1px solid var(--line); font-size: 1.0625rem; color: var(--ink-2); }
@@ -936,29 +955,15 @@ td { color: var(--ink-2); }
   color: var(--ink);
 }
 
-.same {
-  display: grid;
-  gap: 1.75rem 3rem;
-  align-items: center;
-  padding: clamp(1.6rem, 1rem + 2.4vw, 3.25rem);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--paper);
-}
-@media (min-width: 56rem) { .same { grid-template-columns: auto minmax(0, 1fr); } }
-.same__icons { display: flex; align-items: center; gap: 0.5rem; }
+/* same rune, same rules: the two marks in a third, the words in two thirds */
+.same > .cell { padding-block: clamp(3rem, 2rem + 4vw, 6rem); }
+.same__icons { display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
 .same__icons .icon { display: block; width: clamp(5rem, 4rem + 3.5vw, 7.5rem); height: auto; }
 .same__amp { font: 400 1.75rem/1 var(--mono); color: var(--muted); }
-.same__text h2 { margin-bottom: 1rem; }
+.same__text h2 { margin-bottom: 1.25rem; }
 .same__text p { color: var(--ink-2); max-width: 42rem; }
 .same__text .link-arrow { margin-top: 0.5rem; }
 
-.follow .sheet__in { display: grid; gap: 1.5rem 3rem; align-items: center; padding: clamp(1.75rem, 1rem + 3vw, 3.5rem); }
-@media (min-width: 56rem) { .follow .sheet__in { grid-template-columns: auto minmax(0, 1fr); } }
-.follow__icon .icon { display: block; width: clamp(6rem, 4.5rem + 5vw, 9rem); height: auto; }
-.follow__text { display: grid; gap: 1rem; }
-.follow__text p:not(.micro) { color: var(--ink-2); max-width: 40rem; font-size: 1.0625rem; }
-.follow__text .actions { margin-top: 0.4rem; }
 
 /* questions and answers that open in place */
 .qa { border-top: 1px solid var(--line-2); }
@@ -992,7 +997,7 @@ td { color: var(--ink-2); }
 .qa summary:hover::after { border-color: var(--ink); }
 .qa .ans { max-width: 48rem; padding: 0 0 1.5rem; color: var(--ink-2); }
 .qa .ans > * + * { margin-top: 0.8em; }
-.qa--page { max-width: 54rem; }
+.qa--page .ans { max-width: 52rem; }
 
 /* ---------- content pages: FAQ, compare, what's tested ---------- */
 
@@ -1012,9 +1017,14 @@ td { color: var(--ink-2); }
 .mono { font-family: var(--mono); font-size: 0.875em; }
 .table-note { margin-top: 1.25rem; max-width: 48rem; font-size: 0.875rem; color: var(--muted); }
 .xlink { margin-top: 1.75rem; font-weight: 500; }
-.maturity { display: grid; gap: 2.5rem 4rem; }
-@media (min-width: 60rem) { .maturity { grid-template-columns: 1fr 1fr; } }
-.maturity__col { padding-top: 1.5rem; border-top: 1px solid var(--ink); }
+/* the columns are the wrap's own: it gives up its padding so they reach the guides, and pad themselves like cells */
+.maturity { display: grid; gap: 2.5rem 0; padding-inline: 0; }
+.maturity__col { padding: 1.5rem var(--pad) 0; border-top: 1px solid var(--ink); }
+/* the maturity line, drawn down the middle: a hairline on the half line between the two columns */
+@media (min-width: 60rem) {
+  .maturity { grid-template-columns: 1fr 1fr; }
+  .maturity__col + .maturity__col { border-left: 1px solid var(--line); }
+}
 .maturity__h { margin-bottom: 1.25rem; font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.75rem); }
 .closing { margin-top: clamp(2.5rem, 2rem + 2vw, 3.5rem); max-width: 48rem; font-size: var(--fs-lede); line-height: 1.55; }
 
@@ -1022,7 +1032,7 @@ td { color: var(--ink-2); }
 
 .lost { padding-block: clamp(4rem, 2.5rem + 6vw, 8rem); }
 .lost__in { display: grid; gap: 2rem 4rem; align-items: center; }
-@media (min-width: 52rem) { .lost__in { grid-template-columns: auto minmax(0, 1fr); } }
+@media (min-width: 52rem) { .lost__in { grid-template-columns: var(--col-third) minmax(0, 1fr); gap: 2rem var(--gap); } .lost__uru { justify-self: center; } }
 .lost__uru .icon { display: block; width: clamp(8rem, 6rem + 8vw, 12rem); height: auto; transform: rotate(-10deg); }
 .lost .lede { margin-top: 1.25rem; font-size: var(--fs-lede); color: var(--ink-2); }
 .lost .actions { margin-top: 2rem; }
@@ -1096,7 +1106,8 @@ td { color: var(--ink-2); }
 /* on a phone the tagline wraps under the name, so the dot between them goes */
 @media (max-width: 47.99rem) { .footer__dot { display: none; } .footer__tag { flex-basis: 100%; } }
 .footer__about { color: var(--muted); max-width: 40rem; font-size: 0.9375rem; }
-.footer__cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem 1.5rem; margin-top: 3rem; padding-top: 2.25rem; border-top: 1px solid var(--line); }
+.footer__cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem var(--gap); margin-top: 3rem; padding-top: 2.25rem; border-top: 1px solid var(--line); }
+/* four columns on the quarter lines: the third starts on the half line, like every second cell */
 @media (min-width: 48rem) { .footer__cols { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .footer__h { margin-bottom: 0.9rem; font: 500 var(--fs-label)/1.35 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .footer__group ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
@@ -1113,9 +1124,7 @@ td { color: var(--ink-2); }
   .arr, a:hover .arr { transform: none; }
 }
 @media (forced-colors: active) {
-  .sheet { padding: 0; clip-path: none; border: 1px solid CanvasText; }
-  .sheet__in { clip-path: none; }
-  .same, .peek, .callout, .bubble, .chip { border: 1px solid CanvasText; }
+  .callout, .bubble, .chip { border: 1px solid CanvasText; }
   .chip::before { background: CanvasText; }
 }
 @media print {

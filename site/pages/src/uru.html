@@ -73,50 +73,44 @@
     </div>
   </section>
 
-  <section class="section band-night" aria-labelledby="goals">
+  <section class="section band-night goals-band" aria-labelledby="goals">
     <div class="wrap">
       <div class="head">
         <h2 id="goals">What we want {{ROBOT}} to be</h2>
         <p class="head__intro">These are goals, not features. They’ll change as we learn.</p>
       </div>
-      <div class="goals">
-        <figure class="plate goals__plate" data-figure="uru-study" data-fig="2">
+      <div class="cells cells--third goals">
+        <figure class="plate plate--cell goals__plate" data-figure="uru-study" data-fig="2">
           <figcaption class="plate-cap"><span>Illustration only, not a design. {{ROBOT}} isn’t built yet, and how it’s made will change as we learn.</span></figcaption>
         </figure>
-        <div class="sheet goals__list u-icon-night">
-          <div class="sheet__in">
-            <ul class="ledger">
-              <li>{{icon-inline:good-company}}<h3>Good company.</h3><p>Something to say good morning to. {{ROBOT}} should listen, chat and remember the things you’ve chosen to tell it.</p></li>
-              <li>{{icon-inline:gentle-nudge}}<h3>A gentle nudge.</h3><p>Friendly reminders for the routines you set yourself: a walk, a phone call, a glass of water.</p></li>
-              <li>{{icon-inline:bridge-to-your-people}}<h3>A bridge to your people.</h3><p>An easy way to reach family, friends or a carer when you’d like to.</p></li>
-              <li>{{icon-inline:soft-presence}}<h3>A soft presence.</h3><p>Rounded, light and quiet. Made to be easy to be around, not to look like a machine.</p></li>
-              <li>{{icon-inline:on-your-side}}<h3>Your helper, not ours.</h3><p>{{ROBOT}} should work for the people it lives with, just like our assistant does.</p></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" aria-labelledby="promises">
-    <div class="wrap">
-      <div class="head">
-        <h2 id="promises">The promises we’re designing around</h2>
-      </div>
-      <div class="sheet">
-        <div class="sheet__in">
-          <ul class="ledger ledger--two">
-            <li>{{icon:gentle}}<h3>Gentle by design.</h3><p>Soft materials, slow movements, a calm voice. {{ROBOT}} should never startle, rush or pressure anyone.</p></li>
-            <li>{{icon:private}}<h3>Private by default.</h3><p>What happens at home should stay as private as possible. We’re designing {{ROBOT}} to keep as much as it can on the device, to ask before it shares anything, and to make its settings easy to read.</p></li>
-            <li>{{icon:honest-about-limits}}<h3>Honest about limits.</h3><p>{{ROBOT}} will say when it doesn’t know or can’t help. It won’t pretend to be a doctor, a nurse or a person.</p></li>
-            <li>{{icon:human-in-the-loop}}<h3>A human in the loop.</h3><p>Important decisions stay with people. {{ROBOT}} is meant to support the people who give care, never to stand in for them.</p></li>
+        <div class="cell goals__list u-icon-night">
+          <ul class="ledger">
+            <li>{{icon-inline:good-company}}<h3>Good company.</h3><p>Something to say good morning to. {{ROBOT}} should listen, chat and remember the things you’ve chosen to tell it.</p></li>
+            <li>{{icon-inline:gentle-nudge}}<h3>A gentle nudge.</h3><p>Friendly reminders for the routines you set yourself: a walk, a phone call, a glass of water.</p></li>
+            <li>{{icon-inline:bridge-to-your-people}}<h3>A bridge to your people.</h3><p>An easy way to reach family, friends or a carer when you’d like to.</p></li>
+            <li>{{icon-inline:soft-presence}}<h3>A soft presence.</h3><p>Rounded, light and quiet. Made to be easy to be around, not to look like a machine.</p></li>
+            <li>{{icon-inline:on-your-side}}<h3>Your helper, not ours.</h3><p>{{ROBOT}} should work for the people it lives with, just like our assistant does.</p></li>
           </ul>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="section section--flush-top" aria-labelledby="wont">
+  <section class="section section--to-rule" aria-labelledby="promises">
+    <div class="wrap">
+      <div class="head">
+        <h2 id="promises">The promises we’re designing around</h2>
+      </div>
+      <ul class="grid-cells grid-cells--2">
+        <li>{{icon:gentle}}<h3>Gentle by design.</h3><p>Soft materials, slow movements, a calm voice. {{ROBOT}} should never startle, rush or pressure anyone.</p></li>
+        <li>{{icon:private}}<h3>Private by default.</h3><p>What happens at home should stay as private as possible. We’re designing {{ROBOT}} to keep as much as it can on the device, to ask before it shares anything, and to make its settings easy to read.</p></li>
+        <li>{{icon:honest-about-limits}}<h3>Honest about limits.</h3><p>{{ROBOT}} will say when it doesn’t know or can’t help. It won’t pretend to be a doctor, a nurse or a person.</p></li>
+        <li>{{icon:human-in-the-loop}}<h3>A human in the loop.</h3><p>Important decisions stay with people. {{ROBOT}} is meant to support the people who give care, never to stand in for them.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section rule-top" aria-labelledby="wont">
     <div class="wrap split">
       <div class="split__aside">
         <h2 id="wont">What {{ROBOT}} won’t do</h2>
@@ -157,11 +151,11 @@
     </div>
   </section>
 
-  <section class="section" aria-labelledby="rules">
+  <section class="section section--cells rule-top" aria-labelledby="rules">
     <div class="wrap">
-      <div class="same">
-        <div class="same__icons">{{icon:uru}}<span class="same__amp" aria-hidden="true">+</span>{{icon:console}}</div>
-        <div class="same__text">
+      <div class="cells cells--third same">
+        <div class="cell same__icons">{{icon:uru}}<span class="same__amp" aria-hidden="true">+</span>{{icon:console}}</div>
+        <div class="cell same__text">
           <h2 id="rules">Same rune, same rules</h2>
           <p>{{ROBOT}} starts from the same principles as Urfael Assistant, our open-source AI that runs on your own machine. Building the assistant taught us to keep things local where we can, to make the safe setting the default, and to say plainly what isn’t tested. {{ROBOT}} inherits those rules.</p>
           <a class="link-arrow" href="/assistant">Meet the assistant <span class="arr" aria-hidden="true">→</span></a>
@@ -170,26 +164,24 @@
     </div>
   </section>
 
-  <section class="section section--flush-top" id="follow" aria-labelledby="follow-h">
-    <div class="wrap">
-      <div class="sheet follow">
-        <div class="sheet__in">
-          <div class="follow__icon">{{icon:follow}}</div>
-          <div class="follow__text">
-            <h2 id="follow-h">Follow along</h2>
-            <p>We’d love some company on the way. If you give care, receive care or build robots, tell us what would help and what would worry you. Both are useful.</p>
-            <div class="actions">
-              <a class="btn btn--primary" href="mailto:contact@myg-media.com?subject=About%20{{robot}}">Write to us</a>
-              <a class="btn btn--quiet" href="https://github.com/maximilliangrand/urfael">Follow on GitHub</a>
-            </div>
-            <p class="micro">Email goes to MYG Media, the small company behind Urfael. Please don’t include health or medical details in your message. GitHub is where our assistant is built in the open.</p>
-          </div>
+  <section class="section band-night cta" id="follow" aria-labelledby="follow-h">
+    <div class="wrap cta__in">
+      <div class="cta__head">
+        <div class="cta__icon u-icon-night">{{icon-inline:follow}}</div>
+        <h2 id="follow-h">Follow along</h2>
+      </div>
+      <div class="cta__copy">
+        <p>We’d love some company on the way. If you give care, receive care or build robots, tell us what would help and what would worry you. Both are useful.</p>
+        <div class="actions">
+          <a class="btn btn--primary" href="mailto:contact@myg-media.com?subject=About%20{{robot}}">Write to us</a>
+          <a class="btn btn--quiet" href="https://github.com/maximilliangrand/urfael">Follow on GitHub</a>
         </div>
+        <p class="micro">Email goes to MYG Media, the small company behind Urfael. Please don’t include health or medical details in your message. GitHub is where our assistant is built in the open.</p>
       </div>
     </div>
   </section>
 
-  <section class="section section--flush-top" id="questions" aria-labelledby="questions-h">
+  <section class="section" id="questions" aria-labelledby="questions-h">
     <div class="wrap split">
       <div class="split__aside">
         <h2 id="questions-h">Questions about {{ROBOT}}</h2>
