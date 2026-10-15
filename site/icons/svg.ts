@@ -21,7 +21,7 @@ export type Variant = 'full' | 'compact';
  * The light palette, black, white and neutral greys only: three greys for the hairlines (darker for the
  * compact variant, which is drawn smaller), pure ink as the one bright stroke (19.8:1 on the white), and
  * Uru's face: the page's black, white dome eyes on it (19.8:1) and grey cheeks. site/icons/build.mjs checks
- * the ratios.
+ * the ratios, and that every colour is a neutral grey.
  */
 export const PALETTE: Record<Variant, Record<Tone | 'ground', string>> = {
   full: { ground: '#ffffff', edge: '#666666', mid: '#8a8a8a', lo: '#ababab', accent: '#0a0a0a', ink: '#0a0a0a', warm: '#ffffff', blush: '#646464' },

@@ -7,6 +7,9 @@
 //   icons.json          { name: { page, card, shows, full: { viewBox, svg }, compact: { viewBox, svg } } }
 //   icons.css           optional: re-themes icons pasted inline, by class (wash band, night band, forced colours)
 //
+// The set is strictly monochrome: the build fails if any colour in a palette or in a file it writes is not a
+// neutral grey (red, green and blue equal), so no hue can come back by accident.
+//
 // Each file is inline-ready: paste it into the page, or use it as <img src alt="">. The text beside an icon
 // carries its meaning, so the icon is decorative (aria-hidden). The outputs are committed, so docs/ stays a
 // static site that deploys without a build step. The drawings are in site/icons/set/; to look at them, run
@@ -39,6 +42,11 @@ const OAT = '#fafafa'
 
 const failures = []
 const check = (ok, message) => { if (!ok) failures.push(message) }
+/** A neutral grey: a #rrggbb whose red, green and blue are equal. */
+const grey = (hex) => /^#([0-9a-f]{2})\1\1$/i.test(hex)
+for (const [where, paint] of [...Object.entries(PALETTE), ['night', NIGHT], ['wash band', { ground: OAT }]]) {
+  for (const [tone, hex] of Object.entries(paint)) check(grey(hex), `${where} ${tone} ${hex} is not a neutral grey`)
+}
 for (const [variant, paint] of Object.entries(PALETTE)) {
   for (const ground of [paint.ground, OAT]) {
     check(contrast(paint.edge, ground) >= 4.5, `${variant} edge on ${ground}: ${contrast(paint.edge, ground).toFixed(2)}:1`)
@@ -101,6 +109,11 @@ for (const name of names) {
 files['sprite.svg'] = `<svg xmlns="http://www.w3.org/2000/svg">${names.flatMap((n) => [symbol(n, 'full'), symbol(n, 'compact')]).join('')}</svg>\n`
 files['icons.json'] = JSON.stringify(json, null, 2) + '\n'
 files['icons.css'] = css
+// every colour the build writes, in any file: a neutral grey, or the build stops
+for (const [file, text] of Object.entries(files)) {
+  const tinted = [...new Set(text.match(/#[0-9a-f]{3,8}\b/gi) ?? [])].filter((hex) => !grey(hex.length === 4 ? `#${[...hex.slice(1)].map((c) => c + c).join('')}` : hex))
+  check(!tinted.length, `${file}: ${tinted.join(', ')} not a neutral grey`)
+}
 
 if (failures.length) {
   console.error(failures.map((f) => `FAIL ${f}`).join('\n'))
