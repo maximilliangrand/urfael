@@ -1,5 +1,8 @@
 <div align="center">
-<img src="vault-template/_urfael/assets/urfael-logo.svg" width="104" alt="Urfael, the Uruz rune" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="vault-template/_urfael/assets/urfael-logo-white.svg" />
+  <img src="vault-template/_urfael/assets/urfael-logo-black.svg" width="104" alt="Urfael, the Uruz rune" />
+</picture>
 
 # Urfael
 
