@@ -73,8 +73,8 @@
   src: url(/assets/fonts/noto-sans-runic-uruz.woff2) format("woff2");
   unicode-range: U+16A2;
 }
-/* The wordmark: Outfit (OFL, see fonts/OFL-Outfit.txt), a geometric sans whose round bowls echo the mark's disc and
-   whose flat terminals echo the rune's feet. Only the name is set in it. */
+/* The wordmark: Outfit (OFL, see fonts/OFL-Outfit.txt), a geometric sans whose flat terminals echo the rune's level
+   feet. Only the name is set in it. */
 @font-face {
   font-family: "Outfit";
   font-style: normal;
@@ -99,7 +99,7 @@
   --cross: #a6a6a6;
   --fill: #f4f4f4;
   --fill-2: #ebebeb;
-  --logo: #0e0e0f; /* the mark's black, for the name beside it */
+  --logo: #0e0e0f; /* the lockup's black: the mark and the name beside it */
 
   --sans: "Geist", "Noto Sans Runic", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -144,7 +144,7 @@
     --cross: #6b6b6b;
     --fill: #141414;
     --fill-2: #1f1f1f;
-    --logo: #ffffff;
+    --logo: #fafafa;
     background: var(--paper);
     color: var(--ink);
     color-scheme: dark;
@@ -344,19 +344,31 @@ main:has(> .hero) > section.section::before {
   border-bottom: 1px solid #e6e6e6;
 }
 .site-header__in { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; gap: 1rem; }
+/* The lockup: the mark and the name, in one colour, the lockup's own (--logo), so it turns white on a night band.
+   Every size is in em of the name. The mark's box is 4/3 em, so its nominal height, y 16 to 112 of 128, is 1 em, and
+   it sits on the name's baseline: align on the baseline, then drop the box by its empty bottom, 16 of 128. The gap
+   leaves 40 units (0.4167 em) of air from the foot to the U, the width of the mark's own counter at the baseline,
+   less the 0.25 em the box holds right of the foot and the U's 0.0625 em side bearing. Keep 0.5 em clear round it. */
 .brand {
   display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  min-height: 2.75rem;
-  margin-left: -0.125rem;
-  text-decoration: none;
+  align-items: baseline;
+  gap: 0.104em;
   font: 600 1.3rem/1 var(--word);
   letter-spacing: -0.01em;
-  color: #0e0e0f;
+  color: var(--logo);
 }
-.brand:hover { color: #0e0e0f; }
-.brand .mark { width: 1.875rem; height: 1.875rem; flex: none; }
+.brand .mark { width: 1.3333em; height: 1.3333em; flex: none; transform: translateY(12.5%); }
+/* in the header the lockup is the home link: a 2.75rem target with its ink, apex to baseline, centred in it. Its line
+   holds 0.292 em above the apex and 0.136 em below the baseline, so the bottom padding evens the two. */
+.site-header .brand {
+  flex: none;
+  flex-wrap: wrap;
+  align-content: center;
+  min-height: 2.75rem;
+  margin-left: -0.125rem;
+  padding-bottom: 0.156em;
+  text-decoration: none;
+}
 .site-nav { margin-left: auto; }
 .site-nav ul { display: flex; align-items: center; gap: 0.125rem; list-style: none; margin: 0; padding: 0; }
 .site-nav a {
@@ -393,7 +405,7 @@ main:has(> .hero) > section.section::before {
 .menu-btn { display: none; }
 
 @media (max-width: 47.99rem) {
-  .brand { font-size: 1.22rem; }
+  .site-header .brand { font-size: 1.22rem; }
   .site-nav ul { overflow-x: auto; }
   .js .menu-btn {
     display: inline-flex;
@@ -1161,17 +1173,16 @@ td { color: var(--ink-2); }
 .footer__lockup {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: baseline;
   gap: 0.35rem 0.75rem;
   font: 500 clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem)/1.2 var(--sans);
   letter-spacing: -0.025em;
 }
-.footer__lockup .mark { width: 2.25rem; height: 2.25rem; flex: none; }
-.footer__word { font-family: var(--word); font-weight: 600; letter-spacing: -0.01em; color: #0e0e0f; }
+.footer__lockup .brand { font-size: 1em; }
 .footer__dot { color: var(--muted); }
 .footer__tag { color: var(--ink-2); }
-/* on a phone the tagline wraps under the name, so the dot between them goes */
-@media (max-width: 47.99rem) { .footer__dot { display: none; } .footer__tag { flex-basis: 100%; } }
+/* on a phone the tagline wraps under the name, as far below it as the dot's gaps, and the dot goes */
+@media (max-width: 47.99rem) { .footer__lockup { row-gap: 0.75rem; } .footer__dot { display: none; } .footer__tag { flex-basis: 100%; } }
 .footer__about { color: var(--muted); max-width: 40rem; font-size: 0.9375rem; }
 .footer__cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2rem var(--gap); margin-top: 3rem; padding-top: 2.25rem; border-top: 1px solid var(--line); }
 /* four columns on the quarter lines: the third starts on the half line, like every second cell */

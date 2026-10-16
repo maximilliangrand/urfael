@@ -9,8 +9,9 @@ export const EMAIL = 'contact@myg-media.com'
 /** The default social card: the ᚢ mark, the Uru concept drawing and the tagline. */
 const OG_IMAGE = { src: `${ORIGIN}/media/og-urfael.png`, width: 1200, height: 630 }
 
-/** The mark, exactly as media/urfael-logo.svg draws it: the rune Uruz in white on a black disc. */
-export const MARK = '<svg class="mark" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><circle cx="64" cy="64" r="60" fill="#0e0e0f"/><path d="M46 96.5V35.5L82 56.5V96.5" fill="none" stroke-width="11" stroke-linejoin="round" stroke="#ffffff"/></svg>'
+/** The mark, exactly as media/urfael-logo.svg draws it: the rune Uruz standing free, one shape in currentColor,
+ * so it takes the colour of the lockup it sits in (.brand in site.css). From a 25 px box up; the favicon has the small cut. */
+export const MARK = '<svg class="mark" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><path fill="currentColor" d="M32 12L85.3 51.98A16 16 0 0 1 91.22 60.9L104 112L88 112L76.04 64.15A4 4 0 0 0 74.56 61.92L54.4 46.8A4 4 0 0 0 48 50L48 112L32 112Z"/></svg>'
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
@@ -104,7 +105,7 @@ ${links.map(([href, text]) => `          <li><a href="${href}">${text}</a></li>`
   return `<footer class="site-footer">
   <div class="wrap">
     <div class="footer__mast">
-      <p class="footer__lockup">${MARK}<span class="footer__word">Urfael</span><span class="footer__dot" aria-hidden="true">·</span><span class="footer__tag">Help that lives with you.</span></p>
+      <p class="footer__lockup"><span class="brand">${MARK}<span class="brand__word">Urfael</span></span><span class="footer__dot" aria-hidden="true">·</span><span class="footer__tag">Help that lives with you.</span></p>
       <p class="footer__about">Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. ${name}, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.</p>
     </div>
     <div class="footer__cols">
