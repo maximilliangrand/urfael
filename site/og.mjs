@@ -45,8 +45,8 @@ const card = `<!DOCTYPE html>
   .card__frame::before { top: 34px; }
   .card__frame::after { bottom: 34px; }
   .card__copy { display: flex; flex-direction: column; justify-content: center; padding: 0 var(--pad); }
-  .card__brand { display: flex; align-items: center; gap: 14px; margin: 0 0 54px; font: 600 34px/1 var(--word); letter-spacing: -0.01em; color: #0e0e0f; }
-  .card__brand .mark { width: 50px; height: 50px; flex: none; }
+  /* the site's lockup (.brand in site.css) at a 34px name, so a 45px mark */
+  .card__brand { align-self: flex-start; margin-bottom: 54px; font-size: 34px; }
   .card h1 { margin: 0 0 30px; font: 600 74px/0.98 var(--sans); letter-spacing: -0.05em; color: #0a0a0a; }
   .card__line { margin: 0; max-width: 30rem; font: 400 23px/1.45 var(--sans); letter-spacing: -0.005em; color: #454545; }
   .card__line b { color: #0a0a0a; font-weight: 600; }
@@ -58,7 +58,7 @@ const card = `<!DOCTYPE html>
 <div class="card">
   <div class="card__frame">
     <div class="card__copy">
-      <p class="card__brand">${MARK}<span>Urfael</span></p>
+      <p class="brand card__brand">${MARK}<span class="brand__word">Urfael</span></p>
       <h1>Help that lives with&nbsp;you.</h1>
       <p class="card__line">An open-source assistant on your own machine today. <b>${esc(ROBOT)}</b>, a soft helper robot for the home, in research.</p>
     </div>
