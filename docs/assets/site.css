@@ -348,11 +348,14 @@ main:has(> .hero) > section.section::before {
    Every size is in em of the name. The mark's box is 4/3 em, so its nominal height, y 16 to 112 of 128, is 1 em, and
    it sits on the name's baseline: align on the baseline, then drop the box by its empty bottom, 16 of 128. The gap
    leaves 40 units (0.4167 em) of air from the foot to the U, the width of the mark's own counter at the baseline,
-   less the 0.25 em the box holds right of the foot and the U's 0.0625 em side bearing. Keep 0.5 em clear round it. */
+   less the 0.25 em the box holds right of the foot and the U's 0.0625 em side bearing. The box holds a third of an em
+   left of the stem too, so the lockup steps back by it and the stem stands on the text line. Keep 0.5 em clear round
+   the ink. */
 .brand {
   display: inline-flex;
   align-items: baseline;
   gap: 0.104em;
+  margin-left: -0.3333em;
   font: 600 1.3rem/1 var(--word);
   letter-spacing: -0.01em;
   color: var(--logo);
@@ -365,7 +368,6 @@ main:has(> .hero) > section.section::before {
   flex-wrap: wrap;
   align-content: center;
   min-height: 2.75rem;
-  margin-left: -0.125rem;
   padding-bottom: 0.156em;
   text-decoration: none;
 }
