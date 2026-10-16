@@ -26,7 +26,11 @@
     .sidebar-nav > ul > li > a { font-weight: 600; }
     .sidebar-nav li.active > a, .sidebar a:hover, .app-nav a:hover { color: var(--ink) !important; border-right-color: var(--ink) !important; }
     .sidebar-toggle { background: var(--wash); } .sidebar-toggle span { background-color: var(--ink); }
-    .app-name-link img { height: 34px; }
+    /* the logo: media/urfael-logo.svg turns white under a dark system scheme, for dark pages, but the manual is white in
+       every scheme, so its logo is held to the mark's black. In the sidebar its feet sit on the name's baseline: the
+       file's box holds 16 of 128 units below them, 4.25px at 34px. */
+    .app-name-link img, .cover-main img { filter: brightness(0) invert(5.5%); }
+    .app-name-link img { height: 34px; vertical-align: -4.25px; }
     .search input { background: #ffffff; color: var(--ink); border: 1px solid var(--line-2); }
     .search .results-panel { background: #ffffff; } .search .matching-post { border-bottom-color: var(--line); } .search .search-keyword { color: var(--ink); font-weight: 600; }
     /* the page */
@@ -52,6 +56,8 @@
     section.cover .cover-main > h1 { font-weight: 600; letter-spacing: -0.04em; }
     section.cover .cover-main > p:last-child a { border: 1px solid var(--ink); border-radius: 6px; color: var(--ink); font-weight: 500; letter-spacing: -0.005em; }
     section.cover .cover-main > p:last-child a:last-child { background: var(--ink); color: #ffffff !important; }
+    /* on a phone the navbar wraps to three lines over the top of the cover, so the cover starts below them */
+    @media screen and (max-width: 768px) { section.cover { box-sizing: border-box; padding-top: 7.5rem; } }
     .github-corner { color: var(--ink); border-bottom: 0; } .github-corner svg { fill: var(--ink); color: #ffffff; }
   </style>
 </head>
