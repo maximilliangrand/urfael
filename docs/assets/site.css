@@ -64,13 +64,14 @@
   src: url(/assets/fonts/geist-mono-arrows.woff2) format("woff2");
   unicode-range: U+2192, U+2197;
 }
-/* the one rune the site writes, ᚢ, which neither text face carries: a 0.6 kB cut of Noto Sans Runic */
+/* the one rune the site writes, ᚢ, which neither text face carries: a one-glyph font drawn from the mark itself
+   (site/fonts/build-rune.py), so every ᚢ in the text is the logo */
 @font-face {
-  font-family: "Noto Sans Runic";
+  font-family: "Urfael Rune";
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url(/assets/fonts/noto-sans-runic-uruz.woff2) format("woff2");
+  src: url(/assets/fonts/urfael-rune.woff2) format("woff2");
   unicode-range: U+16A2;
 }
 /* The wordmark: Outfit (OFL, see fonts/OFL-Outfit.txt), a geometric sans whose flat terminals echo the rune's level
@@ -101,7 +102,7 @@
   --fill-2: #ebebeb;
   --logo: #0e0e0f; /* the lockup's black: the mark and the name beside it */
 
-  --sans: "Geist", "Noto Sans Runic", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --sans: "Geist", "Urfael Rune", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --word: "Outfit", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
@@ -235,7 +236,7 @@ code {
 .skip:focus { transform: none; color: #ffffff; }
 
 .wrap { width: var(--frame); margin-inline: auto; padding-inline: var(--pad); }
-.rune { font-family: "Noto Sans Runic", var(--sans); font-weight: 400; letter-spacing: 0; }
+.rune { font-family: "Urfael Rune", var(--sans); font-weight: 400; letter-spacing: 0; }
 
 /* the eyebrow: the site's mono voice, as in the table heads, the plates' corners and the footer's headings */
 .eyebrow {
