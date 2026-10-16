@@ -360,7 +360,13 @@ main:has(> .hero) > section.section::before {
   letter-spacing: -0.01em;
   color: var(--logo);
 }
+/* the box is rounded to whole pixels: a browser draws the box from a whole pixel and the name on a whole-pixel
+   baseline, so a box of 27.7 px (the header's) set the feet 0.7 px below the name's in Chromium */
 .brand .mark { width: 1.3333em; height: 1.3333em; flex: none; transform: translateY(12.5%); }
+@supports (width: round(1em, 1px)) {
+  .brand { margin-left: calc(round(4em / 3, 1px) / -4); }
+  .brand .mark { width: round(4em / 3, 1px); height: round(4em / 3, 1px); }
+}
 /* in the header the lockup is the home link: a 2.75rem target with its ink, apex to baseline, centred in it. Its line
    holds 0.292 em above the apex and 0.136 em below the baseline, so the bottom padding evens the two. */
 .site-header .brand {
