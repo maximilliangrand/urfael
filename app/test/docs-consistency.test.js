@@ -88,9 +88,11 @@ test('every total-channel-count claim in the docs equals the real channel count'
 
 // The redesigned site reports source counts rather than a passing score or a fixed unit-test total.
 test('the published benchmark source counts match the harness', () => {
-  for (const rel of ['README.md', 'docs/honesty.html']) {
+  for (const rel of [...DOCS, 'ARCHITECTURE.md']) {
     const counts = [...read(rel).matchAll(/(\d+)\s+groups and\s+(\d+)/g)];
-    assert.ok(counts.length, rel + ' must describe the benchmark source counts');
+    if (rel === 'README.md' || rel === 'docs/honesty.html') {
+      assert.ok(counts.length, rel + ' must describe the benchmark source counts');
+    }
     for (const m of counts) {
       assert.equal(Number(m[1]), CLASSES, rel + ' cites the wrong number of benchmark groups');
       assert.equal(Number(m[2]), CHECKS, rel + ' cites the wrong number of benchmark checks');
