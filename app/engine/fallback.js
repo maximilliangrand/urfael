@@ -45,6 +45,8 @@ function classifyNativeError(r) {
     if (status === 408 || status === 429 || status >= 500) return { retryable: true, category: 'http_' + status };
     return { retryable: false, category: 'http_' + status };   // 4xx: bad request / auth / forbidden / not-found — terminal
   }
+  // An unrecognized stream error code stays terminal; its diagnostic text cannot invent a network fault.
+  if (err.startsWith('api error [')) return { retryable: false, category: 'terminal' };
   // raw socket/DNS errors: the adapters forward res.on('error') / connect-error messages verbatim. These are
   // transient endpoint faults; a different provider may well be reachable. Retry the chain.
   if (/\b(ECONNREFUSED|ECONNRESET|ECONNABORTED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH|ENETUNREACH|EHOSTDOWN|ENETDOWN)\b/i.test(err))
