@@ -25,7 +25,7 @@ function manualMd() {
   try { walk(base); } catch {}
   return out;
 }
-const DOCS = ['README.md', 'PARITY.md', 'CONTRIBUTING.md', 'docs/launch/demo.tape', 'docs/index.html', 'docs/SECURITY-BENCHMARK.md', ...manualMd()];
+const DOCS = ['README.md', 'PARITY.md', 'CONTRIBUTING.md', 'docs/launch/demo.tape', 'docs/index.html', 'docs/assistant.html', 'docs/honesty.html', 'docs/faq.html', 'docs/SECURITY-BENCHMARK.md', ...manualMd()];
 
 test('the benchmark + class counts are derivable and sane', () => {
   assert.ok(CHECKS > 0 && CLASSES > 0, 'derived counts must be positive (checks=' + CHECKS + ', classes=' + CLASSES + ')');
@@ -86,34 +86,17 @@ test('every total-channel-count claim in the docs equals the real channel count'
   }
 });
 
-// ── the landing page builds its hero badges, proof tally, and cockpit animation from a JS literal (const URFAEL =
-//    {classes, checks, ...}); the text scans above cannot see those numbers, so assert the literal itself is correct. ──
-test('the landing page JS counts (const URFAEL) match the real benchmark', () => {
-  const html = read('docs/index.html');
-  const m = html.match(/const URFAEL\s*=\s*\{([^}]*)\}/);
-  assert.ok(m, 'docs/index.html must define const URFAEL = { ... }');
-  const cls = m[1].match(/classes:\s*(\d+)/), chk = m[1].match(/checks:\s*(\d+)/);
-  assert.ok(cls && chk, 'const URFAEL must define classes: and checks:');
-  assert.equal(Number(cls[1]), CLASSES, 'const URFAEL.classes is ' + cls[1] + ' but there are ' + CLASSES + ' attack classes');
-  assert.equal(Number(chk[1]), CHECKS, 'const URFAEL.checks is ' + chk[1] + ' but the benchmark has ' + CHECKS + ' checks');
-});
-
-// ── the unit-test count is cited in several places (README, the site, the cockpit const). The real count can't be
-//    derived statically (some tests run in a loop), so the cockpit const URFAEL.unitTests is the single source of
-//    truth and every other "(N) unit tests" / "frozen by (N) tests" claim must match it. This is the guard that was
-//    missing when "520" silently drifted from the real 532; update the const (to the `npm test` count) and every
-//    doc must follow, or this fails. ──
-test('every unit-test-count claim in the docs matches the cockpit const (no silent drift)', () => {
-  const html = read('docs/index.html');
-  const u = (html.match(/const URFAEL\s*=\s*\{([^}]*)\}/) || [, ''])[1].match(/unitTests:\s*(\d+)/);
-  assert.ok(u, 'const URFAEL must define unitTests: so the test count has one source of truth');
-  const N = Number(u[1]);
-  // allow up to two qualifier tokens (e.g. "`node:test`", "fast") between the number and "unit tests" so a count in
-  // "1349 `node:test` unit tests" / "1349 fast unit tests" cannot silently drift from the rest (a real prior blind spot).
-  const pats = [/(\d+)\s+(?:`?[\w:.-]+`?\s+){0,2}unit tests/gi, /frozen by (\d+) tests/gi];
-  for (const rel of [...DOCS, 'docs/honesty.html', 'docs/faq.html', 'ARCHITECTURE.md']) {
-    const t = read(rel);
-    for (const re of pats) { let m; while ((m = re.exec(t))) assert.equal(Number(m[1]), N, rel + ' cites "' + m[0].trim() + '" but const URFAEL.unitTests is ' + N); }
+// The redesigned site reports source counts rather than a passing score or a fixed unit-test total.
+test('the published benchmark source counts match the harness', () => {
+  for (const rel of [...DOCS, 'ARCHITECTURE.md']) {
+    const counts = [...read(rel).matchAll(/(\d+)\s+groups and\s+(\d+)/g)];
+    if (rel === 'README.md' || rel === 'docs/honesty.html') {
+      assert.ok(counts.length, rel + ' must describe the benchmark source counts');
+    }
+    for (const m of counts) {
+      assert.equal(Number(m[1]), CLASSES, rel + ' cites the wrong number of benchmark groups');
+      assert.equal(Number(m[2]), CHECKS, rel + ' cites the wrong number of benchmark checks');
+    }
   }
 });
 
@@ -150,7 +133,7 @@ test('CHANNEL_MATURITY classifies exactly the real channel roster', () => {
 test('every maturity ledger names every code-complete channel (single-sourced, no underclaim)', () => {
   const ledgers = {
     'README.md': /## What's lightly tested([\s\S]*?)\n## /,
-    'docs/honesty.html': /class="light-list">([\s\S]*?)<\/ul>/,
+    'docs/honesty.html': /<section\b[^>]*aria-labelledby="light"[^>]*>([\s\S]*?)<\/section>/,
     'docs/manual/channels/overview.md': /## What is lightly tested([\s\S]*?)(?:\n## |$)/,
   };
   for (const [rel, re] of Object.entries(ledgers)) {
