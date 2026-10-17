@@ -10,7 +10,7 @@ From the repository's `app/` directory:
 npm run security
 ```
 
-Read [the harness](../app/test/security-benchmark.js) first. It starts a real daemon and dashboard, uses your local `~/.claude/urfael` state and socket, replaces test vault data, and removes the dashboard token during setup. It can interfere with an existing instance and may consume turns through your authenticated Claude Code login. Use a disposable test account/environment with the required credentials and platform tools.
+Read [the harness](../app/test/security-benchmark.js) first. It starts a real daemon and dashboard under a fresh temporary home, with a private state directory, socket, vault, memory, and dashboard token. It clears inherited credentials and application settings, disables update checks, and uses the deterministic offline Claude stub. Cleanup stops only its own child processes and removes its temporary files, including on startup failure or interruption. No Claude login is required. The Unix socket and mode checks require a POSIX host; the listener probe also needs `lsof`.
 
 `npm run security` and `npm run e2e` are manual live harnesses. Neither runs in [CI](../.github/workflows/ci.yml). CI runs `npm test`, bounded `npm run fuzz`, and `npm run redteam`, plus dependency and Windows installer checks.
 

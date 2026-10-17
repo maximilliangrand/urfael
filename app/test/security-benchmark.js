@@ -19,6 +19,15 @@ const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 
+// Isolate before importing any application module: several capture HOME at require time.
+const TEST_HOME = fs.mkdtempSync(path.join(os.tmpdir(), 'urf-sec-'));
+const keepEnv = new Set(['PATH', 'Path', 'SystemRoot', 'SYSTEMROOT', 'WINDIR', 'ComSpec', 'COMSPEC', 'PATHEXT', 'TMPDIR', 'TMP', 'TEMP', 'LANG', 'LC_ALL', 'TERM']);
+for (const key of Object.keys(process.env)) if (!keepEnv.has(key)) delete process.env[key];
+Object.assign(process.env, {
+  HOME: TEST_HOME, USERPROFILE: TEST_HOME,
+  URFAEL_CLAUDE_BIN: path.join(__dirname, 'stub', process.platform === 'win32' ? 'claude.js' : 'claude'),
+  URFAEL_UPDATE_CHECK: '0',
+});
 const APP = path.join(__dirname, '..');
 const JDIR = path.join(os.homedir(), '.claude', 'urfael');
 const SOCK = path.join(JDIR, 'daemon.sock');
@@ -48,10 +57,26 @@ function sock(method, p, body) {
 }
 
 let daemon, dash;
+let cleanupPromise;
+function cleanup() {
+  return cleanupPromise ||= (async () => {
+    for (const child of [dash, daemon]) {
+      if (!child || !child.pid || child.exitCode !== null || child.signalCode !== null) continue;
+      await new Promise((resolve) => {
+        const timer = setTimeout(() => child.kill('SIGKILL'), 1500);
+        child.once('exit', () => { clearTimeout(timer); resolve(); });
+        child.kill();
+      });
+    }
+    fs.rmSync(TEST_HOME, { recursive: true, force: true });
+  })();
+}
+async function finish(code) { await cleanup(); process.exit(code); }
+function fail(error) { console.error('benchmark error:', error); return finish(2); }
+process.once('SIGINT', () => finish(130));
+process.once('SIGTERM', () => finish(143));
+
 async function main() {
-  try { execFileSync('pkill', ['-f', 'urfael-src/app/daemon.js'], { stdio: 'ignore' }); } catch {}
-  try { fs.unlinkSync(SOCK); } catch {}
-  fs.rmSync(path.join(os.homedir(), VDIR), { recursive: true, force: true });
   fs.mkdirSync(path.join(os.homedir(), VDIR, '_urfael', 'skills'), { recursive: true });
   fs.mkdirSync(path.join(os.homedir(), MDIR, 'sessions'), { recursive: true });
 
@@ -67,7 +92,9 @@ async function main() {
   attackClass('Network exposure — the agent listens where attackers can reach it',
     'Agent gateways found publicly exposed, reported in the tens of thousands.');
   daemon = spawn(process.execPath, [path.join(APP, 'daemon.js')], { env, stdio: 'ignore' });
+  daemon.on('error', fail);
   let up = false; for (let i = 0; i < 30; i++) { await sleep(400); try { const ok = await new Promise((r) => { const q = http.request({ socketPath: SOCK, path: '/health', timeout: 1000 }, (res) => { res.resume(); r(true); }); q.on('error', () => r(false)); q.on('timeout', () => { q.destroy(); r(false); }); q.end(); }); if (ok) { up = true; break; } } catch {} }
+  if (!up) throw new Error('isolated test daemon did not become ready');
   check('daemon is reachable only over a unix socket', up, '~/.claude/urfael/daemon.sock (0600)');
   // PROVE no TCP port: the daemon process has zero TCP listeners.
   let tcpListeners = '(lsof unavailable)';
@@ -91,11 +118,17 @@ async function main() {
   // ── 2. AUTH-TOKEN LEAK / ONE-CLICK RCE ────────────────────────────────────
   attackClass('Auth-token leak → one-click RCE',
     'A one-click RCE in a widely used agent: a malicious page leaked the gateway auth token over a WebSocket.');
-  const PORT = 7798;
-  try { fs.unlinkSync(path.join(JDIR, 'dashboard.token')); } catch {}
+  const PORT = await new Promise((resolve, reject) => {
+    const probe = require('net').createServer();
+    probe.once('error', reject);
+    probe.listen(0, '127.0.0.1', () => { const port = probe.address().port; probe.close((err) => err ? reject(err) : resolve(port)); });
+  });
   dash = spawn(process.execPath, [path.join(APP, 'dashboard.js')], { env: { ...env, URFAEL_DASHBOARD_PORT: String(PORT) }, stdio: ['ignore', 'pipe', 'ignore'] });
+  dash.on('error', fail);
   let dashOut = ''; dash.stdout.on('data', (d) => (dashOut += d.toString()));
-  await sleep(1500);
+  const ready = 'Urfael dashboard on http://127.0.0.1:' + PORT + ' ';
+  for (let i = 0; i < 50 && !dashOut.includes(ready) && dash.exitCode === null; i++) await sleep(100);
+  if (!dashOut.includes(ready)) throw new Error('isolated test dashboard did not become ready');
   let tok = ''; try { tok = fs.readFileSync(path.join(JDIR, 'dashboard.token'), 'utf8').trim(); } catch {}
   check('the token is NEVER printed to stdout (no log leak)', tok.length === 64 && !dashOut.includes(tok), 'only its 0600 path is printed');
   check('the token file is 0600 (not world-readable)', (() => { try { return (fs.statSync(path.join(JDIR, 'dashboard.token')).mode & 0o777) === 0o600; } catch { return false; } })());
@@ -270,7 +303,7 @@ async function main() {
   const camelOk = await (async () => {
     const taint = require(path.join(APP, 'engine', 'taint.js'));
     const { createToolset: mkTs } = require(path.join(APP, 'engine', 'tools.js'));
-    const cVault = fs.mkdtempSync(path.join(os.tmpdir(), 'urf-sec-camel-'));
+    const cVault = fs.mkdtempSync(path.join(TEST_HOME, 'camel-'));
     try {
       // (1) DEFAULT PATH byte-identical: a taint-UNAWARE toolset has the gate OFF and writes normally.
       const plain = mkTs({ vaultDir: cVault });
@@ -454,7 +487,7 @@ async function main() {
         const e = runner.jobEnv();
         const stripped = !(AMBIENT in e);                                            // the ambient secret is gone
         const stillRuns = e.PATH === process.env.PATH && e.URFAEL_OVERLAY === '1';    // PATH kept + overlay stamped → the job still runs
-        const wired = /env: jobEnv\(\)/.test(runnerSrc) && !/\{ \.\.\.process\.env, URFAEL_OVERLAY: '1' \}/.test(runnerSrc);  // run() routes through the boundary; the raw full-env spawn is gone
+        const wired = /env: internalNodeEnv\(jobEnv\(starting\)\)/.test(runnerSrc) && !/\{ \.\.\.process\.env, URFAEL_OVERLAY: '1' \}/.test(runnerSrc);  // the supervisor receives the scoped job env before its Electron runtime flag
         const singleSourced = /scopedEnv \} = require\('\.\/lib'\)/.test(runnerSrc);  // the ONE shared allowlist, never a private copy that could drift
         return stripped && stillRuns && wired && singleSourced;
       } finally { if (saved === undefined) delete process.env[AMBIENT]; else process.env[AMBIENT] = saved; }
@@ -495,13 +528,12 @@ async function main() {
       return notDone && done && !threw;
     })(),
     'only a well-formed pass citing non-empty evidence for EVERY criterion declares done; a false "done" is unreachable by a malformed/injected verdict, and the parser never throws');
-  check('the goal-loop --verify gate is OPT-IN + default byte-identical: the two candidate-done blocks are untouched, the interception is a `[ -n "$VERIFY" ]` pre-step, and a green check is still adjudicated',
-    /\[ -n "\$VERIFY" \]/.test(goalLoop)
-      && goalLoop.includes('if run_check; then echo "✅ verify command passes — done."; DONE=1; break; fi')
-      && goalLoop.includes('[ "$last" = "$MARKER" ] && { echo "✅ completion marker (no verify command given)."; DONE=1; break; }')
-      && /if \[ -z "\$VERIFY" \] && \[ -n "\$CHECK" \] && run_check/.test(goalLoop)
+  check('the goal-loop completion gate requires a final worker marker and any configured check; opt-in --verify can veto that candidate',
+    /if \[ "\$last" = "\$MARKER" \]; then\s+if \[ -z "\$CHECK" \]; then CANDIDATE=1\s+elif run_check; then CANDIDATE=1; CHECKPASSED=true; fi/.test(goalLoop)
+      && /if \[ -n "\$VERIFY" \]; then\s+if \[ -n "\$CANDIDATE" \]; then/.test(goalLoop)
+      && /if \[ "\$VVERDICT" = "pass" \]; then[\s\S]*?else[\s\S]*?continue\s+fi\s+fi\s+fi\s+if \[ -n "\$CANDIDATE" \]; then\s+echo [^\n]+; DONE=1; break/.test(goalLoop)
       && /--verify requires --criteria/.test(goalLoop),
-    'with neither --verify nor URFAEL_GOAL_VERIFY the loop is byte-identical; --verify without --criteria fails closed; a red --check never even spawns the verifier');
+    'source guard: a green baseline check alone cannot complete a goal; --verify without --criteria fails closed, and a red check or rejected review cannot reach done');
   check("the gate's contract + verdicts are HASH-CHAINED: 'goal_contract'/'goal_verify' are CHAINED_EVENTS, logged only via the daemon's single-writer logEvent over the owner socket (POST /goal/ledger, closed schema) — a child can't forge chain position",
     /CHAINED_EVENTS = new Set\(\[[^\]]*'goal_contract'[^\]]*'goal_verify'/.test(daemonSrc)
       && /req\.url === '\/goal\/ledger'/.test(daemonSrc)
@@ -824,8 +856,8 @@ async function main() {
   const { createCompactor: mkCompactor } = require('../engine/compactor');
 
   // probe the fail-closed toolset with a throwaway vault, an OUT-of-vault secret, and an escaping symlink
-  const engVault = fs.mkdtempSync(path.join(os.tmpdir(), 'urf-sec-eng-'));
-  const engOut = fs.mkdtempSync(path.join(os.tmpdir(), 'urf-sec-out-'));
+  const engVault = fs.mkdtempSync(path.join(TEST_HOME, 'engine-'));
+  const engOut = fs.mkdtempSync(path.join(TEST_HOME, 'outside-'));
   fs.writeFileSync(path.join(engOut, 'secret.txt'), 'TOPSECRET');
   let symlinkOk = true; try { fs.symlinkSync(engOut, path.join(engVault, 'escape')); } catch { symlinkOk = false; }
   const ts = mkToolset({ vaultDir: engVault });
@@ -937,13 +969,7 @@ async function main() {
   fs.rmSync(engOut, { recursive: true, force: true });
 
   // ── teardown + verdict ────────────────────────────────────────────────────
-  try { dash && dash.kill(); } catch {}
-  try { await new Promise((r) => { const q = http.request({ socketPath: SOCK, method: 'POST', path: '/shutdown', timeout: 1500 }, (res) => { res.resume(); r(); }); q.on('error', r); q.on('timeout', () => { q.destroy(); r(); }); q.end(); }); } catch {}
-  try { daemon && daemon.kill(); } catch {}
-  await sleep(400);
-  fs.rmSync(path.join(os.homedir(), VDIR), { recursive: true, force: true });
-  fs.rmSync(path.join(os.homedir(), MDIR), { recursive: true, force: true });
-  try { fs.unlinkSync(path.join(JDIR, 'dashboard.token')); } catch {}
+  await cleanup();
 
   const classes = [...new Set(rows.map((r) => r.cls))];
   const resistedClasses = classes.filter((c) => rows.filter((r) => r.cls === c).every((r) => r.ok));
@@ -953,6 +979,6 @@ async function main() {
   process.stdout.write(`  ${rows.length - failed.length}/${rows.length} individual checks passed\n`);
   if (failed.length) { process.stdout.write('\n  ✗ VULNERABLE:\n'); for (const r of failed) process.stdout.write(`    - [${r.cls}] ${r.name}\n`); }
   process.stdout.write('════════════════════════════════════════════════════════════\n');
-  process.exit(failed.length ? 1 : 0);
+  return failed.length ? 1 : 0;
 }
-main().catch((e) => { console.error('benchmark error:', e); try { dash && dash.kill(); daemon && daemon.kill(); } catch {} process.exit(2); });
+main().then(finish, fail);

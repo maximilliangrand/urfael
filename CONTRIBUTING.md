@@ -15,12 +15,12 @@ and PRs are all welcome.
 git clone https://github.com/maximilliangrand/urfael.git && cd urfael
 cd app && npm install
 npm test             # unit tests; no model credentials required; reports the current test count
-npm run security     # 11/11 attack classes · 128/128 checks — boots a REAL daemon + dashboard and attacks them
+npm run security     # isolated real daemon + dashboard, offline Claude stub; reports the current results
 npm run e2e          # live end-to-end against a real daemon (uses your real claude login)
 ```
 Use `npm test` (the scoped `test/*.test.js` glob), not bare `node --test` — the latter also discovers the
-two live-daemon harnesses (`e2e.js`, `security-benchmark.js`), which boot a real daemon on your `claude`
-login. New to the codebase? Read **[ARCHITECTURE.md](ARCHITECTURE.md)**, then the five files in its "the moat,
+two manual daemon harnesses (`e2e.js`, `security-benchmark.js`). Security uses temporary state and an offline
+Claude stub; e2e uses your real `claude` login. New to the codebase? Read **[ARCHITECTURE.md](ARCHITECTURE.md)**, then the five files in its "the moat,
 in five files" section, and you understand the whole security posture. The engine lives in `app/` (Electron
 overlay + the `daemon.js` brain + `voice.js`); vault-side logic (commands, hooks, scripts) is in
 `vault-template/_urfael/`.
