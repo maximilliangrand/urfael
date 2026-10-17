@@ -9,6 +9,7 @@ const assert = require('node:assert');
 const http = require('http');
 const { createSseParser } = require('../engine/sse');
 const adapter = require('../engine/openai-adapter');
+const { classifyNativeError } = require('../engine/fallback');
 
 // ---- sse.js -------------------------------------------------------------------------------------
 
@@ -29,6 +30,41 @@ test('sse: CRLF framing, comments, and a final unterminated event flushed by end
   assert.deepStrictEqual(got, ['a', 'tail']);
   p.end();                                                // idempotent
   assert.deepStrictEqual(got, ['a', 'tail']);
+});
+
+test('sse: UTF-8 survives every Buffer boundary without changing event framing', () => {
+  const wire = Buffer.from('event: message\r\ndata: Grüße 👋 東京\r\ndata: next\r\n\r\n');
+  for (let split = 0; split <= wire.length; split++) {
+    const got = [];
+    const parser = createSseParser((data, event) => got.push({ data, event }));
+    parser.feed(wire.subarray(0, split));
+    parser.feed(wire.subarray(split));
+    parser.end();
+    assert.deepStrictEqual(got, [{ data: 'Grüße 👋 東京\nnext', event: 'message' }], 'byte boundary ' + split);
+  }
+});
+
+test('sse: decoder flush replaces an incomplete final character once without inventing an event', () => {
+  const got = [];
+  const parser = createSseParser((data) => got.push(data));
+  parser.feed(Buffer.from('data: Grüße '));
+  parser.feed(Buffer.from([0xf0]));
+  parser.feed(Buffer.from([0x9f]));
+  assert.deepStrictEqual(got, []);
+  parser.end();
+  parser.end();
+  assert.deepStrictEqual(got, ['Grüße �']);
+});
+
+test('sse: string chunks retain split surrogates and cannot overtake pending Buffer bytes', () => {
+  const got = [];
+  const parser = createSseParser((data) => got.push(data));
+  parser.feed('data: \ud83d');
+  parser.feed('\udc4b ');
+  parser.feed(Buffer.from([0xe2]));
+  parser.feed('tail\n\n');
+  parser.end();
+  assert.deepStrictEqual(got, ['👋 �tail']);
 });
 
 // ---- endpoint rule (the SSRF-adjacent gate) ------------------------------------------------------
@@ -54,6 +90,71 @@ function serve(handler) {
   });
 }
 const sse = (res, obj) => res.write('data: ' + JSON.stringify(obj) + '\n\n');
+
+test('adapter: UTF-8 text and tool arguments survive byte-sized HTTP chunks', async () => {
+  const text = 'Grüße 👋 東京';
+  const args = JSON.stringify({ path: 'café/東京.md' });
+  const { port, close } = await serve((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    const wire = 'data: ' + JSON.stringify({ choices: [{ delta: {
+      content: text, tool_calls: [{ index: 0, id: 'c1', function: { name: 'read_file', arguments: args } }],
+    }, finish_reason: 'tool_calls' }] }) + '\n\ndata: [DONE]\n\n';
+    for (const byte of Buffer.from(wire)) res.write(Buffer.from([byte]));
+    res.end();
+  });
+  const deltas = [];
+  const r = await adapter.chat({ baseUrl: 'http://127.0.0.1:' + port, model: 'm',
+    messages: [{ role: 'user', content: 'read it' }], onDelta: (value) => deltas.push(value) });
+  await close();
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.text, text);
+  assert.deepStrictEqual(deltas, [text]);
+  assert.deepStrictEqual(r.toolCalls, [{ id: 'c1', name: 'read_file', args }]);
+});
+
+for (const [label, error, retryable, category] of [
+  ['rate limit', { code: 429, message: 'Rate limit exceeded' }, true, 'http_429'],
+  ['overload', { code: '503', message: 'Unavailable' }, true, 'http_503'],
+  ['auth failure', { code: 401, message: '503 overloaded rate limit' }, false, 'http_401'],
+  ['symbolic failure', { code: 'invalid_request', message: '503 overloaded ECONNRESET timed out' }, false, 'terminal'],
+  ['missing details', null, false, 'terminal'],
+]) {
+  for (const partial of [false, true]) {
+    test('adapter: SSE ' + label + ' fails ' + (partial ? 'after partial output' : 'before any output'), async () => {
+      const { port, close } = await serve((req, res) => {
+        res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+        if (partial) sse(res, { choices: [{ delta: { content: 'Partial answer', tool_calls: [
+          { index: 0, id: 'c1', function: { name: 'read_file', arguments: '{"path":' } },
+        ] } }] });
+        sse(res, { ...(error ? { error } : {}), choices: [{ index: 0, delta: {}, finish_reason: 'error' }] });
+        res.end('data: [DONE]\n\n');
+      });
+      const deltas = [];
+      const r = await adapter.chat({ baseUrl: 'http://127.0.0.1:' + port, model: 'm',
+        messages: [{ role: 'user', content: 'x' }], onDelta: (value) => deltas.push(value) });
+      await close();
+      assert.strictEqual(r.ok, false);
+      assert.strictEqual(r.stopReason, 'error');
+      assert.strictEqual(r.text, partial ? 'Partial answer' : '');
+      assert.deepStrictEqual(deltas, partial ? ['Partial answer'] : []);
+      assert.deepStrictEqual(r.toolCalls, []);
+      assert.deepStrictEqual(classifyNativeError(r), { retryable, category });
+    });
+  }
+}
+
+test('adapter: an error-only SSE event is bounded and closes a stream that stays open', async () => {
+  const { port, close } = await serve((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    sse(res, { error: { code: 429, message: 'x'.repeat(1000), metadata: { private: 'do not echo' } } });
+  });
+  const r = await adapter.chat({ baseUrl: 'http://127.0.0.1:' + port, model: 'm',
+    messages: [{ role: 'user', content: 'x' }], timeoutMs: 1000 });
+  await close();
+  assert.strictEqual(r.ok, false);
+  assert.match(r.error, /^HTTP 429: x+$/);
+  assert.ok(r.error.length <= 320);
+});
 
 test('adapter: streams text deltas, accumulates indexed tool-call fragments, reports usage', async () => {
   const { port, close } = await serve((req, res) => {

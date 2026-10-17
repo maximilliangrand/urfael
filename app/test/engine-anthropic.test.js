@@ -17,6 +17,34 @@ function serve(handler) {
 }
 const ev = (res, type, obj) => res.write('event: ' + type + '\ndata: ' + JSON.stringify({ type, ...obj }) + '\n\n');
 
+test('adapter: UTF-8 text and tool arguments survive byte-sized HTTP chunks', async () => {
+  const text = 'Grüße 👋 東京';
+  const args = JSON.stringify({ path: 'café/東京.md' });
+  const { port, close } = await serve((req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+    const events = [
+      { type: 'message_start', message: { usage: { input_tokens: 1 } } },
+      { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } },
+      { type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'c1', name: 'read_file' } },
+      { type: 'content_block_delta', index: 1, delta: { type: 'input_json_delta', partial_json: args } },
+      { type: 'content_block_stop', index: 1 },
+      { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 1 } },
+      { type: 'message_stop' },
+    ];
+    const wire = events.map((event) => 'event: ' + event.type + '\ndata: ' + JSON.stringify(event) + '\n\n').join('');
+    for (const byte of Buffer.from(wire)) res.write(Buffer.from([byte]));
+    res.end();
+  });
+  const deltas = [];
+  const r = await adapter.chat({ baseUrl: 'http://127.0.0.1:' + port, apiKey: 'fixture', model: 'm',
+    messages: [{ role: 'user', content: 'read it' }], onDelta: (value) => deltas.push(value) });
+  await close();
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.text, text);
+  assert.deepStrictEqual(deltas, [text]);
+  assert.deepStrictEqual(r.toolCalls, [{ id: 'c1', name: 'read_file', args }]);
+});
+
 test('toWire: system extraction, tool_use input parsing (fail-soft), tool_result as user', () => {
   const { system, messages } = adapter.toWire([
     { role: 'system', content: 'be brief' },

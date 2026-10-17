@@ -122,6 +122,14 @@ function chat(opts) {
         usage.inTok = j.usage.prompt_tokens | 0; usage.outTok = j.usage.completion_tokens | 0;
       }
       const ch = j && Array.isArray(j.choices) ? j.choices[0] : null;
+      if ((j && j.error) || (ch && ch.finish_reason === 'error')) {
+        const error = j.error || {};
+        const code = String(error.code || '').replace(/\s+/g, ' ').slice(0, 64);
+        const prefix = /^[45]\d\d$/.test(code) ? 'HTTP ' + code : (code ? 'api error [' + code + ']' : 'api error');
+        const message = String(error.message || (typeof error === 'string' ? error : 'stream failed')).replace(/\s+/g, ' ').slice(0, 300);
+        kill();
+        return fail(prefix + ': ' + message);
+      }
       if (!ch) return;
       if (ch.finish_reason) finishReason = String(ch.finish_reason);
       const d = ch.delta || {};

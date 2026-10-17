@@ -13,7 +13,10 @@
 //   - A bare '[DONE]' data payload is surfaced like any other — the ADAPTER decides it is terminal.
 //   - CRLF and LF framing both work (some local model servers emit CRLF).
 //   - Output is bounded by the caller: the parser never buffers more than one partial line + one open event.
+const { StringDecoder } = require('node:string_decoder');
+
 function createSseParser(onEvent) {
+  const decoder = new StringDecoder('utf8');
   let lineBuf = '';        // the current PARTIAL line (no terminator seen yet)
   let dataLines = [];      // accumulated data: lines of the OPEN event
   let eventName = '';      // event: field of the open event ('' = default)
@@ -38,20 +41,25 @@ function createSseParser(onEvent) {
     // id:/retry: are irrelevant to both adapters — parsed and dropped.
   }
 
+  function feedText(text) {
+    lineBuf += text;
+    let nl;
+    while ((nl = lineBuf.indexOf('\n')) !== -1) {
+      let line = lineBuf.slice(0, nl);
+      lineBuf = lineBuf.slice(nl + 1);
+      if (line.endsWith('\r')) line = line.slice(0, -1);    // CRLF framing
+      takeLine(line);
+    }
+  }
+
   return {
     feed(chunk) {
-      lineBuf += chunk.toString('utf8');
-      let nl;
-      while ((nl = lineBuf.indexOf('\n')) !== -1) {
-        let line = lineBuf.slice(0, nl);
-        lineBuf = lineBuf.slice(nl + 1);
-        if (line.endsWith('\r')) line = line.slice(0, -1);    // CRLF framing
-        takeLine(line);
-      }
+      feedText(typeof chunk === 'string' ? decoder.end() + chunk : decoder.write(chunk));
     },
     // end() — flush a final event that was not blank-line-terminated (some servers close the socket right
     // after the last data line). Safe to call more than once.
     end() {
+      feedText(decoder.end());
       if (lineBuf !== '') { let line = lineBuf; lineBuf = ''; if (line.endsWith('\r')) line = line.slice(0, -1); takeLine(line); }
       dispatch();
     },
