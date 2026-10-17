@@ -1,9 +1,9 @@
 name: ci
 
 # The credential-free gate. Runs on every push + PR across an OS/node matrix so the unit suite, the input-fuzz
-# harness, and the SSRF red-team actually GATE changes (build.yml only fires on release tags). The live-daemon
-# harnesses — `npm run security` and `npm run e2e` — are deliberately NOT here: they boot a real daemon on your
-# `claude` login and spend real turns, so they stay local/manual.
+# harness, and the SSRF red-team actually GATE changes (build.yml only fires on release tags). The isolated
+# security benchmark also runs on macOS/Node 24 with an offline Claude stub. Only `npm run e2e` stays manual
+# because it uses the owner's real Claude login.
 on:
   push:
     branches: ['**']
@@ -38,6 +38,10 @@ jobs:
           FUZZ_ITERS: '6000'
       - name: SSRF red-team (differential, loopback)
         run: npm run redteam
+      - name: isolated security benchmark (offline Claude)
+        if: runner.os == 'macOS' && matrix.node == 24
+        timeout-minutes: 2
+        run: npm run security
       # The desktop shell renders model output and its contextBridge/preload boundary is the renderer↔main trust
       # line, so a stale Electron is a real hole, not a lint nit — this project shipped ten majors behind (33.x
       # against 43.x, with advisories sitting exactly on context isolation and ASAR integrity) purely because

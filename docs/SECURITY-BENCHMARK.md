@@ -12,7 +12,7 @@ npm run security
 
 Read [the harness](../app/test/security-benchmark.js) first. It starts a real daemon and dashboard under a fresh temporary home, with a private state directory, socket, vault, memory, and dashboard token. It clears inherited credentials and application settings, disables update checks, and uses the deterministic offline Claude stub. Cleanup stops only its own child processes and removes its temporary files, including on startup failure or interruption. No Claude login is required. The Unix socket and mode checks require a POSIX host; the listener probe also needs `lsof`.
 
-`npm run security` and `npm run e2e` are manual live harnesses. Neither runs in [CI](../.github/workflows/ci.yml). CI runs `npm test`, bounded `npm run fuzz`, and `npm run redteam`, plus dependency and Windows installer checks.
+[CI](../.github/workflows/ci.yml) runs `npm run security` on macOS with Node 24 using the offline Claude stub. The rest of the matrix runs `npm test`, bounded `npm run fuzz`, and `npm run redteam`, plus dependency and Windows installer checks. `npm run e2e` remains a manual live-account harness.
 
 ## Counts and results
 
