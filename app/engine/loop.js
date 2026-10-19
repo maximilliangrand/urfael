@@ -115,7 +115,7 @@ function createEngine(cfg) {
           let args = {};
           try { args = call.args ? JSON.parse(call.args) : {}; } catch { /* malformed tool args → empty; the tool guards */ }
           if (typeof cfg.onThinking === 'function') { try { cfg.onThinking('· ' + call.name); } catch {} }
-          const content = await toolset.dispatch(call.name, args);
+          const content = await toolset.dispatch(call.name, args, { signal });
           messages.push({ role: 'tool', toolCallId: call.id, content: String(content == null ? '' : content) });
         }
         if (looped) {

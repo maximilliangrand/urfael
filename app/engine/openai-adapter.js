@@ -104,12 +104,14 @@ function chat(opts) {
     if (!o.model) return fail('no model');
 
     const { wireMsgs, wireTools } = toWire(o.messages, o.tools);
+    // Official reasoning models reject max_tokens and custom sampling; compatible endpoints keep their own contract.
+    const reasoning = endpoint.origin === 'https://api.openai.com' && /^(?:gpt-5(?:[.-]|$)|o[134](?:-|$))/.test(String(o.model));
     const body = JSON.stringify({
       model: String(o.model),
       messages: wireMsgs,
       ...(wireTools ? { tools: wireTools } : {}),
-      ...(o.maxTokens ? { max_tokens: Math.max(1, o.maxTokens | 0) } : {}),
-      ...(typeof o.temperature === 'number' ? { temperature: o.temperature } : {}),
+      ...(o.maxTokens ? { [reasoning ? 'max_completion_tokens' : 'max_tokens']: Math.max(1, o.maxTokens | 0) } : {}),
+      ...(!reasoning && typeof o.temperature === 'number' ? { temperature: o.temperature } : {}),
       stream: true,
       stream_options: { include_usage: true },   // fail-soft: servers that ignore it just report usage 0
     });

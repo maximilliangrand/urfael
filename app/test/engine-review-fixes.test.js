@@ -96,13 +96,16 @@ test('F5: 0.0.0.0 is accepted by the adapter endpoint rule (matches the registry
 
 // ---- F7 (LOW): exec_shell output is length-capped like read_file --------------------------------
 
-test('F7: a huge shell stdout is truncated, not fed unbounded into the history', async () => {
+test('F7: a huge shell stdout is truncated, not fed unbounded into the history', { skip: process.platform === 'win32' }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'urf-f7-'));
   const huge = 'A'.repeat(2 * 1024 * 1024);
-  const ts = createToolset({ vaultDir: dir, allowShell: true, runShell: async () => ({ exitCode: 0, out: huge }) });
+  const ts = createToolset({ vaultDir: dir, allowShell: true, profile: 'local', runShell: async () => ({ exitCode: 0, stdout: huge, stderr: 'stderr' }) });
   const r = await ts.dispatch('exec_shell', { command: 'cat big' });
   assert.ok(r.length < huge.length);
-  assert.match(r, /truncated/);
+  const result = JSON.parse(r);
+  assert.equal(result.truncated, true);
+  assert.ok(Buffer.byteLength(result.stdout) + Buffer.byteLength(result.stderr) <= 64 * 1024);
+  assert.equal(result.exit_code, 0);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

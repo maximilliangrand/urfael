@@ -14,35 +14,45 @@ const VIEWS = ['converse', 'archive', 'reminders', 'jobs', 'hearth', 'settings',
   function selectChoice(el) {
     mode = el.dataset.mode;
     ob.querySelectorAll('.ob-choice').forEach((c) => c.classList.toggle('sel', c === el));
-    if (keyIn) keyIn.hidden = mode !== 'apikey';
+    if (keyIn) keyIn.hidden = !['apikey', 'openai-key'].includes(mode);
     if (urlIn) urlIn.hidden = mode !== 'local';
-    const focusEl = mode === 'apikey' ? keyIn : mode === 'local' ? urlIn : null;
+    $('#ob-login').hidden = !['subscription', 'chatgpt'].includes(mode);
+    $('#ob-login').textContent = mode === 'chatgpt' ? 'Sign in with ChatGPT' : 'Sign in with Claude';
+    const focusEl = ['apikey', 'openai-key'].includes(mode) ? keyIn : mode === 'local' ? urlIn : null;
     if (focusEl) setTimeout(() => focusEl.focus(), 0);
   }
   ob.querySelectorAll('.ob-choice').forEach((c) => c.addEventListener('click', () => selectChoice(c)));
+  $('#ob-login').addEventListener('click', async () => {
+    $('#ob-login').disabled = true;
+    note.textContent = 'Complete sign-in in the browser opened by the official client…';
+    const r = await window.urfael.providerLogin(mode).catch(() => ({ ok: false, error: 'Could not start sign-in.' }));
+    $('#ob-login').disabled = false;
+    note.textContent = r.ok ? 'Signed in. Select Get started to use this provider.' : r.error;
+    note.classList.toggle('err', !r.ok);
+  });
   $('#ob-go').addEventListener('click', async () => {
     note.classList.remove('err'); note.textContent = '';
-    const cfg = { mode };
-    if (mode === 'apikey') { cfg.key = (keyIn.value || '').trim(); if (!cfg.key) { note.classList.add('err'); note.textContent = 'Paste your API key, or pick another option.'; return; } }
+    const cfg = { mode, commands: $('#ob-commands').checked };
+    if (['apikey', 'openai-key'].includes(mode)) { cfg.key = (keyIn.value || '').trim(); if (!cfg.key) { note.classList.add('err'); note.textContent = 'Paste your API key, or pick another option.'; return; } }
     if (mode === 'local') { cfg.url = (urlIn.value || '').trim(); if (!/^https?:\/\//.test(cfg.url)) { note.classList.add('err'); note.textContent = 'Enter a valid http(s) endpoint, or pick another option.'; return; } }
     $('#ob-go').disabled = true; note.textContent = 'Setting up…';
     const r = await window.urfael.saveProvider(cfg).catch(() => ({ ok: false }));
     $('#ob-go').disabled = false;
-    if (r && r.ok) { ob.hidden = true; try { $('#input').focus(); } catch {} }
+    if (r && r.ok) { note.textContent = ''; keyIn.value = ''; ob.hidden = true; $('#provider-mode').textContent = { apikey: 'an Anthropic API key', 'openai-key': 'an OpenAI API key', chatgpt: 'your ChatGPT subscription', subscription: 'your Claude subscription', local: 'a local / custom model' }[mode]; try { $('#input').focus(); } catch {} }
     else { note.classList.add('err'); note.textContent = 'Could not finish setup. ' + ((r && r.error) || 'Try again.'); }
   });
   // show only on a fresh install (the marker / provider.env is absent)
-  (async () => { try { const s = await window.urfael.providerStatus(); if (s && !s.onboarded) ob.hidden = false; } catch {} })();
+  (async () => { try { const s = await window.urfael.providerStatus(); if (s) { const selected = ob.querySelector('[data-mode="' + s.mode + '"]'); if (selected) selectChoice(selected); $('#ob-commands').checked = s.commands; if (!s.onboarded) ob.hidden = false; } } catch {} })();
 })();
 
 // ---- Settings: change provider re-opens the onboarding card (handlers already wired above) ----
 (function providerSettings() {
   const btn = $('#change-provider');
-  if (btn) btn.addEventListener('click', () => { const ob = $('#onboard'); if (ob) ob.hidden = false; });
+  if (btn) btn.addEventListener('click', () => { const ob = $('#onboard'); if (ob) { $('#ob-note').textContent = ''; ob.hidden = false; ob.querySelector('.ob-card').scrollTop = 0; } });
   if (window.urfael && window.urfael.providerStatus) {
     window.urfael.providerStatus().then((s) => {
       const el = $('#provider-mode'); if (!el || !s) return;
-      el.textContent = s.mode === 'apikey' ? 'an Anthropic API key' : s.mode === 'local' ? 'a local / custom model' : 'your Claude subscription';
+      el.textContent = ({ apikey: 'an Anthropic API key', 'openai-key': 'an OpenAI API key', chatgpt: 'your ChatGPT subscription', subscription: 'your Claude subscription', local: 'a local / custom model' }[s.mode] || s.mode);
     }).catch(() => {});
   }
 })();

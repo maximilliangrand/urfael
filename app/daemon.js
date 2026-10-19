@@ -54,6 +54,9 @@ const schedchan = require('./schedule-channel'); // the dedicated Reminders & Ca
 const consolidate = require('./consolidate');   // masterful compaction: dedupe + evidence-retire the ledger, right-size recall
 const reflect = require('./reflect');           // SLEEP-TIME REFLECTION: idle-cadence, offline consolidation of the day into an inspectable vault note (notify-not-act)
 const engine = require('./engine');             // NATIVE ENGINE: in-process agentic loop for API-key/local (Ollama) providers — the "run on its own" path, additive to the CLI engine
+const codexBackend = require('./codex-backend');
+const { createCommandRunner, stopAllCommands } = require('./engine/command');
+const NATIVE_EXEC = process.env.URFAEL_NATIVE_EXEC === '1';
 const defaultBrain = require('./engine/default-brain');   // NATIVE DEFAULT BRAIN: pure decision + shape-mapper for the opt-in "run the local turn on a pinned native provider" path
 const handoffCompact = require('./engine/handoff-compact');   // OPT-IN pre-hand-off distill compaction (pure, zero-dep, never-throws); default OFF via URFAEL_PRECOMPACT
 const jobstore = require('./jobstore');
@@ -467,9 +470,20 @@ function setPin(model) {
 // local surface), set only from the LOCAL-only POST /engine/default endpoint. null = the byte-identical subscription
 // default. Only a sanitized id string is stored; it is validated against the live registry lazily at turn time.
 const NATIVEBRAIN = path.join(JDIR, 'native.default');
-let nativeDefault = (() => { try { return defaultBrain.sanitizeBrainId(fs.readFileSync(NATIVEBRAIN, 'utf8').trim()); } catch { return null; } })();
+let nativeDefault = (() => {
+  if (process.env.URFAEL_PROVIDER) return process.env.URFAEL_PROVIDER === 'claude' ? null : defaultBrain.sanitizeBrainId(process.env.URFAEL_PROVIDER);
+  try { return defaultBrain.sanitizeBrainId(fs.readFileSync(NATIVEBRAIN, 'utf8').trim()); } catch { return null; }
+})();
 function setNativeDefault(id) {
-  nativeDefault = defaultBrain.sanitizeBrainId(id);
+  const nextDefault = defaultBrain.sanitizeBrainId(id);
+  const setup = require('./setup');
+  const config = setup.readEnv();
+  config.URFAEL_PROVIDER = nextDefault || 'claude';
+  delete config.URFAEL_NATIVE_MODEL;
+  setup.writeEnv(config);
+  nativeDefault = nextDefault;
+  process.env.URFAEL_PROVIDER = config.URFAEL_PROVIDER;
+  delete process.env.URFAEL_NATIVE_MODEL;
   try { fs.mkdirSync(JDIR, { recursive: true }); if (nativeDefault) fs.writeFileSync(NATIVEBRAIN, nativeDefault + '\n', { mode: 0o600 }); else fs.rmSync(NATIVEBRAIN, { force: true }); } catch {}
   return nativeDefault;
 }
@@ -753,7 +767,7 @@ async function runCouncilAsBrain(text, opts) {
   return shape(answer, { ms, aborted, tokens });
 }
 const brain = {
-  warmUp() { getSession(MODELS.opus).ask('Reply with exactly: ready', { silent: true }).catch(() => {}); }, // warm the DEFAULT tier (Opus); silent: never leak the warm-up into a client stream
+  warmUp() { if (nativeDefault) return; getSession(MODELS.opus).ask('Reply with exactly: ready', { silent: true }).catch(() => {}); }, // warm the DEFAULT tier (Opus); silent: never leak the warm-up into a client stream
   async ask(text, opts) {
     const signal = opts && opts.signal;
     const stopped = () => ({ text: '(stopped)', model: convoModel, ms: 0, aborted: true,
@@ -772,11 +786,8 @@ const brain = {
       if (cdir) return applyBrainDirective(cdir);                        // a control command — no LLM turn, not recorded
       if (brainMode === 'council' && !routeOverride(text)) return await runCouncilAsBrain(text, opts);
     }
-    // NATIVE DEFAULT BRAIN (opt-in). When the owner has pinned a native provider as the default brain AND it is
-    // resolvable + keyed AND this turn carries no explicit per-turn /model override, run the turn on the in-process
-    // native engine and return its (identically-shaped) result. On ANY miss tryNativeDefault returns null and we fall
-    // through UNCHANGED to the CLI subscription path below. When nativeDefault is null this whole block is skipped, so
-    // everything from here down is BYTE-IDENTICAL to today (same routing, budget guardrail, telemetry, CLI fallback).
+    // A selected API or Codex backend handles the local conversation independently.
+    // Explicit backends fail closed; legacy pins may fall back before any command starts.
     if (nativeDefault) { const nr = await tryNativeDefault(text, opts); if (signal && signal.aborted) return stopped(); if (nr) return nr; }
     const ov = routeOverride(text);                                   // explicit "/fable …" / "/opus …" / "/sonnet …" wins for THIS turn
     if (ov) { text = ov.text; convoModel = MODELS[ov.model]; softTurns = 0; }
@@ -1335,7 +1346,7 @@ async function nativeRecallSearch(q, k) {
 // through to the CLI subscription (a real "run a local model offline" path, not just the cloud-key path).
 function nativeSecretFor(entry) {
   const need = providers.secretNeeded(entry);
-  if (need) return secretStore[need.env] || '';
+  if (need) return secretStore[need.env] || (entry.backend === 'native' ? process.env[need.env] : '') || '';
   if (entry && entry.authKind === 'local') return entry.localToken || 'local';
   return '';
 }
@@ -1348,6 +1359,22 @@ function rememberNative(note) {
   const f = path.join(MEMORY_DIR, 'CAPTURED.md');
   try { fs.mkdirSync(MEMORY_DIR, { recursive: true }); fs.appendFileSync(f, '- ' + line + '\n', { mode: 0o600 }); } catch (e) { throw e; }
 }
+async function runCodexTurn({ text, model, onDelta, signal }) {
+  const t0 = Date.now();
+  let promptText = text;
+  try { const mem = await activeRecall(text); if (mem && mem.promptText) promptText = mem.promptText; } catch {}
+  const r = await codexBackend.run({
+    messages: engine.assembleMessages({ system: nativeSystemPrompt(), history: defaultBrain.recentHistory(transcript), userText: promptText }),
+    model, workspaceDir: VAULT, allowWrite: NATIVE_EXEC, signal, onDelta,
+  });
+  logEvent({ ev: 'codex_turn', ok: r.ok, ms: Date.now() - t0, model: r.model });
+  if (r.ok && r.text && !(signal && signal.aborted)) {
+    pushTranscript({ user: text, urfael: r.text });
+    recordSession({ t: new Date().toISOString(), channel: 'local:chatgpt', model: r.model, user: text, urfael: r.text, ms: Date.now() - t0 });
+  }
+  return { ...r, engine: 'codex' };
+}
+
 async function runNativeTurn({ text, providerId, model, onDelta, onThinking, signal }) {
   const stopped = () => ({ ok: false, text: '(stopped)', error: 'aborted', aborted: true, model: model || '' });
   if (signal && signal.aborted) return stopped();
@@ -1356,11 +1383,16 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking, sig
   const need = providers.secretNeeded(entry);
   const secret = nativeSecretFor(entry);
   if (need && !secret) return { ok: false, error: 'provider ' + entry.id + ' needs its key, set it with: urfael plugin secret ' + need.env };
-  const useModel = model || entry.big_model || entry.small_model || '';
+  const useModel = model || (providerId === nativeDefault ? process.env.URFAEL_NATIVE_MODEL : '') || entry.big_model || entry.small_model || '';
+  if (entry.backend === 'codex') return runCodexTurn({ text, model: useModel, onDelta, signal });
   if (!useModel) return { ok: false, error: 'provider ' + entry.id + ' has no model; pass {model} or set big_model in the registry' };
   // ONE buildEngine spec shape, reused for the primary AND every fallback so a fallback attempt is byte-identical to a
   // fresh primary on THAT provider — only the entry/secret/model differ (each fallback re-resolves its OWN secret).
+  let sideEffects = false;
   const mkSpec = (e, sec, m) => ({
+    profile: 'local', workspaceDir: VAULT, allowShell: NATIVE_EXEC,
+    runShell: NATIVE_EXEC ? createCommandRunner({ workspaceDir: VAULT, env: process.env }) : undefined,
+    onCommandStart: () => { sideEffects = true; },
     entry: e, secret: sec, model: m, vaultDir: VAULT, memoryDir: MEMORY_DIR,
     recall: nativeRecallSearch, appendMemory: async (n) => rememberNative(n),
     contextWindow: 32000, maxTokens: 2048, selfReview: NATIVE_SELF_REVIEW,
@@ -1375,8 +1407,8 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking, sig
   try { const mem = await activeRecall(text); if (mem && mem.promptText) promptText = mem.promptText; } catch {}
   if (signal && signal.aborted) return stopped();
   // loop.run() slices `messages` (never mutates it), so the SAME clean initial history is reused for each fallback.
-  const messages = engine.assembleMessages({ system: nativeSystemPrompt(), userText: promptText });
-  let r; try { r = await built.run(messages, { signal }); } catch (e) { return signal && signal.aborted ? stopped() : { ok: false, error: 'native engine error: ' + String((e && e.message) || e) }; }
+  const messages = engine.assembleMessages({ system: nativeSystemPrompt(), history: defaultBrain.recentHistory(transcript), userText: promptText });
+  let r; try { r = await built.run(messages, { signal }); } catch (e) { return signal && signal.aborted ? stopped() : { ok: false, sideEffects, error: 'native engine error: ' + String((e && e.message) || e) }; }
   if (signal && signal.aborted) return stopped();
   // adopt the winning provider (primary until a fallback succeeds) for the transcript/record/return contract below.
   let winEntry = entry, winModel = useModel, winAdapter = built._adapter;
@@ -1386,7 +1418,7 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking, sig
   // creds) and CLI-only/subscription providers (never degrade a native turn onto the flat-rate path). Each fallback
   // re-resolves ITS OWN secret from secretStore. Off when URFAEL_FALLBACK=0. A success or a TERMINAL error skips this
   // block entirely -> the exact single-attempt path as before (the success path is never perturbed).
-  if (FALLBACK_ON && engine.classifyNativeError(r).retryable) {
+  if (FALLBACK_ON && !sideEffects && entry.backend !== 'native' && engine.classifyNativeError(r).retryable) {
     const fbChain = engine.nativeFallbackChain({
       chain: providers.chain(providerList(), providerId),
       canEngine: (e) => !!engine.pickAdapter(e),
@@ -1400,10 +1432,10 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking, sig
       const fbBuilt = engine.buildEngine(mkSpec(fb, fbSecret, fbModel));
       if (!fbBuilt || fbBuilt.needsSecret) continue;                      // double gate: buildEngine refused -> skip
       logEvent({ ev: 'native_fallback', from: winEntry.id, to: fb.id, cat: engine.classifyNativeError(r).category });
-      let fr; try { fr = await fbBuilt.run(messages, { signal }); } catch { if (signal && signal.aborted) return stopped(); continue; }   // run never throws, but guard anyway -> next fallback
+      let fr; try { fr = await fbBuilt.run(messages, { signal }); } catch { if (signal && signal.aborted) return stopped(); if (sideEffects) break; continue; }   // run never throws, but guard anyway -> next fallback
       if (signal && signal.aborted) return stopped();
       r = fr; winEntry = fb; winModel = fbModel; winAdapter = fbBuilt._adapter;   // adopt this attempt as the new latest
-      if (fr.ok) break;                                                   // first success wins; stop the chain
+      if (fr.ok || sideEffects) break;                                                   // first success wins; stop the chain
       if (!engine.classifyNativeError(fr).retryable) break;              // a TERMINAL fallback error -> stop retrying
     }
   }
@@ -1413,20 +1445,11 @@ async function runNativeTurn({ text, providerId, model, onDelta, onThinking, sig
     pushTranscript({ user: text, urfael: r.text });
     recordSession({ t: new Date().toISOString(), channel: 'native:' + winEntry.id, model: winModel, user: text, urfael: r.text, ms });
   }
-  return { ok: r.ok, text: r.text, error: r.error, model: winModel, usage: r.usage, steps: r.steps, engine: winAdapter };
+  return { ok: r.ok, text: r.text, error: r.error, sideEffects, model: winModel, usage: r.usage, steps: r.steps, engine: winAdapter };
 }
 
-// The ONLY place the NATIVE DEFAULT BRAIN runs. A thin wrapper that binds the daemon's real dependencies onto the
-// pure decision + shape-mapper (engine/default-brain.js): it resolves the pinned provider through the SAME fail-closed
-// chain the /engine/ask endpoint uses (findProvider → pickAdapter rejects the subscription → secretNeeded + secretStore),
-// runs the turn through the runNativeTurn choke point (inheriting its native fallback + read-only toolset + self-review),
-// and maps a success onto brain.ask's exact contract. Returns null on ANY miss so brain.ask falls through UNCHANGED to
-// the CLI subscription path — the turn is never dropped. It does NOT re-record (runNativeTurn already did transcript.push
-// + recordSession + logEvent('native_turn') on success) and the native path deliberately scopes out the CLI-tail
-// reviewTurn/modelUser/reinforceSurfaced + the URFAEL_BUDGET rolling window (that window meters the flat-rate
-// subscription, not a metered key). Request-scoped cancellation reaches the native engine; the legacy global
-// brain.abort() still targets CLI/council children. TTS streams raw token deltas via
-// sendSay({delta}), not sentence-segmented speech. Never throws (the pure fn never throws; runNativeTurn never throws).
+// Map the selected local backend to the conversation stream. Remote askScoped never
+// enters this route. Explicit backend errors and commands that started prevent replay.
 async function tryNativeDefault(text, opts) {
   const signal = opts && opts.signal;
   const stopped = () => ({ text: '(stopped)', model: nativeDefault || '', ms: 0, aborted: true,
@@ -1436,9 +1459,9 @@ async function tryNativeDefault(text, opts) {
     routeOverride,
     findProvider: providerSessions.findProvider,
     providers: providerList,
-    pickAdapter: engine.pickAdapter,
+    pickAdapter: (entry) => entry.backend === 'codex' || engine.pickAdapter(entry),
     secretNeeded: providers.secretNeeded,
-    hasSecret: (env) => !!secretStore[env],
+    hasSecret: (env) => !!(secretStore[env] || process.env[env]),
     runNativeTurn: (spec) => runNativeTurn({ ...spec, signal }),
     onDelta: (t) => { try { sendSay({ delta: t }); } catch {} },
     onThinking: (t) => { try { sendThinking({ note: t }); } catch {} },
@@ -2701,53 +2724,54 @@ const server = http.createServer(async (req, res) => {
   } else if (req.method === 'POST' && req.url === '/conversation-end') {
     brain.endConversation(); distill(); res.writeHead(200); res.end('{}');
   } else if (req.method === 'POST' && req.url === '/engine/ask') {
-    // POST /engine/ask {text, providerId, model?} -> {ok, text, model, usage, steps, engine} — run ONE turn on the
-    // NATIVE in-process engine (an API-key or local/Ollama provider), the "run on its own" path. LOCAL-ONLY: a
-    // present channel is refused. Additive: never touches the warm CLI sessions, so the subscription path is
-    // unchanged. Fail-closed: unknown / CLI-only / keyless provider each return a plain error, never a fallback.
+    // One local turn on the selected native API or official Codex backend.
+    // Disconnecting cancels the model and any active command process group.
     const body = await readBody(req);
-    let parsed = {}; try { parsed = JSON.parse(body); } catch {}
-    if ('channel' in parsed && parsed.channel) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'native engine is local-only' })); return; }
+    let parsed; try { parsed = JSON.parse(body); } catch {}
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { res.writeHead(400); res.end('{"error":"invalid request"}'); return; }
+    if ('channel' in parsed) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'native engine is local-only' })); return; }
     const text = typeof parsed.text === 'string' ? parsed.text : '';
     if (!text.trim()) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'need {text}' })); return; }
+    const controller = new AbortController();
+    const cancel = () => { if (!res.writableEnded) controller.abort(); };
+    res.once('close', cancel);
     const r = await runNativeTurn({
+      signal: controller.signal,
       text, providerId: parsed.providerId, model: typeof parsed.model === 'string' ? parsed.model : '',
       onDelta: (t) => { try { sendSay({ delta: t }); } catch {} },
       onThinking: (t) => { try { sendThinking({ note: t }); } catch {} },
     });
+    res.removeListener('close', cancel);
+    if (res.destroyed) return;
     res.writeHead((!r.ok && r.error) ? 400 : 200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(r));
   } else if (req.method === 'POST' && req.url === '/engine/default') {
-    // POST /engine/default {providerId} — pin (or clear) the NATIVE DEFAULT BRAIN: the local voice/overlay turn runs
-    // on this provider's in-process native engine instead of the CLI subscription. LOCAL-ONLY (a present channel is
-    // refused, identical to /engine/ask) so a remote channel can never flip the owner's brain. Fail-closed: the
-    // flat-rate subscription / any CLI-only provider is REJECTED (a contradiction — it has no native engine), and an
-    // unknown provider is rejected, both BEFORE any pin is written. A keyless-but-valid pin is accepted with a warning
-    // — turns fall through to the subscription until the key is set. {providerId:null} | {action:'clear'} clears it.
+    // Persist the local conversation backend. Remote senders cannot change it.
     const body = await readBody(req);
-    let parsed = {}; try { parsed = JSON.parse(body); } catch {}
-    if ('channel' in parsed && parsed.channel) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'native default is local-only' })); return; }
+    let parsed; try { parsed = JSON.parse(body); } catch {}
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) { res.writeHead(400); res.end('{"error":"invalid request"}'); return; }
+    if ('channel' in parsed) { res.writeHead(403, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'native default is local-only' })); return; }
     if (parsed.action === 'clear' || parsed.providerId === null || parsed.providerId === '') {
-      setNativeDefault(null); logEvent({ ev: 'native_default', action: 'clear' });
+      try { setNativeDefault(null); } catch { res.writeHead(500); res.end('{"error":"could not save provider settings"}'); return; } logEvent({ ev: 'native_default', action: 'clear' });
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, nativeDefault: null })); return;
     }
     const entry = providerSessions.findProvider(providerList(), parsed.providerId);
     if (!entry) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unknown provider' })); return; }
-    if (!engine.pickAdapter(entry)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'that provider runs on the CLI subscription engine; it cannot be a native default brain' })); return; }
-    setNativeDefault(entry.id);
+    if (entry.backend !== 'codex' && !engine.pickAdapter(entry)) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'that provider runs on the CLI subscription engine; it cannot be a native default brain' })); return; }
+    try { setNativeDefault(entry.id); } catch { res.writeHead(500); res.end('{"error":"could not save provider settings"}'); return; }
     const need = providers.secretNeeded(entry);
-    const hasKey = !(need && !secretStore[need.env]);
+    const hasKey = !(need && !nativeSecretFor(entry));
     logEvent({ ev: 'native_default', action: 'set', provider: entry.id, hasKey });
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, nativeDefault: entry.id, hasKey, warning: hasKey ? undefined : 'key not set — turns fall through to the subscription until you set it' }));
+    res.end(JSON.stringify({ ok: true, nativeDefault: entry.id, hasKey, warning: hasKey ? undefined : 'key not set — configure the selected provider before sending a turn' }));
   } else if (req.method === 'GET' && req.url === '/engine/default') {
     // GET /engine/default → {nativeDefault, hasKey} — report the pinned native default brain (GET /model still reports
     // the CLI tier; the native model is surfaced here). null when unpinned (the subscription default).
     const entry = nativeDefault ? providerSessions.findProvider(providerList(), nativeDefault) : null;
     const need = entry ? providers.secretNeeded(entry) : null;
-    const hasKey = entry ? !(need && !secretStore[need.env]) : false;
+    const hasKey = entry ? !(need && !nativeSecretFor(entry)) : false;
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ nativeDefault: nativeDefault || null, hasKey }));
+    res.end(JSON.stringify({ nativeDefault: nativeDefault || null, hasKey, commandsEnabled: NATIVE_EXEC && process.platform !== 'win32' }));
   } else if (req.url === '/brain') {
     // GET → {moaOn, brain}; POST {mode:'council'|'default'|'status'} → select the MoA/council brain (same code path
     // as the verbal switch). LOCAL-ONLY: a present channel is refused (403, matching /council + /engine/default), so
@@ -2774,6 +2798,7 @@ const server = http.createServer(async (req, res) => {
     if (parsed.providerId && !entry) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'unknown provider' })); return; }
     // fail-closed: a key-auth provider with no stored secret must be REFUSED here, not silently answered on the daemon's
     // own (base-env) credentials. Reject before registering so the tile never opens against a provider it can't reach.
+    if (entry && entry.backend) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Use this provider as your main conversation backend via Settings or urfael model use; separate chat sessions require a Claude-compatible provider.' })); return; }
     const need = entry ? providers.secretNeeded(entry) : null;
     if (need && !secretStore[need.env]) { res.writeHead(400, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'provider ' + entry.id + ' needs its key, set it with: urfael plugin secret ' + need.env })); return; }
     const model = (parsed.model === 'opus' || parsed.model === 'sonnet') ? MODELS[parsed.model] : MODELS.sonnet;
@@ -3480,7 +3505,7 @@ const probe = http.request({ socketPath: SOCK, method: 'GET', path: '/health', t
 probe.on('error', listen);
 probe.on('timeout', () => { probe.destroy(); listen(); });
 probe.end();
-function shutdown() { try { persistRecallIndex(); } catch {} if (councilAbort) { try { councilAbort(); } catch {} } try { stopAllBrokerds(); } catch {} for (const s of sessions.values()) { try { s.proc && s.proc.kill('SIGKILL'); } catch {} } for (const p of inflightScoped) { try { p.kill('SIGKILL'); } catch {} } try { fs.unlinkSync(SOCK); } catch {} process.exit(0); }
+function shutdown() { stopAllCommands(); codexBackend.stopAll(); try { persistRecallIndex(); } catch {} if (councilAbort) { try { councilAbort(); } catch {} } try { stopAllBrokerds(); } catch {} for (const s of sessions.values()) { try { s.proc && s.proc.kill('SIGKILL'); } catch {} } for (const p of inflightScoped) { try { p.kill('SIGKILL'); } catch {} } try { fs.unlinkSync(SOCK); } catch {} process.exit(0); }
 process.on('SIGTERM', shutdown); process.on('SIGINT', shutdown);
 // RESILIENCE, THE SUPERVISED WAY. These handlers used to log the throw and KEEP RUNNING — which sounds resilient and
 // is the opposite. An exception can unwind out of a handler that already mutated shared state (a half-registered
@@ -3497,6 +3522,8 @@ let dying = false;
 function fatal(ev, e) {
   if (dying) return; dying = true;                                     // a throw inside this handler must not recurse
   try { logEvent({ ev, err: String((e && (e.stack || e.message)) || e).slice(0, 800) }); } catch {}   // appendFileSync — already flushed
+  try { stopAllCommands(); } catch {}
+  try { codexBackend.stopAll(); } catch {}
   try { if (councilAbort) councilAbort(); } catch {}
   try { stopAllBrokerds(); } catch {}
   for (const s of sessions.values()) { try { s.proc && s.proc.kill('SIGKILL'); } catch {} }

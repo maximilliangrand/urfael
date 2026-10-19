@@ -183,7 +183,7 @@ button { font-family: var(--serif); }
 #onboard { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(circle at 50% 30%, rgba(212,168,90,0.06), transparent 60%), var(--bg); -webkit-app-region: no-drag; }
 #onboard[hidden] { display: none; }
-.ob-card { width: 460px; max-width: 90vw; text-align: center; padding: 8px 24px 24px; }
+.ob-card { max-height: 94vh; overflow-y: auto; width: 460px; max-width: 90vw; text-align: center; padding: 8px 24px 24px; }
 .ob-logo { opacity: 0.95; filter: drop-shadow(0 0 14px rgba(212,168,90,0.35)); }
 .ob-title { font: 500 26px var(--serif); letter-spacing: 0.5px; margin: 14px 0 6px; color: var(--gold-soft); }
 .ob-sub { color: var(--dim); margin: 0 0 22px; font-size: 14px; }
@@ -243,3 +243,6 @@ button { font-family: var(--serif); }
 .cfoot button:disabled { opacity: 0.5; cursor: default; }
 mark.hl { background: linear-gradient(180deg, rgba(236,211,160,0.10), rgba(212,168,90,0.28)); color: #fff8e8; border-bottom: 2px solid var(--gold); border-radius: 2px; padding: 0 3px; text-decoration: none; animation: hlpop 0.5s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes hlpop { from { background-size: 0 100%; border-color: transparent; } to { background-size: 100% 100%; } }
+
+.ob-command-option { display: flex; align-items: flex-start; gap: 8px; text-align: left; margin-top: 20px; font-size: 13px; line-height: 1.5; }
+.ob-command-option input { margin-top: 3px; }

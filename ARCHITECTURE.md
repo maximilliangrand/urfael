@@ -68,3 +68,9 @@ These are harness controls. They reduce available actions but do not guarantee t
 `npm run security` and `npm run e2e` are manual live-daemon harnesses that use local state and may consume authenticated model turns. The security source defines 11 groups and 128 check call sites, mixing runtime probes, module checks, and source assertions. These are not fresh pass counts or an independent audit. See [methodology and limitations](docs/SECURITY-BENCHMARK.md).
 
 The [threat model](docs/THREAT-MODEL.md) describes trust boundaries and residual risks.
+
+## Local provider backends
+
+The main local conversation can select the native API engine (`claude-api`, `openai`) or the official Codex CLI (`chatgpt`) through `URFAEL_PROVIDER`. `provider-config.js` shares desktop configuration validation; `provider-login.js` starts the official browser sign-in flow without accessing credential files. `codex-backend.js` bounds and cancels CLI turns and maps JSON events to the daemon's conversation result. Remote, scheduled, and auxiliary Claude workflows retain their existing implementation.
+
+Native `exec_shell` is opt-in (`URFAEL_NATIVE_EXEC=1`) and local-only. `engine/command.js` owns its POSIX process group, timeout, output cap, and minimal environment. This is host execution, not an OS sandbox. Native delegates never inherit the runner. The daemon propagates request cancellation and records when execution starts so failures cannot trigger an automatic provider/CLI replay. Explicit native API and Codex backends fail closed on authentication or transport errors.

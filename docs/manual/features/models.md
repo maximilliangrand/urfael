@@ -1,68 +1,64 @@
-# Models & providers
+# Models and providers
 
-The brain is your installed `claude` CLI. Urfael does not host weights and runs no inference of its own. Every model choice is really a choice of which backend that CLI talks to. There are two layers: the tier you pin inside the active backend, and the backend (provider) itself.
+Urfael's main local conversation can use Claude Code, Codex with ChatGPT sign-in, or a direct Anthropic/OpenAI API connection. Subscription sign-in is authenticated access: you sign in with the official client, and your plan's limits, credits, and terms apply.
 
-## Tiers inside a provider
+| Provider ID | Connection | Credential |
+| --- | --- | --- |
+| `claude` | Official Claude Code CLI | `claude auth login` |
+| `chatgpt` | Official Codex CLI | `codex login` with ChatGPT |
+| `claude-api` | Direct Anthropic Messages API | `ANTHROPIC_API_KEY` |
+| `openai` | Direct OpenAI API | `OPENAI_API_KEY` |
 
-By default Urfael auto-routes between Claude Code's model aliases: `sonnet` for most turns, escalating to `opus` for code and deep reasoning. Because it uses aliases, it tracks the latest models your plan supports.
-
-```bash
-urfael model           # show the current routing (auto, or what it is pinned to)
-urfael model opus      # pin every turn to the big tier
-urfael model sonnet    # pin every turn to the small tier
-urfael model auto      # unpin, back to auto-routing
-```
-
-The same switch works verbally in chat ("switch to opus", "go back to auto"). Opus needs a **Max** plan. On **Pro**, set `URFAEL_OPUS_MODEL=sonnet` so the escalation lands on a model your plan allows. The tier pin applies within whatever provider is currently active.
-
-## Providers: any model on your own key or hardware
-
-The Claude flat-rate subscription is the default provider (`id=claude`) and the thesis of the project: native cloud, no API key, $0 marginal cost. You can switch the backend to a non-Anthropic or local model through a translating proxy. Urfael does this by managing the routing environment variables that the `claude` CLI already reads (mainly `ANTHROPIC_BASE_URL` and an auth token), not by hosting anything.
+Choose one in **Console → Settings → Change provider**, or run:
 
 ```bash
-urfael model providers              # list the curated registry, marking the active one
-urfael model use <id>               # preview, then switch (writes provider.env 0600, restarts the daemon)
-urfael model test <id>              # probe a provider with a one-line prompt before relying on it
-urfael model route --for cost       # recommend the best provider for a priority (see Routing below)
+urfael model login claude        # official browser sign-in
+urfael model login chatgpt       # official browser sign-in
+urfael model use chatgpt         # switch the main conversation
+urfael model use claude-api      # hidden API-key prompt
+urfael model use openai          # hidden API-key prompt
+urfael model test openai         # small, billable API probe
+urfael model use claude          # return to Claude Code
 ```
 
-`urfael model use` shows a preview first: the target endpoint, the model each tier maps to, the proxy hint, and any secret it needs. A `key`-auth provider prompts for the secret with no echo. Nothing is written until you confirm. The switch then writes `provider.env` (mode `0600`) and restarts the daemon so every spawn re-sources it. Live turns, chat, cron, and the heartbeat all move to the new backend, not just the foreground.
+Install the official Claude Code or Codex CLI before selecting its subscription route. This integration was live-tested with Claude Code 2.1.300 and Codex 0.162.1; older clients may not support its isolation flags. Urfael launches that client's sign-in flow; it does not read, copy, or export OAuth tokens. The ChatGPT route rejects a Codex API-key login instead of silently billing it as subscription usage. Direct API routes use their own keys and do not require Claude Code or a translating proxy.
 
-The curated registry ships in [config/providers.json](https://github.com/maximilliangrand/urfael/blob/main/config/providers.json) with **30 named providers**: Claude (native, Bedrock, Vertex), OpenAI, Azure, Gemini, xAI Grok, GitHub Copilot, OpenRouter, DeepSeek, Mistral, Groq, Cerebras, Fireworks, Together, Perplexity, NVIDIA NIM, Novita, Hugging Face, Qwen, Kimi, GLM, MiniMax, the local servers (Ollama, LM Studio, vLLM, llama.cpp, Jan), and the proxies (claude-code-router, LiteLLM). OpenRouter alone reaches 300+ models on one key, so the total reach matches the broadest agents, while staying honest that reach is not hosting. Point `URFAEL_PROVIDERS_INDEX` at your own JSON (same schema) to replace it.
+The terminal setup wizard offers the same five choices as the Console, including the existing local/custom Claude-compatible endpoint option. Settings are saved atomically in `~/.claude/urfael/provider.env` with owner-only permissions. `URFAEL_PROVIDER` selects the main local backend. For an API model override, use `urfael model use openai --big MODEL_ID`; `URFAEL_NATIVE_MODEL` stores that override. Codex otherwise chooses its default model. Fresh API/Codex turns include the last four completed local exchanges (up to 4,000 characters per message), plus applicable recalled memory. Tool calls are not replayed as history.
 
-## Routing: the right provider for the job
+Explicit API and ChatGPT selections fail visibly if the chosen provider is unavailable or missing authentication. They do not silently send your prompt to a different account. Remote channels, separate provider chat sessions, scheduled jobs, and auxiliary Claude workflows retain their existing Claude-compatible implementation. A non-Claude main conversation does not migrate those workflows. New API/Codex entries cannot be opened in the separate Chats view; use the main conversation.
 
-`urfael model route` recommends a provider for a priority, then shows the honest tradeoffs.
+## Local command execution
+
+Native API tools can run commands on macOS and Linux after explicit owner opt-in:
 
 ```bash
-urfael model route --for cost       # cheapest that still works
-urfael model route --for speed      # highest throughput
-urfael model route --for quality    # most capable
-urfael model route --for privacy    # best local model, nothing leaves the machine
-urfael model route --for balanced --ctx 100000 --tools
+urfael model commands on
+urfael model commands status
+urfael model commands off
 ```
 
-Each registry row carries indicative 1-5 tiers for cost, speed, and quality. The router is **Pareto-aware**: instead of sorting on one axis like a price list, it returns the whole non-dominated frontier (the genuine tradeoffs), then picks the best for your priority and explains why. It stays honest: it flags when a tier is unknown, notes that a local model is weaker, and reminds you that the flat-rate Claude subscription is `$0` marginal for a subscriber and may be cheaper in practice than any per-token provider. The tiers are indicative, not benchmarks. Routing **recommends**; it never switches on its own, because a switch needs your key and a restart. Run the `urfael model use <id>` it prints to actually move.
+The Console and setup wizard expose the same setting (`URFAEL_NATIVE_EXEC=1`). It applies to the main local conversation and local `/engine/ask` requests. Remote channels, read-only tools, and delegated native workers cannot acquire the native shell tool. Windows native execution is unavailable until process-tree cleanup can be implemented reliably.
 
-### Most non-Claude backends need a proxy
+`exec_shell` accepts a command, an optional directory within the vault workspace, and an optional timeout. It returns separate stdout/stderr, exit code, signal, and timeout/cancellation/truncation flags. Commands are capped at 4 KiB, combined output at 64 KiB, and runtime at 60 seconds (30 by default). Cancellation and completion terminate the owned POSIX process group. A failed command is reported to the model so it can decide how to recover; the runner never retries it automatically. Once a command starts, automatic provider fallback is disabled to avoid replaying side effects.
 
-Claude Code speaks the Anthropic Messages API. To reach a GPT-, Gemini-, or OpenAI-shaped endpoint you usually need a translating proxy ([claude-code-router](https://github.com/musistudio/claude-code-router) or [LiteLLM](https://docs.litellm.ai/)) that presents the Anthropic shape and converts. You run and secure that proxy yourself; Urfael just points the brain at it. Each non-native registry row carries its own `proxyHint`, shown in the preview.
+**Native commands execute on the host with your user's permissions.** The initial directory is constrained to the workspace and the child receives only PATH and a workspace HOME. This removes inherited API keys from its environment, but it is not an OS sandbox: a command can still access files and the network available to your user. Use a dedicated account or container when stronger isolation is needed.
 
-The safety harness is unchanged by the provider switch. Allowlisting, the read-only remote sandbox, fail-closed profiles, and the adversarial regression tests all sit between the channel and the brain, so they apply whatever model is behind the CLI. See [security/model.md](security/model.md).
+The Codex route uses the official client's read-only sandbox by default; the command setting enables its workspace-write sandbox. Codex does not inherit Claude-specific permission rules or guarantee vault-only reads. Urfael disables Codex web search and workspace command network access, ignores user configuration, and launches outside the task project to avoid discovering its configuration. Managed client policies may still apply. It never uses a bypass-permissions flag.
 
-## Honest tradeoffs
+## Claude tiers and other providers
 
-- **You pay for non-Anthropic models.** The Claude subscription only covers Anthropic models. Anything else (OpenRouter, DeepSeek, a local server) runs on **your own provider key or your own hardware**, billed to you.
-- **A local model is not Claude.** Weaker reasoning and code, shorter effective context, slower on consumer GPUs. The registry says this plainly in its `_honesty` note.
-- **`ANTHROPIC_API_KEY` overrides the subscription.** If that variable is in your environment, the CLI uses it (metered) instead of your flat-rate login.
-- **Most registry rows are `•unverified`.** That flag means the endpoint and model ids were not pinned at research time, not that they are broken. Confirm the base URL and model ids in the preview, and run `urfael model test <id>`, before relying on one.
+For the Claude CLI backend, `urfael model opus`, `sonnet`, and `auto` retain their existing tier routing. An explicit `/opus` or `/sonnet` turn override selects the Claude CLI for that turn even when a native provider is selected. Availability depends on your account. API model IDs are configured separately.
 
-Native, non-CLI provider support is not a goal. It would mean dropping the `claude`-CLI harness that keeps Urfael fast, free on your plan, and on the right side of Anthropic's terms.
+`urfael model providers` lists the registry in `config/providers.json`. Existing Claude-compatible, cloud, local, and proxy rows keep their prior routing. Rows with `proxyHint` require the indicated separately managed proxy. `URFAEL_PROVIDERS_INDEX` can replace the registry. Endpoint/model availability must be checked before relying on a row; indicative cost/speed/quality tiers are not benchmarks.
 
-For a fully local, air-gapped setup (Ollama / LM Studio / vLLM via that same proxy, plus the already-local voice), see [guides/local-gpu.md](guides/local-gpu.md). The provider engine itself is pure and unit-tested; read it at [app/providers.js](https://github.com/maximilliangrand/urfael/blob/main/app/providers.js).
+## Authentication references
+
+As checked on 19 October 2026, Anthropic's [subscription usage update](https://support.claude.com/en/articles/15036540-use-the-claude-agent-sdk-with-your-claude-plan) says its planned restriction was paused and describes current CLI/SDK usage and credits. Its [login guidance](https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account) distinguishes official application sign-in from API authentication and third-party restrictions. This integration uses the official CLI and preserves direct API access; it does not promise anonymous, unlimited, or free cloud inference.
+
+OpenAI documents [Codex authentication](https://learn.chatgpt.com/docs/auth) and the [CLI reference](https://learn.chatgpt.com/docs/cli/reference). API usage is billed separately from subscription access. Authentication and plan terms may change.
 
 ## Related
 
-- [guides/local-gpu.md](guides/local-gpu.md)
-- [security/model.md](security/model.md)
-- [using/configuration.md](using/configuration.md)
+- [Local GPU configuration](guides/local-gpu.md)
+- [Security model](security/model.md)
+- [Configuration](using/configuration.md)

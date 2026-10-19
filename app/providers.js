@@ -1,11 +1,6 @@
 'use strict';
-// app/providers.js — first-class model-provider management. The brain is the `claude` CLI, which any
-// Anthropic-Messages-API endpoint can back via ANTHROPIC_BASE_URL, so "use any model" = managing those endpoints
-// like connectors, not hosting weights. This is the PURE engine (twin of connectors.js): parse/validate a registry
-// (fail-soft — a hostile registry can only ever yield FEWER providers, never a malformed env write), and RESOLVE a
-// chosen provider into the exact env delta the daemon forwards to every spawn. No I/O, no secret prompting, no
-// process spawn (those live in cli.js). Everything here is unit-tested + frozen, incl. the drift guard that every
-// var resolveEnv can emit is one the daemon already forwards.
+// Provider registry validation and configuration deltas for official CLIs and native API adapters.
+// Parsing fails closed on unsupported backends and routing; secrets and process spawning live elsewhere.
 const fs = require('fs');
 const path = require('path');
 const { isLoopback } = require('./connectors');
@@ -13,14 +8,13 @@ const { isLoopback } = require('./connectors');
 const KINDS = new Set(['anthropic', 'openai', 'gemini', 'ollama', 'bedrock', 'vertex']);
 const AUTHS = new Set(['none', 'key', 'local', 'awschain', 'oauth']);
 const PROXIES = new Set(['none', 'router', 'litellm']);
-// The COMPLETE set of routing vars a switch manages. MUST stay a subset of the daemon's forwarded allowlist
-// (PROVIDER_ENV ∪ {URFAEL_OPUS_MODEL, URFAEL_SONNET_MODEL}); the providers test freezes that. Cleared on every
-// switch so one provider never leaks into the next.
+// Routing vars cleared on every switch. OPENAI_API_KEY is consumed only by the native engine;
+// the rest belong to the Claude child forwarding allowlist.
 const MANAGED = [
   'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL', 'ANTHROPIC_SMALL_FAST_MODEL',
   'ANTHROPIC_DEFAULT_OPUS_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
   'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'AWS_BEARER_TOKEN_BEDROCK',
-  'URFAEL_OPUS_MODEL', 'URFAEL_SONNET_MODEL',
+  'URFAEL_OPUS_MODEL', 'URFAEL_SONNET_MODEL', 'OPENAI_API_KEY',
 ];
 const MANAGED_SET = new Set(MANAGED);
 
@@ -41,9 +35,12 @@ function parse(text) {
     const kind = String(e.kind || '').toLowerCase(); if (!KINDS.has(kind)) continue;
     const authKind = AUTHS.has(String(e.authKind || '').toLowerCase()) ? String(e.authKind).toLowerCase() : 'none';
     const proxy = PROXIES.has(String(e.proxy || '').toLowerCase()) ? String(e.proxy).toLowerCase() : 'none';
+    const backend = String(e.backend || '');
+    if (!['', 'native', 'codex'].includes(backend)) continue;
     let baseUrl = String(e.baseUrl || '');
     if (baseUrl) { let u; try { u = new URL(baseUrl); } catch { continue; } if (u.protocol !== 'https:' && !isLoopback(u.hostname)) continue; }   // never a plain-http remote
-    // the secret var NAME (for key auth) must be a real env-var name AND one we forward — no flag smuggling, no drift
+    if (backend === 'codex' && (kind !== 'openai' || authKind !== 'oauth' || baseUrl || proxy !== 'none' || e.authEnv)) continue;
+    // Secret names must belong to the managed provider config, never arbitrary environment variables.
     let authEnv = '';
     if (e.authEnv != null) { authEnv = String(e.authEnv); if (!/^[A-Z][A-Z0-9_]*$/.test(authEnv) || !MANAGED_SET.has(authEnv)) continue; }
     if (authKind === 'key' && !authEnv) authEnv = 'ANTHROPIC_AUTH_TOKEN';   // sensible default for a proxy/OpenAI-shaped key
@@ -53,7 +50,7 @@ function parse(text) {
       models.push({ id: String(m.id).slice(0, 80), role: m.role === 'small' ? 'small' : 'big', ctx: Number(m.ctx) || 0, tools: m.tools !== false, cost: clampTier(m.cost), speed: clampTier(m.speed), quality: clampTier(m.quality) });
     }
     out.push({
-      id, label: String(e.label || id).slice(0, 60), kind, baseUrl, authKind, proxy, authEnv,
+      id, label: String(e.label || id).slice(0, 60), kind, baseUrl, authKind, proxy, authEnv, backend,
       big_model: String(e.big_model || '').slice(0, 80), small_model: String(e.small_model || '').slice(0, 80),
       authLabel: String(e.authLabel || (authEnv || 'API key')).slice(0, 80), localToken: String(e.localToken || '').slice(0, 40),
       proxyHint: String(e.proxyHint || '').slice(0, 200), note: String(e.note || '').replace(/\s+/g, ' ').slice(0, 200),
@@ -91,6 +88,11 @@ function resolveEnv(entry, secret, override = {}) {
   if (!entry) throw new Error('no provider');
   const clear = MANAGED.slice();
   const set = {};
+  if (entry.backend === 'codex') return { clear, set };
+  if (entry.backend === 'native') {
+    if (entry.authKind === 'key') { if (!secret) throw new Error('missing secret: ' + entry.authEnv); set[entry.authEnv] = secret; }
+    return { clear, set };
+  }
   const big = override.big || entry.big_model || '';
   const small = override.small || entry.small_model || '';
   const tiers = () => { if (big) { set.ANTHROPIC_MODEL = big; set.URFAEL_OPUS_MODEL = big; } if (small) { set.ANTHROPIC_SMALL_FAST_MODEL = small; set.URFAEL_SONNET_MODEL = small; } };
@@ -118,8 +120,8 @@ function preview(entry, secret) {
   let envDelta = {}; try { envDelta = resolveEnv(entry, secret || (secretNeeded(entry) ? 'x' : ''), {}).set; } catch { envDelta = {}; }
   return {
     id: entry && entry.id, label: entry && entry.label, kind: entry && entry.kind,
-    target: (entry && entry.baseUrl) || 'native Anthropic cloud (no base URL)',
-    big: (entry && entry.big_model) || '(Claude alias)', small: (entry && entry.small_model) || '(Claude alias)',
+    target: entry && entry.backend === 'codex' ? 'official Codex CLI (ChatGPT login)' : ((entry && entry.baseUrl) || 'native Anthropic cloud (no base URL)'),
+    big: (entry && entry.big_model) || (entry && entry.backend === 'codex' ? '(Codex default)' : '(Claude alias)'), small: (entry && entry.small_model) || (entry && entry.backend === 'codex' ? '(Codex default)' : '(Claude alias)'),
     secret: secretNeeded(entry) ? secretNeeded(entry).label : null,
     proxy: entry && entry.proxy, proxyHint: (entry && entry.proxy !== 'none') ? entry.proxyHint : '',
     note: entry && entry.note, local, isDefault: !!(entry && entry.kind === 'anthropic' && !entry.baseUrl && entry.authKind === 'none'),

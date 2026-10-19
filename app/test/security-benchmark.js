@@ -954,17 +954,25 @@ async function main() {
     dbRemote.status === 403 && /local-only/.test(dbRemote.raw)
       && dbUnknown.status === 400 && /unknown provider/.test(dbUnknown.raw)
       && dbSub.status === 400 && /CLI subscription/.test(dbSub.raw),
-    'a remote/untrusted channel can never make a native provider the owner\'s default brain; the flat-rate subscription (a contradiction — it has no native engine) and an unrecognized id are both refused before any pin is written, so the default brain can only ever be a real, keyed native provider set from the local socket');
-  // FROZEN SOURCE INVARIANT: the whole native-default branch runs ONLY inside `if (nativeDefault)` (null by default →
-  // the subscription path is byte-identical), and it reaches a native turn ONLY through runNativeTurn, which builds
-  // the fail-closed toolset with NO allowShell/runShell — so the default brain is strictly NARROWER than the CLI brain
-  // (read-only floor). Freeze both, the way /council's local-only guard is frozen above, so the riskiest change can
-  // never silently leak into the frozen default or grant the native brain a shell.
-  check('the native DEFAULT-BRAIN routing is GATED behind `if (nativeDefault)` and grants NO shell (byte-identical default + read-only floor, frozen)',
+    'a remote/untrusted channel can never make a native provider the owner\'s default brain; the flat-rate subscription (a contradiction — it has no native engine) and an unrecognized id are both refused before any pin is written, so only a recognized native or Codex backend can be selected from the local socket; missing authentication is reported when used');
+  // Check the actual runtime tool gate as well as the daemon wiring: selecting a native API brain alone must not
+  // grant commands. Owner-enabled host execution still requires the explicit local profile and injected runner.
+  const commandCfg = { vaultDir: engVault, profile: 'local', allowShell: true, runShell: async () => { throw new Error('denied runner invoked'); } };
+  const forbiddenCommandConfigs = [{ allowShell: false }, { runShell: undefined }, { profile: undefined },
+    { profile: 'owner' }, { remote: true }, { readOnly: true }, { channel: false }, { channel: null }, { channel: 'telegram' }];
+  let commandGateHeld = true;
+  for (const patch of forbiddenCommandConfigs) {
+    const tools = mkToolset({ ...commandCfg, ...patch });
+    commandGateHeld = commandGateHeld && !tools.defs.some((d) => d.name === 'exec_shell')
+      && /shell is disabled/.test(await tools.dispatch('exec_shell', { command: 'id' }));
+  }
+  check('native API commands are OFF by default and require owner opt-in plus the local runtime profile',
     /if \(nativeDefault\)[\s\S]{0,200}tryNativeDefault/.test(daemonSrc)
-      && /function tryNativeDefault/.test(daemonSrc)
-      && !/function tryNativeDefault[\s\S]{0,900}(allowShell|runShell)/.test(daemonSrc),
-    'every native-default line executes only inside `if (nativeDefault)` so an unpinned turn is byte-identical to the subscription default, and tryNativeDefault passes neither allowShell nor runShell — the native default turn inherits runNativeTurn\'s read-only toolset (exec_shell OFF), strictly narrower than the CLI subscription brain');
+      && /const NATIVE_EXEC = process\.env\.URFAEL_NATIVE_EXEC === '1'/.test(daemonSrc)
+      && /profile: 'local', workspaceDir: VAULT, allowShell: NATIVE_EXEC/.test(daemonSrc)
+      && /runShell: NATIVE_EXEC \? createCommandRunner/.test(daemonSrc)
+      && !ts.defs.some((d) => d.name === 'exec_shell') && commandGateHeld,
+    'URFAEL_NATIVE_EXEC=1 explicitly enables host commands for local owner turns; absent the flag, runner, or local profile, and for remote/read-only/channel contexts, exec_shell is neither advertised nor executable. The workspace cwd is not an OS sandbox.');
   fs.rmSync(engVault, { recursive: true, force: true });
   fs.rmSync(engOut, { recursive: true, force: true });
 

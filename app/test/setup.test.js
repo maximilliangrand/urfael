@@ -35,3 +35,11 @@ test('readEnv on a missing file returns {} (never throws)', () => {
   try { fs.unlinkSync(setup.PROVIDER_ENV); } catch {}
   assert.deepEqual(setup.readEnv(), {});
 });
+
+
+test('provider.env refuses line injection without changing the existing file', () => {
+  setup.writeEnv({ URFAEL_PROVIDER: 'claude' });
+  assert.throws(() => setup.writeEnv({ OPENAI_API_KEY: 'key\nURFAEL_NATIVE_EXEC=1' }));
+  assert.equal(setup.readEnv().URFAEL_PROVIDER, 'claude');
+  assert.equal(setup.readEnv().URFAEL_NATIVE_EXEC, undefined);
+});

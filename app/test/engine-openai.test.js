@@ -295,3 +295,34 @@ test('adapter: a malformed SSE event is dropped, the turn still completes', asyn
   assert.strictEqual(r.ok, true);
   assert.strictEqual(r.text, 'fine');
 });
+
+test('official OpenAI reasoning requests use completion budget without sampling; other models and hosts retain compatible parameters', async (t) => {
+  const { EventEmitter } = require('events');
+  const { PassThrough } = require('stream');
+  const https = require('https');
+  let sent;
+  t.mock.method(https, 'request', (_options, callback) => {
+    const req = new EventEmitter();
+    req.destroy = () => {};
+    req.end = (body) => {
+      sent = JSON.parse(body);
+      const res = new PassThrough(); res.statusCode = 200;
+      callback(res);
+      res.end('data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n');
+    };
+    return req;
+  });
+  for (const model of ['gpt-5', 'gpt-5-mini', 'gpt-5.1', 'gpt-5-2025-08-07', 'o3', 'o4-mini']) {
+    const result = await adapter.chat({ baseUrl: 'https://api.openai.com/v1', model, messages: [{ role: 'user', content: 'hi' }], maxTokens: 2048, temperature: 0 });
+    assert.equal(result.ok, true);
+    assert.equal(sent.max_completion_tokens, 2048, model);
+    assert.equal(sent.max_tokens, undefined, model);
+    assert.equal(sent.temperature, undefined, model);
+  }
+  for (const [baseUrl, model] of [['https://api.openai.com/v1', 'gpt-4.1'], ['https://api.example.com/v1', 'gpt-5'], ['https://api.openai.com.example.org/v1', 'gpt-5']]) {
+    assert.equal((await adapter.chat({ baseUrl, model, maxTokens: 2048, temperature: 0 })).ok, true);
+    assert.equal(sent.max_tokens, 2048);
+    assert.equal(sent.max_completion_tokens, undefined);
+    assert.equal(sent.temperature, 0);
+  }
+});

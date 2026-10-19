@@ -74,6 +74,9 @@ function readEnv() {
   return out;
 }
 function writeEnv(map) {
+  for (const [key, value] of Object.entries(map)) {
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(key) || (value != null && /[\r\n\0]/.test(String(value)))) throw new Error('Provider settings must contain single-line values and valid environment names.');
+  }
   fs.mkdirSync(JDIR, { recursive: true });
   const body = '# Urfael provider config — written by `urfael setup`. 0600; may hold an API key.\n' +
     Object.entries(map).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
@@ -127,28 +130,40 @@ async function run() {
 
     // 2) the key question: how does Urfael reach Claude?
     const cur = readEnv();
-    const curMode = cur.ANTHROPIC_BASE_URL ? 'local' : cur.ANTHROPIC_API_KEY ? 'apikey' : 'subscription';
-    p('  ' + bold('How should Urfael reach Claude?') + dim('   (current: ' + curMode + ')'));
-    p('    ' + gold('1') + ')  Claude subscription   ' + dim('— your Pro/Max login. No key, flat rate. Recommended.'));
+    const curMode = require('./provider-config').modeFor(cur);
+    p('  ' + bold('Which model provider should Urfael use?') + dim('   (current: ' + curMode + ')'));
+    p('    ' + gold('1') + ')  Claude subscription   ' + dim('— official Claude Code sign-in. Plan limits and terms apply.'));
     p('    ' + gold('2') + ')  Anthropic API key     ' + dim('— pay-per-token. For when you do not have a subscription.'));
     p('    ' + gold('3') + ')  Local model / custom  ' + dim('— run on your own GPU or endpoint (see docs/LOCAL-GPU.md).'));
     p('');
+    p('    ' + gold('4') + ')  ChatGPT subscription  ' + dim('— official Codex sign-in. Plan limits and terms apply.'));
+    p('    ' + gold('5') + ')  OpenAI API key        ' + dim('— direct API access, billed separately.'));
     let choice = '';
-    while (!['1', '2', '3'].includes(choice)) choice = await io.ask('  Choose ' + gold('[1-3]') + ' (Enter = 1): ') || '1';
+    while (!['1', '2', '3', '4', '5'].includes(choice)) choice = await io.ask('  Choose ' + gold('[1-5]') + ' (Enter = 1): ') || '1';
 
     // start from current config and clear the keys we manage, then set per the choice. The MODEL-tier keys are
     // cleared too: a leftover URFAEL_OPUS_MODEL=llama3 from a prior local-mode setup would otherwise survive a
     // switch back to subscription and silently route every turn at a model the subscription doesn't have (a
     // wasted failed round-trip, then a silent downgrade). Only local mode re-sets them below.
     const next = { ...cur };
+    for (const key of require('./providers').MANAGED) delete next[key];
+    delete next.URFAEL_NATIVE_MODEL;
+    next.URFAEL_PROVIDER = ({ '1': 'claude', '2': 'claude-api', '3': 'claude', '4': 'chatgpt', '5': 'openai' })[choice];
     delete next.ANTHROPIC_API_KEY; delete next.ANTHROPIC_BASE_URL; delete next.ANTHROPIC_AUTH_TOKEN;
     delete next.URFAEL_OPUS_MODEL; delete next.URFAEL_SONNET_MODEL; delete next.URFAEL_FABLE_MODEL;
 
     if (choice === '1') {
       p('');
       p('  ' + ok('Subscription mode.') + ' Urfael will use your ' + bold('claude') + ' login — nothing to paste.');
-      if (cb) { const R = require('./claude-bin').resolve(); const logged = spawnSync(R.bin, R.pre.concat(['-p', 'reply with: ok']), { stdio: 'ignore', timeout: 20000, windowsHide: true }); if (logged.status !== 0) p('  ' + warn('Heads up:') + ' run ' + gold('claude') + ' once to sign in, then come back.'); }
+      if (cb) { const R = require('./claude-bin').resolve(); const logged = spawnSync(R.bin, R.pre.concat(['auth', 'status']), { stdio: 'ignore', timeout: 20000, windowsHide: true }); if (logged.status !== 0) p('  ' + warn('Heads up:') + ' run ' + gold('claude') + ' once to sign in, then come back.'); }
       else p('  ' + warn('Install + sign into Claude Code first: https://claude.com/claude-code'));
+    } else if (choice === '4') {
+      const status = await require('./codex-backend').authStatus();
+      p('  ' + (status.loggedIn && status.method === 'chatgpt' ? ok('ChatGPT is signed in.') : warn('Run urfael model login chatgpt to sign in with the official Codex client.')));
+    } else if (choice === '5') {
+      const key = await io.askHidden('  OpenAI API key (hidden): ');
+      if (!key) { p('  No key entered; settings unchanged.'); return; }
+      next.OPENAI_API_KEY = key;
     } else if (choice === '2') {
       p('');
       p('  ' + dim('Paste your Anthropic API key (starts with ') + gold('sk-ant-') + dim('). Input is hidden.'));
@@ -185,6 +200,11 @@ async function run() {
       if (!next.URFAEL_FABLE_MODEL) delete next.URFAEL_FABLE_MODEL;
       p('  ' + ok('Provider set.') + ' ' + dim('Any model now answers; the sandbox + guarantees are unchanged. Cost meter reads $0.'));
     }
+
+    p('');
+    p('  Native API commands run on your host as your user; Codex writes use its workspace sandbox.');
+    p('  Remote channels stay restricted. Native command execution currently requires macOS/Linux.');
+    next.URFAEL_NATIVE_EXEC = /^y/i.test(await io.ask('  Enable native commands and Codex workspace writes? [y/N]: ')) ? '1' : '0';
 
     // 2b) optional: semantic recall (a local embeddings endpoint). Off by default → recall stays lexical BM25.
     p('');

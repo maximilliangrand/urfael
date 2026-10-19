@@ -24,7 +24,7 @@ const { classifyNativeError, nativeFallbackChain } = require('./fallback');
 
 // pickAdapter(entry) — { adapter, baseUrl } or null when this entry must stay on the CLI engine.
 function pickAdapter(entry) {
-  if (!entry) return null;
+  if (!entry || entry.backend === 'codex') return null;
   const kind = String(entry.kind || '');
   const baseUrl = String(entry.baseUrl || '');
   if (kind === 'anthropic' && !baseUrl) {
@@ -69,7 +69,8 @@ function makeSummarizer(adapter, modelCfg) {
 }
 
 // buildEngine(spec) — the daemon's entry point. Returns { run } or null (⇒ use the CLI engine for this provider).
-//   spec = { entry, secret, model, vaultDir, memoryDir?, workspaceDir?, allowShell?, runShell?, recall?,
+//   spec = { entry, secret, model, vaultDir, memoryDir?, workspaceDir?, allowShell?, runShell?, profile?, channel?,
+//            remote?, readOnly?, onCommandStart?, recall?,
 //            appendMemory?, maxTokens?, maxSteps?, summaryModel?, selfReview?, onDelta?, onThinking?, now? }
 //   selfReview? — OPT-IN: after a genuine final answer the loop makes ONE extra self-critique pass (off by default).
 // The toolset always carries a `delegate` tool (engine/delegate.js): the model can spawn ONE bounded, READ-ONLY
@@ -95,7 +96,9 @@ function buildEngine(spec) {
   });
   const toolset = createToolset({
     vaultDir: spec.vaultDir, memoryDir: spec.memoryDir, workspaceDir: spec.workspaceDir,
-    allowShell: spec.allowShell, runShell: spec.runShell, recall: spec.recall, appendMemory: spec.appendMemory,
+    allowShell: spec.allowShell, runShell: spec.runShell, profile: spec.profile, channel: spec.channel,
+    readOnly: spec.readOnly, remote: spec.remote, onCommandStart: spec.onCommandStart,
+    recall: spec.recall, appendMemory: spec.appendMemory,
     runSub,
     // CaMeL-lite capability gate — PASSED THROUGH only when the caller opts in (spec.taint present, i.e. a turn that
     // consumes untrusted data). Omitted by default → the toolset is byte-identical to the subscription path. See

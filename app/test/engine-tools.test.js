@@ -134,21 +134,22 @@ test('SHELL is OFF by default: the tool is not even advertised, and calling it i
   s.cleanup();
 });
 
-test('SHELL requires BOTH allowShell AND an injected runShell (fail-closed if either is missing)', async () => {
+test('SHELL requires owner opt-in, a local profile and an injected runShell', { skip: process.platform === 'win32' }, async () => {
   const s = sandbox();
   // allowShell true but no runShell → still off
-  const noRun = createToolset({ vaultDir: s.vault, allowShell: true });
+  const noRun = createToolset({ vaultDir: s.vault, profile: 'local', allowShell: true });
   assert.strictEqual(noRun._shellOn, false);
   // runShell present but allowShell false → still off
-  const noFlag = createToolset({ vaultDir: s.vault, runShell: async () => ({ exitCode: 0, out: 'x' }) });
+  const noFlag = createToolset({ vaultDir: s.vault, profile: 'local', runShell: async () => ({ exitCode: 0, out: 'x' }) });
   assert.strictEqual(noFlag._shellOn, false);
   // both → on, and it routes through the injected runShell
   let ran = null;
-  const on = createToolset({ vaultDir: s.vault, allowShell: true, runShell: async (cmd) => { ran = cmd; return { exitCode: 0, out: 'done' }; } });
+  const on = createToolset({ vaultDir: s.vault, allowShell: true, profile: 'local', runShell: async (cmd) => { ran = cmd; return { exitCode: 0, stdout: 'done', stderr: '' }; } });
   assert.ok(on.defs.some((d) => d.name === 'exec_shell'));
   const r = await on.dispatch('exec_shell', { command: 'echo hi' });
   assert.strictEqual(ran, 'echo hi');
-  assert.match(r, /exit 0[\s\S]*done/);
+  assert.equal(JSON.parse(r).exit_code, 0);
+  assert.equal(JSON.parse(r).stdout, 'done');
   s.cleanup();
 });
 

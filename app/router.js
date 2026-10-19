@@ -91,7 +91,7 @@ function explain(c, priority, o, providers) {
   else if (c.proxy && c.proxy !== 'none') bits.push('Runs on your own key via a translating proxy; confirm the base URL before switching.');
   // honest nudge toward the flat-rate default when routing for cost off-subscription
   const claude = (providers || []).find((p) => p && p.flatRate);
-  if (priority === 'cost' && claude && c.providerId !== claude.id) bits.push('If you are on the Claude subscription, ' + (claude.label || 'Claude') + ' is $0 marginal and may be cheaper in practice than any per-token provider.');
+  if (priority === 'cost' && claude && c.providerId !== claude.id) bits.push('If you are on the Claude subscription, ' + (claude.label || 'Claude') + ' may be cheaper within your plan limits; credits and provider terms still apply.');
   if (!c.verified) bits.push('Not endpoint-verified at research time; the switch preview shows the exact target first.');
   return bits.join(' ');
 }

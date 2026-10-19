@@ -53,7 +53,7 @@ test('findProvider resolves a known id and rejects an unknown one', () => {
 // ── resolveScopedEnv: child-only env, baseEnv never mutated, secret never leaks back ────────────────
 test('resolveScopedEnv overlays routing onto a NEW object and never mutates baseEnv', () => {
   const list = ps.loadProviderRegistry();
-  const openai = providers.find(list, 'openai');           // key-auth, custom baseUrl
+  const openai = providers.find(list, 'openrouter');       // legacy Claude-compatible proxy routing
   const baseEnv = { PATH: '/usr/bin', HOME: '/home/me' };
   const env = ps.resolveScopedEnv(baseEnv, openai, 'sk-secret-123');
   // base keys carried through
@@ -67,7 +67,7 @@ test('resolveScopedEnv overlays routing onto a NEW object and never mutates base
 
 test('resolveScopedEnv puts the secret ONLY on the child env, under the provider authEnv', () => {
   const list = ps.loadProviderRegistry();
-  const openai = providers.find(list, 'openai');           // authEnv defaults to ANTHROPIC_AUTH_TOKEN
+  const openai = providers.find(list, 'openai');           // native-only OPENAI_API_KEY
   const baseEnv = {};
   const env = ps.resolveScopedEnv(baseEnv, openai, 'sk-secret-xyz');
   assert.strictEqual(env[openai.authEnv], 'sk-secret-xyz');

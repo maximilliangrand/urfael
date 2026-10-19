@@ -1,6 +1,6 @@
 # Security — read this before you run Urfael
 
-Urfael runs an **LLM agent (Claude Code) with access to your shell, files, network, and — if you
+Urfael runs an **LLM agent (Claude Code, Codex, or a native API engine) with access to your shell, files, network, and — if you
 enable them — your browser, desktop, email, and calendar.** That power is the point, and also the
 risk. Treat this the way you'd treat handing someone remote access to your Mac.
 
@@ -21,6 +21,14 @@ framing, scoped permissions, a memory-write allowlist) but **cannot eliminate it
   it will not run against your current directory. It has hard caps (iterations, wall-clock, hung-turn
   kill, no-progress breaker) and never pushes.
 - **The brain's local socket is `chmod 600`** (owner-only).
+
+## Native API commands and Codex
+
+`URFAEL_NATIVE_EXEC=1` explicitly enables the native `exec_shell` tool for local owner requests on macOS/Linux. It is absent for remote channels, read-only runs, and delegated native workers. Commands have bounded output and deadlines; cancellation kills the owned POSIX process group. Native commands run on the host as your user. Workspace cwd checks and removing inherited credentials from the environment do not prevent arbitrary filesystem or network access by the command itself.
+
+ChatGPT subscription turns use the official Codex CLI, with read-only sandbox by default and workspace-write when the owner enables the command setting. Claude's credential-deny rules do not apply to Codex, and reads are not confined to the vault. Urfael disables web search and workspace command network access, but the official client's sandbox governs its filesystem access. These controls are distinct from native host execution and from `URFAEL_YOLO`.
+
+Explicit API/Codex selections do not fall back to another account on failure. Native provider fallback also stops after a command starts, avoiding automatic re-execution of side effects. Subscription credentials stay with the official clients; API keys are stored in the owner-only provider configuration or existing secret store.
 
 ## If you enable full power (`URFAEL_YOLO=1`) — do this
 1. **Run it in a dedicated VM, container, or throwaway macOS user account** — never your primary machine.
@@ -58,6 +66,7 @@ chat (no third party). Web lookup and phone capture are deliberate opt-ins you e
 **By default Urfael uses no API keys at all** — voice is fully local (macOS `say` + whisper.cpp), so a
 fresh install ships with an empty, secret-free `tts.env`. The files below only hold keys if you opt into
 paid upgrades. They are **gitignored**; they live outside this repo and must never be committed or synced:
+- `~/.claude/urfael/provider.env` — selected provider, optional API keys, and local command opt-in
 - `~/.claude/urfael/tts.env` — only if you add ElevenLabs (voice) or Picovoice (wake word) keys
 - `~/.claude/urfael/api-keys.env` — Tavily / news / finance keys
 - `~/.claude/urfael/bridge.env` — only if you enable a Telegram/Discord bridge (bot token + your owner id)

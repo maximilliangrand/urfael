@@ -175,18 +175,19 @@ ipcMain.on('urfael:conversation-end', () => daemonPost('/conversation-end'));
 
 // ---- first-run GUI onboarding (so a non-technical user never needs a terminal) ----
 ipcMain.handle('urfael:provider-status', async () => {
-  let mode = 'subscription';
-  try { const e = setup.readEnv(); mode = e.ANTHROPIC_BASE_URL ? 'local' : e.ANTHROPIC_API_KEY ? 'apikey' : 'subscription'; } catch {}
+  const env = setup.readEnv();
+  const mode = require('./provider-config').modeFor(env);
   let configured = false; try { configured = fs.existsSync(ONBOARDED) || fs.existsSync(setup.PROVIDER_ENV); } catch {}
-  return { onboarded: configured && await ensureDaemon(), mode };
+  return { onboarded: configured && await ensureDaemon(), mode, commands: env.URFAEL_NATIVE_EXEC === '1' };
 });
 ipcMain.handle('urfael:save-provider', async (_e, cfg) => {
   cfg = cfg || {};
   try {
-    const next = { ...setup.readEnv() };
-    for (const k of ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN']) delete next[k]; // clear managed auth keys
-    if (cfg.mode === 'apikey' && typeof cfg.key === 'string' && cfg.key.trim()) next.ANTHROPIC_API_KEY = cfg.key.trim();
-    else if (cfg.mode === 'local' && typeof cfg.url === 'string' && /^https?:\/\//.test(cfg.url)) { next.ANTHROPIC_BASE_URL = cfg.url.trim(); next.ANTHROPIC_AUTH_TOKEN = (typeof cfg.token === 'string' && cfg.token.trim()) || 'local'; }
+    const next = require('./provider-config').configure(setup.readEnv(), cfg);
+    if (cfg.mode === 'chatgpt') {
+      const status = await require('./codex-backend').authStatus();
+      if (!status.loggedIn || status.method !== 'chatgpt') return { ok: false, error: 'Sign in to ChatGPT using the sign-in button first.' };
+    }
     setup.writeEnv(next);                                                         // 0600, atomic (reused from the CLI wizard)
     try { await daemonPostJson('/shutdown'); } catch {}                          // restart so the daemon loads the new provider.env
     await new Promise((r) => setTimeout(r, 600));
@@ -195,6 +196,8 @@ ipcMain.handle('urfael:save-provider', async (_e, cfg) => {
     return { ok: true };
   } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
 });
+
+ipcMain.handle('urfael:provider-login', (_e, mode) => require('./provider-login').login(mode));
 
 // ---- click-through: pass mouse to apps below except over lit/interactive elements ----
 ipcMain.on('urfael:interactive', (_e, on) => { if (win && !win.isDestroyed()) win.setIgnoreMouseEvents(!on, { forward: true }); });
