@@ -13,10 +13,11 @@ const main = fs.readFileSync(path.join(APP, 'main.js'), 'utf8');
 const handlersSource = main.slice(main.indexOf("ipcMain.handle('urfael:provider-status'"), main.indexOf('// ---- click-through:'));
 assert.ok(handlersSource.includes("ipcMain.handle('urfael:save-provider'"));
 
-function onboarding() {
+function onboarding(auth = { installed: true, loggedIn: true, method: 'chatgpt' }) {
   const handlers = {}, files = new Map(), writes = [], requests = [];
   let ready = false, settings = { URFAEL_VERBOSITY: 'terse' }, starts = 0;
   vm.runInNewContext(handlersSource, {
+    require: (id) => id === './codex-backend' ? { authStatus: async () => auth } : require(path.resolve(APP, id)),
     ipcMain: { handle: (name, fn) => { handlers[name] = fn; } },
     setup: { PROVIDER_ENV: '/fixture/provider.env', readEnv: () => ({ ...settings }), writeEnv: (next) => { settings = { ...next }; files.set('/fixture/provider.env', 'saved'); } },
     fs: { existsSync: (file) => files.has(file), mkdirSync() {}, writeFileSync: (file, value) => { files.set(file, value); writes.push(file); } },
@@ -59,9 +60,9 @@ test('configured users stay onboarded when their daemon is ready; a fresh profil
 test('the real onboarding UI retains a startup failure and dismisses only a successful retry', async () => {
   const app = onboarding();
   const elements = new Map();
-  for (const id of ['#onboard', '#ob-note', '#ob-key', '#ob-url', '#ob-go', '#input']) elements.set(id, {
+  for (const id of ['#onboard', '#ob-note', '#ob-key', '#ob-url', '#ob-go', '#ob-login', '#ob-commands', '#provider-mode', '#input']) elements.set(id, {
     hidden: id === '#onboard', disabled: false, textContent: '', value: '',
-    classList: { add() {}, remove() {} }, querySelectorAll: () => [],
+    classList: { add() {}, remove() {}, toggle() {} }, querySelectorAll: () => [], querySelector: () => null,
     addEventListener(_event, fn) { this.click = fn; }, focus() {},
   });
   const renderer = fs.readFileSync(path.join(APP, 'console/console.js'), 'utf8');
@@ -80,6 +81,24 @@ test('the real onboarding UI retains a startup failure and dismisses only a succ
   app.setReady(true);
   await go.click();
   assert.equal(card.hidden, true);
+});
+
+test('desktop provider settings preserve selected API identity and reject API-key Codex login', async () => {
+  const app = onboarding({ installed: true, loggedIn: true, method: 'api-key' }); app.setReady(true);
+  const save = app.handlers['urfael:save-provider'];
+  const denied = await save(null, { mode: 'chatgpt' });
+  assert.equal(denied.ok, false);
+  assert.equal(app.settings().URFAEL_PROVIDER, undefined);
+  assert.equal(app.files.size, 0);
+  const accepted = await save(null, { mode: 'openai-key', key: 'fixture-key', commands: true });
+  assert.equal(accepted.ok, true);
+  assert.equal(app.settings().URFAEL_PROVIDER, 'openai');
+  assert.equal(app.settings().OPENAI_API_KEY, 'fixture-key');
+  assert.equal(app.settings().URFAEL_NATIVE_EXEC, '1');
+  const status = await app.handlers['urfael:provider-status']();
+  assert.equal(status.mode, 'openai-key');
+  assert.equal(status.commands, true);
+  assert.equal(JSON.stringify(status).includes('fixture-key'), false);
 });
 
 test('desktop health rejects HTTP errors and concurrent startup probes launch only one daemon', async () => {

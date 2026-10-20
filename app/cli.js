@@ -878,6 +878,25 @@ function readStdinAdapter(maxBytes) {
   // quickstart: the fast path. Connects you (or skips), then shows the moat. Pure CLI, runs BEFORE ensureDaemon.
   if (cmd === 'quickstart' || cmd === 'quick') { await require('./quickstart').run(); return; }
   // setup: the onboarding wizard (auth mode + provider config). Pure CLI, runs BEFORE ensureDaemon.
+  if (cmd === 'model' && rest[0] === 'login') {
+    const id = rest[1] === 'claude' ? 'subscription' : rest[1];
+    try {
+      const command = require('./provider-login').command(id);
+      execFileSync(command.bin, command.args, { env: require('./codex-backend').childEnv(process.env), stdio: 'inherit' });
+    } catch { console.error('Sign-in did not finish. Install the official client and run urfael model login claude|chatgpt.'); process.exitCode = 1; }
+    return;
+  }
+  if (cmd === 'model' && rest[0] === 'commands') {
+    const setup = require('./setup'); const env = setup.readEnv();
+    if (!rest[1] || rest[1] === 'status') { console.log(env.URFAEL_NATIVE_EXEC === '1' ? 'Native commands and Codex workspace writes enabled' : 'Native commands and Codex workspace writes disabled'); return; }
+    if (!['on', 'off'].includes(rest[1])) { console.error('Use: urfael model commands on|off|status'); process.exitCode = 1; return; }
+    if (rest[1] === 'on' && process.platform === 'win32') { console.error('Native commands currently require macOS or Linux.'); process.exitCode = 1; return; }
+    env.URFAEL_NATIVE_EXEC = rest[1] === 'on' ? '1' : '0'; setup.writeEnv(env);
+    await req('POST', '/shutdown').catch(() => {});
+    await new Promise((r) => setTimeout(r, 700)); await ensureDaemon();
+    console.log(rest[1] === 'on' ? 'Local native commands enabled with your host user permissions. Codex uses its workspace sandbox.' : 'Native commands and Codex workspace writes disabled. Codex read-only tools remain available.');
+    return;
+  }
   if (cmd === 'setup' || cmd === 'init' || cmd === 'onboard') { await require('./setup').run(); return; }
   // stop is best-effort BEFORE ensureDaemon — never spawn a brain just to abort nothing
   if (cmd === 'stop') { const r = await req('POST', '/abort').catch(() => ({ ok: false })); console.log(r && r.ok ? gold('stopped') : dim('nothing to stop')); return; }
@@ -1151,10 +1170,10 @@ function readStdinAdapter(maxBytes) {
     if (sub === 'providers' || sub === 'provider') {
       const prov = require('./providers'); const setup = require('./setup');
       const list = prov.load(); const env = setup.readEnv();
-      const activeId = env.CLAUDE_CODE_USE_BEDROCK ? 'claude-bedrock' : env.CLAUDE_CODE_USE_VERTEX ? 'claude-vertex'
-        : !env.ANTHROPIC_BASE_URL ? 'claude' : ((list.find((x) => x.baseUrl === env.ANTHROPIC_BASE_URL) || {}).id || '');
+      const activeId = env.URFAEL_PROVIDER || (env.CLAUDE_CODE_USE_BEDROCK ? 'claude-bedrock' : env.CLAUDE_CODE_USE_VERTEX ? 'claude-vertex'
+        : !env.ANTHROPIC_BASE_URL ? 'claude' : ((list.find((x) => x.baseUrl === env.ANTHROPIC_BASE_URL) || {}).id || ''));
       if (rest.includes('--json')) { console.log(JSON.stringify({ active: activeId, providers: list.map((x) => ({ id: x.id, label: x.label, kind: x.kind, models: x.models.length, verified: x.verified, hasKey: !!(x.authEnv && env[x.authEnv]) })) }, null, 2)); return; }
-      console.log(gold('Providers') + dim('  ·  the flat-rate Claude subscription is the default; others run on YOUR key/hardware'));
+      console.log(gold('Providers') + dim('  ·  official subscription sign-in or your own API key/hardware'));
       list.forEach((x, i) => console.log('  ' + (x.id === activeId ? gold('●') : dim('○')) + ' ' + dim(String(i + 1).padStart(2)) + ' ' + gold(x.id.padEnd(16)) + ' ' + dim((x.note || x.label).slice(0, 46)) + (x.verified ? '' : gold(' •unverified'))));
       console.log('\n' + dim('● active  ○ available   ·   switch:  ') + gold('urfael model use <id>') + dim('   ·   probe:  ') + gold('urfael model test <id>'));
       return;
@@ -1178,10 +1197,13 @@ function readStdinAdapter(maxBytes) {
       if (!ok) { console.log(dim('aborted — nothing changed')); return; }
       let delta; try { delta = prov.resolveEnv(e, secrets[e.authEnv], { big: flag(rest, '--big'), small: flag(rest, '--small') }); } catch (err) { console.error('✗ ' + ((err && err.message) || err)); process.exit(1); }
       const cur = setup.readEnv(); for (const k of delta.clear) delete cur[k]; Object.assign(cur, delta.set);
+      cur.URFAEL_PROVIDER = e.backend ? e.id : 'claude';
+      delete cur.URFAEL_NATIVE_MODEL;
+      if (e.backend && flag(rest, '--big')) cur.URFAEL_NATIVE_MODEL = flag(rest, '--big');
       try { setup.writeEnv(cur); } catch (err) { console.error('✗ write failed: ' + ((err && err.message) || err)); process.exit(1); }
       await req('POST', '/shutdown').catch(() => {});           // restart so the daemon re-sources provider.env
       await new Promise((r) => setTimeout(r, 700)); await ensureDaemon();
-      console.log(gold('✓ now on ' + e.label) + dim('  — `urfael model opus/sonnet` pins the tier within this provider'));
+      console.log(gold('✓ now on ' + e.label) + dim(e.backend ? '  — use --big <model> when selecting a native API model' : '  — `urfael model opus/sonnet` pins the tier within this provider'));
       if (e.proxy !== 'none') console.log(dim('  proxy reminder: ') + gold(pv.proxyHint || 'start your proxy first'));
       return;
     }
@@ -1189,6 +1211,11 @@ function readStdinAdapter(maxBytes) {
       const prov = require('./providers'); const setup = require('./setup');
       const e = prov.find(prov.load(), rest[1]); if (!e) { console.error('✗ no provider "' + rest[1] + '"'); process.exit(1); }
       const env = setup.readEnv();
+      if (e.backend) {
+        const r = await req('POST', '/engine/ask', { providerId: e.id, text: 'Reply with exactly: ok. Do not use tools.' });
+        if (!r.ok) { console.error('✗ ' + (r.error || 'Provider failed')); process.exitCode = 1; return; }
+        console.log(gold('✓ reachable') + dim(' — replied: ' + String(r.text).slice(0, 80))); return;
+      }
       let delta; try { delta = prov.resolveEnv(e, env[e.authEnv], {}); } catch (err) { console.error('✗ ' + err.message + ' — set it first: urfael model use ' + e.id); process.exit(1); }
       const probeEnv = { ...process.env }; for (const k of delta.clear) delete probeEnv[k]; Object.assign(probeEnv, delta.set);
       console.log(dim('probing ' + e.label + ' …'));

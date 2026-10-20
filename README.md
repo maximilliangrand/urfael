@@ -8,7 +8,7 @@
 
 **A personal AI assistant you run on your own machine, with local voice, a desktop console, and a searchable archive.**
 
-Urfael drives your installed Claude Code CLI. It can use your existing login; optional API providers and cloud voice have separate costs.
+Urfael can use your installed Claude Code or Codex client with subscription sign-in, or connect directly to Anthropic and OpenAI with API keys. Choose the main conversation backend in Settings; API usage and optional cloud voice have separate costs. See [models and providers](docs/manual/features/models.md).
 
 <img src="docs/media/console.png" width="820" alt="Urfael Console with chat, voice input, reminders, jobs, and settings" />
 </div>
@@ -68,7 +68,7 @@ Loopback binding prevents direct LAN access under normal host networking. Local 
 
 In default **Fortress** mode, remote turns use read-only tools without web or shell access. **Full** mode adds web tools for remote owner/member turns. These are harness permission profiles, not an OS-level isolation guarantee. Unknown profiles fail closed; sender allowlists, credential-deny rules, and framing of untrusted content provide additional controls.
 
-Autonomous coding can run on the host, in Docker, or over SSH. Docker isolation must be selected explicitly; the goal loop is not automatically containerized. `URFAEL_YOLO=1` enables unrestricted shell access and materially widens risk. Skills are scanned and previewed, but static scanning cannot establish that arbitrary content or code is safe. Some plugin server processes run with the local user's privileges; see the [threat model](docs/THREAT-MODEL.md).
+Autonomous coding can run on the host, in Docker, or over SSH. Docker isolation must be selected explicitly; the goal loop is not automatically containerized. `URFAEL_YOLO=1` enables unrestricted Claude shell access. Native API command execution has its own explicit `URFAEL_NATIVE_EXEC=1` opt-in and runs with host user permissions; Codex uses its own sandbox. Skills are scanned and previewed, but static scanning cannot establish that arbitrary content or code is safe. Some plugin server processes run with the local user's privileges; see the [threat model](docs/THREAT-MODEL.md).
 
 Read [SECURITY.md](SECURITY.md), the [threat model](docs/THREAT-MODEL.md), and [Fortress vs Full](docs/MODES.md) before enabling additional capabilities.
 
@@ -98,7 +98,7 @@ The security benchmark source defines **11 groups and 128 `check(...)` call site
 
 ## Cost
 
-The default CLI backend uses your configured Claude Code account, subject to its plan limits and terms. API providers and optional paid voice services are billed separately. Displayed spend estimates are estimates, not your provider's bill. See [model setup](docs/manual/features/models.md) and [local GPU configuration](docs/LOCAL-GPU.md).
+The default CLI backend uses your configured Claude Code account, subject to its plan limits and terms. ChatGPT sign-in through Codex is an alternative for the main local conversation. API providers and optional paid voice services are billed separately. Displayed spend estimates are estimates, not your provider's bill. See [model setup](docs/manual/features/models.md) and [local GPU configuration](docs/LOCAL-GPU.md).
 
 ## More documentation
 

@@ -23,7 +23,7 @@ function nativeHarness(over = {}) {
   const entries = ['primary', 'fallback', 'last'].map((id) => ({ id, big_model: id + '-model' }));
   const calls = { builds: [], runs: [], writes: [], deltas: [] };
   const context = {
-    Date, nativeDefault: 'primary', turnCounter: 0, lastLocalTurn: 0,
+    Date, transcript: [], process: { env: {} }, NATIVE_EXEC: false, nativeDefault: 'primary', turnCounter: 0, lastLocalTurn: 0,
     routeOverride: () => null, sendSay: (o) => calls.deltas.push(o.delta), sendThinking() {},
     providerList: () => entries, providerSessions: { findProvider: (list, id) => list.find((p) => p.id === id) },
     providers: { secretNeeded: () => null, chain: () => entries.slice(1) },

@@ -26,6 +26,10 @@ test('pickAdapter: an openai/ollama endpoint (baseUrl set) ⇒ the openai-compat
   assert.strictEqual(p.baseUrl, 'http://127.0.0.1:11434/v1');
 });
 
+test('pickAdapter: a Codex login backend never becomes an HTTP adapter', () => {
+  assert.strictEqual(pickAdapter({ backend: 'codex', kind: 'openai', baseUrl: 'http://127.0.0.1:1/v1' }), null);
+});
+
 test('buildEngine: the subscription provider returns null so the daemon falls back to the CLI spawn', () => {
   const e = buildEngine({ entry: { kind: 'anthropic', baseUrl: '', authKind: 'none' }, model: 'sonnet', vaultDir: os.tmpdir() });
   assert.strictEqual(e, null);
@@ -45,6 +49,17 @@ test('buildEngine: a wired Ollama engine exposes run() and the fail-closed tools
   assert.strictEqual(e._adapter, 'openai');
   assert.ok(!e.toolset.defs.some((d) => d.name === 'exec_shell'));   // fail-closed default carried through the factory
   fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test('buildEngine: exec_shell cannot be enabled for a missing, remote, read-only or unknown profile', async () => {
+  const base = { entry: { kind: 'openai', baseUrl: 'http://127.0.0.1:11434/v1' }, secret: 'x',
+    model: 'test', vaultDir: os.tmpdir(), allowShell: true, runShell: async () => { throw new Error('must not run'); } };
+  for (const boundary of [{}, { profile: 'untrusted' }, { profile: ['local'] }, { profile: 'local', allowShell: 'true' }, { profile: 'local', readOnly: true },
+    { profile: 'local', remote: true }, { profile: 'local', channel: 'telegram' }, { profile: 'local', channel: false }]) {
+    const e = buildEngine({ ...base, ...boundary });
+    assert.ok(!e.toolset.defs.some((d) => d.name === 'exec_shell'), JSON.stringify(boundary));
+    assert.match(await e.toolset.dispatch('exec_shell', { command: 'true' }), /denied/);
+  }
 });
 
 test('makeSummarizer: renders the middle + folds in the prior summary, returns {ok, summary}', async () => {

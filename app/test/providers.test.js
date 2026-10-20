@@ -3,15 +3,15 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const p = require('../providers');
 
-// the daemon's forwarded allowlist (daemon.js PROVIDER_ENV ∪ the two URFAEL tier vars), copied here as a FROZEN
-// contract: every var a provider switch can emit must be one the daemon already forwards to every spawn.
-const DAEMON_FORWARDED = new Set([
+// Managed provider config includes Claude routing plus the native-only OpenAI key.
+// The OpenAI key must never be forwarded to scoped Claude children.
+const PROVIDER_CONFIG_KEYS = new Set([
   'ANTHROPIC_BASE_URL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_MODEL',
   'ANTHROPIC_DEFAULT_OPUS_MODEL', 'ANTHROPIC_DEFAULT_SONNET_MODEL', 'ANTHROPIC_DEFAULT_HAIKU_MODEL',
   'ANTHROPIC_SMALL_FAST_MODEL', 'ANTHROPIC_CUSTOM_HEADERS', 'ANTHROPIC_BEDROCK_BASE_URL', 'ANTHROPIC_VERTEX_BASE_URL',
   'CLAUDE_CODE_USE_BEDROCK', 'CLAUDE_CODE_USE_VERTEX', 'CLAUDE_CODE_SKIP_BEDROCK_AUTH', 'CLAUDE_CODE_SKIP_VERTEX_AUTH',
   'AWS_REGION', 'AWS_PROFILE', 'AWS_BEARER_TOKEN_BEDROCK', 'CLOUD_ML_REGION', 'ANTHROPIC_VERTEX_PROJECT_ID', 'GOOGLE_APPLICATION_CREDENTIALS',
-  'URFAEL_SONNET_MODEL', 'URFAEL_OPUS_MODEL',
+  'URFAEL_SONNET_MODEL', 'URFAEL_OPUS_MODEL', 'OPENAI_API_KEY',
 ]);
 
 // ── the bundled registry loads and every row is valid ────────────────────────────────────────────
@@ -88,16 +88,16 @@ test('resolveEnv honors a --big/--small override', () => {
   assert.equal(r.set.URFAEL_SONNET_MODEL, 'c/d');
 });
 
-// ── THE DRIFT GUARD: every var any seed provider's resolveEnv can emit is one the daemon forwards ──
-test('DRIFT GUARD: resolveEnv only ever emits vars the daemon already forwards to every spawn', () => {
+// ── THE DRIFT GUARD: every emitted variable belongs to managed provider configuration ──
+test('DRIFT GUARD: resolveEnv only emits known provider configuration keys', () => {
   const list = p.load();
   for (const e of list) {
     const r = p.resolveEnv(e, p.secretNeeded(e) ? 'dummy-secret' : undefined);
-    for (const k of Object.keys(r.set)) assert.ok(DAEMON_FORWARDED.has(k), 'provider ' + e.id + ' emits ' + k + ' which the daemon does NOT forward — a switch would not propagate');
-    for (const k of r.clear) assert.ok(DAEMON_FORWARDED.has(k), 'MANAGED clears ' + k + ' which is not in the forwarded set');
+    for (const k of Object.keys(r.set)) assert.ok(PROVIDER_CONFIG_KEYS.has(k), 'provider ' + e.id + ' emits unmanaged config ' + k);
+    for (const k of r.clear) assert.ok(PROVIDER_CONFIG_KEYS.has(k), 'MANAGED clears unknown config ' + k);
   }
   // and MANAGED itself is a subset of the forwarded allowlist
-  for (const k of p.MANAGED) assert.ok(DAEMON_FORWARDED.has(k), 'MANAGED var not forwarded: ' + k);
+  for (const k of p.MANAGED) assert.ok(PROVIDER_CONFIG_KEYS.has(k), 'unknown managed provider var: ' + k);
 });
 
 // ── preview never leaks a secret value ──────────────────────────────────────────────────────────────
@@ -124,4 +124,29 @@ test('chain resolves [primary, ...fallbacks] to real entries, deduped, self/unkn
   const real = p.load();
   assert.deepEqual(p.chain(real, 'openai').map((x) => x.id), ['openai', 'openrouter', 'deepseek']);
   assert.ok(Array.isArray(p.find(real, 'claude').fallbacks));   // every entry has a (possibly empty) fallbacks array
+});
+
+test('API and subscription routes have distinct keys and never set legacy Claude routing', () => {
+  const list = p.load();
+  const openai = p.find(list, 'openai');
+  const anthropic = p.find(list, 'claude-api');
+  const chatgpt = p.find(list, 'chatgpt');
+  assert.equal(openai.backend, 'native'); assert.equal(anthropic.backend, 'native');
+  assert.equal(chatgpt.backend, 'codex');
+  assert.equal(chatgpt.authKind, 'oauth');
+  assert.equal(chatgpt.baseUrl, '');
+  assert.deepEqual(p.resolveEnv(openai, 'openai-key').set, { OPENAI_API_KEY: 'openai-key' });
+  assert.deepEqual(p.resolveEnv(anthropic, 'anthropic-key').set, { ANTHROPIC_API_KEY: 'anthropic-key' });
+  assert.deepEqual(p.resolveEnv(chatgpt).set, {});
+  assert.match(p.preview(chatgpt).target, /Codex/);
+  const scoped = require('../lib').scopedEnv({ OPENAI_API_KEY: 'openai-key', HOME: '/home/test' });
+  assert.equal(scoped.OPENAI_API_KEY, undefined);
+});
+
+test('parser rejects unknown backends and Codex entries with HTTP or API-key routing', () => {
+  const good = { id: 'chatgpt', backend: 'codex', kind: 'openai', authKind: 'oauth' };
+  const entries = [good, { ...good, id: 'unknown', backend: 'private-oauth' },
+    { ...good, id: 'url', baseUrl: 'https://example.com' }, { ...good, id: 'key', authKind: 'key' },
+    { ...good, id: 'kind', kind: 'anthropic' }, { ...good, id: 'env', authEnv: 'OPENAI_API_KEY' }];
+  assert.deepEqual(p.parse(JSON.stringify(entries)).map((e) => e.id), ['chatgpt']);
 });

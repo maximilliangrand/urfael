@@ -52,9 +52,9 @@ test('an explicit per-turn /model override → null (that override wins the subs
   assert.equal(calls.run, 0);
 });
 
-test('an unknown / unresolvable pin → null (the pin is no longer in the registry)', async () => {
+test('a removed provider fails visibly instead of routing to another account', async () => {
   const { deps, calls } = mkDeps();
-  assert.equal(await nativeDefaultResult('ghost-provider', 'hi', deps), null);
+  assert.match((await nativeDefaultResult('ghost-provider', 'hi', deps)).text, /no longer available/);
   assert.equal(calls.run, 0);
 });
 
@@ -142,4 +142,36 @@ test('sanitizeBrainId returns null for empty / non-string / all-stripped input (
   assert.equal(sanitizeBrainId(undefined), null);
   assert.equal(sanitizeBrainId(42), null);
   assert.equal(sanitizeBrainId({}), null);
+});
+
+test('explicit API/Codex provider failures never fall back to a different account', async () => {
+  for (const backend of ['native', 'codex']) {
+    const entry = { ...KEYED, backend };
+    for (const result of [{ ok: false, error: 'provider unavailable' }, { ok: true, text: '' }]) {
+      const { deps } = mkDeps({ providers: () => [entry], runNativeTurn: async () => result });
+      const actual = await nativeDefaultResult(entry.id, 'write once', deps);
+      assert.ok(actual && actual.text);
+    }
+    const { deps, calls } = mkDeps({ providers: () => [entry], hasSecret: () => false });
+    assert.match((await nativeDefaultResult(entry.id, 'write once', deps)).text, /API key/);
+    assert.equal(calls.run, 0);
+  }
+});
+test('legacy native fallback is suppressed after a command starts', async () => {
+  const { deps } = mkDeps({ runNativeTurn: async () => ({ ok: false, sideEffects: true, error: 'connection lost after command' }) });
+  const result = await nativeDefaultResult(KEYED.id, 'write once', deps);
+  assert.ok(result);
+  assert.equal(result.text, 'connection lost after command');
+});
+
+
+test('fresh provider turns retain bounded recent conversation without tool replay', () => {
+  const { recentHistory } = require('../engine/default-brain');
+  const history = recentHistory(Array.from({ length: 9 }, (_, n) => ({ user: 'user-' + n, urfael: 'answer-' + n, toolCalls: [{ name: 'exec_shell' }] })));
+  assert.equal(history.length, 8);
+  assert.deepEqual(history[0], { role: 'user', content: 'user-5' });
+  assert.deepEqual(history.at(-1), { role: 'assistant', content: 'answer-8' });
+  assert.ok(history.every((m) => !('toolCalls' in m)));
+  assert.equal(recentHistory([{ user: 'x'.repeat(5000), urfael: 'y'.repeat(5000) }])[0].content.length, 4000);
+  assert.deepEqual(recentHistory([null, { user: 123, urfael: 'bad' }]), []);
 });

@@ -31,6 +31,7 @@ contextBridge.exposeInMainWorld('urfael', {
   jobResume: (id) => ipcRenderer.invoke('urfael:job-resume', id),
   setConfig: (k, v) => ipcRenderer.send('urfael:set-config', k, v),
   providerStatus: () => ipcRenderer.invoke('urfael:provider-status'),   // first-run onboarding
+  providerLogin: (mode) => ipcRenderer.invoke('urfael:provider-login', mode),
   saveProvider: (cfg) => ipcRenderer.invoke('urfael:save-provider', cfg),
   providers: () => ipcRenderer.invoke('urfael:providers'),             // multi-chat: the provider/model picker list
   chatOpen: (spec) => ipcRenderer.invoke('urfael:chat-open', spec),    // open a new provider-bound chat -> {chatId,...}

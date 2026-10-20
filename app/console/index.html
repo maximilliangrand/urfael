@@ -16,23 +16,35 @@
     <div class="ob-card">
       <img class="ob-logo" src="../renderer/urfael-logo.svg" alt="" width="58" height="58" />
       <h1 class="ob-title">Welcome to Urfael</h1>
-      <p class="ob-sub">Liquid Intelligence, at your service. How should it reach Claude?</p>
+      <p class="ob-sub">Liquid Intelligence, at your service. Choose your model provider.</p>
       <div class="ob-choices">
         <button class="ob-choice sel" data-mode="subscription">
-          <span class="ob-h">Claude subscription <em>· recommended</em></span>
-          <span class="ob-d">Use your Pro/Max login. No key, flat rate. Pick this if you're signed into Claude Code.</span>
+          <span class="ob-h">Claude subscription</span>
+          <span class="ob-d">Sign in through Claude Code. Your plan’s limits and terms apply.</span>
+        </button>
+        <button class="ob-choice" data-mode="chatgpt">
+          <span class="ob-h">ChatGPT subscription</span>
+          <span class="ob-d">Sign in through Codex. Your plan’s limits and terms apply.</span>
+        </button>
+        <button class="ob-choice" data-mode="openai-key">
+          <span class="ob-h">OpenAI API key</span>
+          <span class="ob-d">Connect directly to OpenAI. API usage is billed separately.</span>
         </button>
         <button class="ob-choice" data-mode="apikey">
           <span class="ob-h">Anthropic API key</span>
-          <span class="ob-d">Pay-per-token. For when you don't have a subscription.</span>
-          <input class="ob-in" id="ob-key" type="password" placeholder="sk-ant-…" autocomplete="off" hidden />
+          <span class="ob-d">Pay-per-token. Connect directly to Anthropic.</span>
+
         </button>
         <button class="ob-choice" data-mode="local">
           <span class="ob-h">Local model</span>
-          <span class="ob-d">Run on your own GPU (Ollama / LM Studio). Nothing leaves the machine.</span>
+          <span class="ob-d">Run on your own GPU (Ollama / LM Studio). Use a local endpoint or an Anthropic-compatible proxy.</span>
           <input class="ob-in" id="ob-url" type="text" placeholder="http://127.0.0.1:3456" hidden />
         </button>
       </div>
+      <input class="ob-in" id="ob-key" type="password" placeholder="API key" autocomplete="off" hidden aria-label="API key" />
+      <button id="ob-login" type="button" class="ob-go">Sign in with Claude</button>
+      <label class="ob-command-option"><input id="ob-commands" type="checkbox" /> Enable native commands and Codex file changes</label>
+      <p class="ob-note">Native API commands run with your user’s host access. Codex uses its workspace sandbox. Remote channels stay restricted.</p>
       <button id="ob-go" class="ob-go">Get started</button>
       <p class="ob-note" id="ob-note"></p>
     </div>

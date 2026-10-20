@@ -1,22 +1,6 @@
 'use strict';
-// app/engine/default-brain.js — the PURE decision + shape-mapper for the NATIVE DEFAULT BRAIN.
-//
-// When the owner has PINNED a native provider as the default brain, the local voice/overlay turn (daemon.js
-// brain.ask) may run on the in-process native engine instead of the CLI subscription. This module answers the ONE
-// question that gate asks: given the pinned provider id and this turn's text, should the turn run natively, and if
-// so, what brain.ask-shaped result does the native run produce? Every dependency (registry lookup, adapter pick,
-// secret store, the runNativeTurn choke point, the overlay stream hooks, the clock) is INJECTED, so this is unit-
-// testable with hand-driven fakes and network-free (the "no API key" bar) — the daemon binds the real deps.
-//
-// DOCTRINE it upholds by construction:
-//  • FAIL-SOFT: it returns null on ANY miss (unpinned / unresolvable pin / CLI-only entry / keyless / native error),
-//    so brain.ask falls through UNCHANGED to the CLI subscription path — the turn is never dropped. Never throws
-//    (runNativeTurn itself never throws; wrapped anyway).
-//  • BYTE-IDENTICAL DEFAULT: nativeDefault is null by default, so nativeDefaultResult short-circuits to null and the
-//    daemon's whole native branch is skipped — the subscription path is untouched.
-//  • FAIL-CLOSED / NARROW-ONLY: a keyless pin degrades to the subscription (never onto the daemon's own creds); the
-//    read-only floor is inherited verbatim because the only way to reach a native turn is runNativeTurn (unchanged),
-//    which builds the fail-closed toolset with allowShell/runShell UNSET.
+// Local provider selection. Explicit API/Codex backends fail closed on authentication or
+// transport errors. Legacy pins may fall back to Claude only before a command starts.
 
 // The persisted pin is only ever a sanitized provider-id string: [a-z0-9-] only, empty → null. Single-sourced so the
 // load path, the setter, and the unit test all agree; a hostile value can never smuggle a path/flag/newline into the
@@ -43,10 +27,12 @@ async function nativeDefaultResult(nativeDefault, text, deps) {
   if (!nativeDefault) return null;                                  // not pinned → never entered (the byte-identical default)
   if (deps.routeOverride(text)) return null;                       // explicit "/opus …" wins the subscription tier for THIS turn
   const entry = deps.findProvider(deps.providers(), nativeDefault);
-  if (!entry) return null;                                         // the pin is no longer in the registry → fall through
-  if (!deps.pickAdapter(entry)) return null;                       // a CLI-only/subscription entry can't be a native brain (defensive; the endpoint already rejects it)
+  const failed = (error, model) => ({ text: error || 'The selected provider could not finish this turn.', error, model: model || (entry && entry.big_model) || nativeDefault, ms: 0, aborted: false, usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0 } });
+  if (!entry) return failed('Selected provider ' + nativeDefault + ' is no longer available. Choose a provider in Settings.');
+  const strict = entry.backend === 'native' || entry.backend === 'codex';
+  if (!deps.pickAdapter(entry)) return strict ? failed('The selected provider backend is unavailable.') : null;
   const need = deps.secretNeeded(entry);
-  if (need && !deps.hasSecret(need.env)) return null;              // keyless pin degrades gracefully to the subscription until a key is set
+  if (need && !deps.hasSecret(need.env)) return strict ? failed('Provider ' + entry.id + ' needs its API key. Configure it in Settings or urfael model use ' + entry.id + '.') : null;              // keyless pin degrades gracefully to the subscription until a key is set
   try { deps.resetStream({ model: entry.big_model || entry.small_model || '' }); } catch {}   // overlay clears + associates the stream (parity with the CLI path)
   const t0 = deps.now();
   let r;
@@ -55,8 +41,8 @@ async function nativeDefaultResult(nativeDefault, text, deps) {
       text, providerId: entry.id, model: '',
       onDelta: deps.onDelta, onThinking: deps.onThinking,
     });
-  } catch { return null; }                                          // runNativeTurn never throws; guard anyway → fall through (fail-soft)
-  if (!r || !r.ok || !r.text) return null;                         // provider/build/native error → fall through to the CLI (fail-soft). runNativeTurn only records on success, so falling through never double-records.
+  } catch { return strict ? failed('The selected provider could not finish this turn.') : null; }                                          // runNativeTurn never throws; guard anyway → fall through (fail-soft)
+  if (!r || !r.ok || !r.text) return strict || (r && r.sideEffects) ? failed((r && r.error) || 'The selected provider could not finish this turn.', r && r.model) : null;                         // provider/build/native error → fall through to the CLI (fail-soft). runNativeTurn only records on success, so falling through never double-records.
   // MAP to brain.ask's exact contract so the reply flows through the /ask consumer (the selfset self-rewrite scan)
   // unchanged. runNativeTurn already did transcript.push + recordSession + logEvent('native_turn'); the native path
   // deliberately scopes out the CLI-tail reviewTurn/modelUser/reinforceSurfaced (documented v1 limitation).
@@ -65,9 +51,18 @@ async function nativeDefaultResult(nativeDefault, text, deps) {
     usage: {
       input_tokens: (r.usage && r.usage.inTok) || 0,
       output_tokens: (r.usage && r.usage.outTok) || 0,
-      cache_read_input_tokens: 0,
+      cache_read_input_tokens: (r.usage && r.usage.cacheReadTok) || 0,
     },
   };
 }
 
-module.exports = { sanitizeBrainId, nativeDefaultResult };
+// Fresh CLI/API runs still need the current conversation. Limit recent plain-text
+// turns separately from recalled memory; never replay old tool calls as actions.
+function recentHistory(transcript) {
+  return (Array.isArray(transcript) ? transcript : []).slice(-4).flatMap((turn) => {
+    if (!turn || typeof turn.user !== 'string' || typeof turn.urfael !== 'string') return [];
+    return [{ role: 'user', content: turn.user.slice(0, 4000) }, { role: 'assistant', content: turn.urfael.slice(0, 4000) }];
+  });
+}
+
+module.exports = { sanitizeBrainId, nativeDefaultResult, recentHistory };

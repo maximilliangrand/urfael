@@ -15,19 +15,22 @@
 //   3. NO SYMLINK ESCAPE. We realpath the deepest existing ancestor (the file itself for reads; its parent for a
 //      not-yet-existing write target) and re-check containment on the resolved path, so a symlink inside the vault
 //      pointing at /etc can't smuggle a read/write out.
-//   4. SHELL IS OFF BY DEFAULT. exec_shell is only present when the caller passes an explicit runShell AND the
-//      owner opted in (allowShell). Absent either, the tool does not exist — the model can't even call it. This is
-//      the whole point vs. Hermes, whose default terminal backend runs LLM commands directly on the host.
+//   4. SHELL IS OFF BY DEFAULT. exec_shell needs an injected runShell, owner opt-in (allowShell), and an explicit
+//      local profile. Remote/read-only turns and delegates cannot gain it. Enabled commands execute on the HOST;
+//      file-tool path restrictions do not confine a shell's access to files or network.
 //   5. NEVER THROW. Every dispatch resolves { ok, content } (content is the tool_result text the loop feeds back).
 //      A guard failure is a normal, visible tool_result ("denied: ...") the model can react to — never a crash.
 //
 // Pure-ish + injectable: no module-level I/O, no daemon import. createToolset(cfg) returns { defs, dispatch }.
-// cfg = { vaultDir, memoryDir?, workspaceDir?, allowShell?, runShell?, recall?, appendMemory?, now?, maxBytes? }
+// cfg = { vaultDir, memoryDir?, workspaceDir?, allowShell?, runShell?, profile?, channel?, remote?, readOnly?,
+//         onCommandStart?, recall?, appendMemory?, now?, maxBytes? }
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { StringDecoder } = require('node:string_decoder');
 const camel = require('./taint');   // CaMeL-lite: value-level taint + capability gate (opt-in; see cfg.taint below)
+const { COMMAND_SUPPORTED } = require('./command');
 
 const DEFAULT_MAX_BYTES = 256 * 1024;    // per read/write payload cap — a tool_result is not a file transfer
 const MAX_LIST = 400;                     // directory-listing entry cap
@@ -149,7 +152,8 @@ function createToolset(cfg) {
     .filter(Boolean).map((p) => realDeepest(path.resolve(p))).filter(Boolean);   // drop any root that won't resolve (fail-closed)
   const denyGlobs = Array.isArray(cfg.denyGlobs) ? cfg.denyGlobs.map((p) => path.resolve(p)) : defaultDenyGlobs();
   const maxBytes = cfg.maxBytes || DEFAULT_MAX_BYTES;
-  const shellOn = !!(cfg.allowShell && typeof cfg.runShell === 'function');
+  const shellOn = COMMAND_SUPPORTED && cfg.allowShell === true && cfg.profile === 'local' &&
+    !cfg.readOnly && !cfg.remote && cfg.channel === undefined && typeof cfg.runShell === 'function';
   // CaMeL-lite capability gate config — PRESENT ONLY on a turn that consumes untrusted data. When cfg.taint is
   // absent (the default/subscription path), the gate below is skipped entirely and dispatch is byte-identical to
   // before. cfg.taint = { registry (createRegistry()), policy? (defaults to fail-closed DEFAULT_POLICY),
@@ -308,15 +312,23 @@ function createToolset(cfg) {
       try { await cfg.appendMemory(note); return 'remembered'; }
       catch (e) { return 'memory error: ' + String((e && e.message) || e); }
     },
-    async exec_shell(args) {
+    async exec_shell(args, context) {
       if (!shellOn) return 'denied: shell is disabled (fail-closed default; enable with the owner opt-in)';
-      const cmd = String((args && args.command) || '').slice(0, 4000);
-      if (!cmd.trim()) return 'refused: empty command';
+      const cmd = args && args.command;
+      if (typeof cmd !== 'string' || !cmd.trim() || cmd.includes('\0') || Buffer.byteLength(cmd) > 4096) return 'refused: command must be nonempty text of at most 4096 bytes without null bytes';
       try {
-        const r = await cfg.runShell(cmd, {}, { timeoutMs: 60000 });   // runShell already uses scopedEnv + a watchdog + is vault-cwd
-        let out = String(r.out == null ? '' : r.out);
-        if (out.length > maxBytes) out = out.slice(0, maxBytes) + '\n… (output truncated at ' + maxBytes + ' bytes)';   // bound the tool_result like read_file
-        return 'exit ' + r.exitCode + (out ? '\n' + out : '');
+        const r = await cfg.runShell(cmd, {}, { cwd: args.cwd, timeoutMs: args.timeout_ms, maxBytes,
+          signal: context && context.signal, onStart: cfg.onCommandStart });
+        let remaining = Math.min(maxBytes, 64 * 1024), truncated = !!r.truncated;
+        const clip = (text) => {
+          const bytes = Buffer.from(String(text || ''));
+          if (bytes.length > remaining) truncated = true;
+          const kept = bytes.subarray(0, remaining); remaining -= kept.length;
+          return new StringDecoder('utf8').write(kept);
+        };
+        return JSON.stringify({ stdout: clip(r.stdout), stderr: clip(r.stderr), exit_code: r.exitCode,
+          signal: r.signal || null, timed_out: !!r.timedOut, aborted: !!r.aborted, truncated,
+          ...(r.error ? { error: r.error } : {}) });
       } catch (e) { return 'shell error: ' + String((e && e.message) || e); }
     },
     // delegate — spawn ONE bounded, READ-ONLY sub-agent (engine/delegate.js). Present only when cfg.runSub is
@@ -343,11 +355,11 @@ function createToolset(cfg) {
   ];
   if (typeof cfg.recall === 'function') defs.push({ name: 'recall', description: 'Search prior conversations/memory (BM25-ranked).', parameters: { type: 'object', properties: { query: { type: 'string' }, k: { type: 'integer' } }, required: ['query'] } });
   if (typeof cfg.appendMemory === 'function') defs.push({ name: 'remember', description: 'Append a durable one-line fact to long-term memory.', parameters: { type: 'object', properties: { note: { type: 'string' } }, required: ['note'] } });
-  if (shellOn) defs.push({ name: 'exec_shell', description: 'Run a shell command (owner-enabled).', parameters: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } });
+  if (shellOn) defs.push({ name: 'exec_shell', description: 'Run an owner-enabled /bin/sh command on this host. Returns stdout, stderr and exit_code. Starts inside the workspace; this is not an OS sandbox. Commands are stopped after 30 seconds by default (maximum 60) or 64 KiB of output; ordinary background children are cleaned up.', parameters: { type: 'object', properties: { command: { type: 'string' }, cwd: { type: 'string', description: 'Existing directory inside the configured workspace; defaults to its root.' }, timeout_ms: { type: 'integer', minimum: 1, maximum: 60000 } }, required: ['command'] } });
   if (typeof cfg.runSub === 'function') defs.push({ name: 'delegate', description: 'Spawn ONE bounded, read-only sub-agent to handle a focused sub-task (it can only read/search files and recall memory — never write, edit, remember, run shells, or delegate). Returns the sub-agent\'s text result.', parameters: { type: 'object', properties: { task: { type: 'string' } }, required: ['task'] } });
 
   // dispatch(name, args) — run a tool by name; unknown/failed always resolve to a string. NEVER throws/rejects.
-  async function dispatch(name, args) {
+  async function dispatch(name, args, context) {
     const fn = impl[name];
     if (!fn) return 'unknown tool: ' + name;
     // CaMeL-lite capability gate (engine/taint.js). ACTIVE ONLY when cfg.taint is configured; when absent this whole
@@ -360,7 +372,7 @@ function createToolset(cfg) {
       args = camel.unwrapDeep(args || {});   // gate passed → hand the impl plain values (any Tainted boxes stripped)
     }
     let out;
-    try { out = await fn(args || {}); }
+    try { out = await fn(args || {}, context); }
     catch (e) { return 'tool error: ' + String((e && e.message) || e); }   // last-resort net; impls already guard
     // an UNTRUSTED-source tool's OUTPUT is registered as tainted, so a later privileged tool that echoes it is caught
     // by the gate above. Only when the gate is active AND this tool was declared untrusted (never on the default path).
