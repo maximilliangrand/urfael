@@ -352,8 +352,8 @@ main:has(> .hero) > section.section::before {
    by 2.5 units as a serif does. The mark is Faithful, tall and narrow (0.57 wide to 1 tall), so it stands 1.2 em: 1.71
    times Outfit 600's cap height (0.703 em), with its 9-unit strokes at 0.1125 em, 86% of the name's stems, light as
    the chisel cut is but not faint beside them. The gap leaves 26 units (0.325 em) of air from the roof's point to the
-   U, the counter between the mark's own feet, less the U's 0.0625 em side bearing; the leg is then 30.5 units from the
-   U, the counter between its stems. Keep 0.5 em clear round the ink. */
+   U, the counter between the mark's own feet, less the U's 0.0625 em side bearing; the leg then stands 30.5 units from
+   the U, about the 31 between its stems. Keep 0.5 em clear round the ink. */
 .brand {
   display: inline-flex;
   align-items: baseline;
