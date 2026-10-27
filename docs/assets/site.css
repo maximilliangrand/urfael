@@ -346,36 +346,36 @@ main:has(> .hero) > section.section::before {
 }
 .site-header__in { position: relative; z-index: 1; height: 100%; display: flex; align-items: center; gap: 1rem; }
 /* The lockup: the mark and the name, in one colour, the lockup's own (--logo), so it turns white on a night band.
-   Every size is in em of the name. The mark's box is 4/3 em, so its nominal height, y 16 to 112 of 128, is 1 em, and
-   it sits on the name's baseline: align on the baseline, then drop the box by its empty bottom, 16 of 128. The gap
-   leaves 40 units (0.4167 em) of air from the foot to the U, the width of the mark's own counter at the baseline,
-   less the 0.25 em the box holds right of the foot and the U's 0.0625 em side bearing. The box holds a third of an em
-   left of the stem too, so the lockup steps back by it and the stem stands on the text line. Keep 0.5 em clear round
-   the ink. */
+   Every size is in em of the name. The mark's box is its nominal frame (MARK in site/pages/layout.mjs): the stem's
+   left edge to the roof's point, the nominal top to the baseline. So the box stands on the name's baseline, its feet
+   with it, and its left edge is the stem, so the stem stands on the text line, the beak and the toes hanging past it
+   by 2.5 units as a serif does. The mark is Faithful, tall and narrow (0.57 wide to 1 tall), so it stands 1.2 em: 1.71
+   times Outfit 600's cap height (0.703 em), with its 9-unit strokes at 0.1125 em, 86% of the name's stems, light as
+   the chisel cut is but not faint beside them. The gap leaves 26 units (0.325 em) of air from the roof's point to the
+   U, the counter between the mark's own feet, less the U's 0.0625 em side bearing; the leg is then 30.5 units from the
+   U, the counter between its stems. Keep 0.5 em clear round the ink. */
 .brand {
   display: inline-flex;
   align-items: baseline;
-  gap: 0.104em;
-  margin-left: -0.3333em;
+  gap: 0.2625em;
   font: 600 1.3rem/1 var(--word);
   letter-spacing: -0.01em;
   color: var(--logo);
 }
+.brand .mark { width: calc(1.2em * 53.5 / 96); height: 1.2em; flex: none; overflow: visible; }
 /* the box is rounded to whole pixels: a browser draws the box from a whole pixel and the name on a whole-pixel
-   baseline, so a box of 27.7 px (the header's) set the feet 0.7 px below the name's in Chromium */
-.brand .mark { width: 1.3333em; height: 1.3333em; flex: none; transform: translateY(12.5%); }
+   baseline, so a fractional box sets the feet up to 0.7 px off the name's baseline in Chromium */
 @supports (width: round(1em, 1px)) {
-  .brand { margin-left: calc(round(4em / 3, 1px) / -4); }
-  .brand .mark { width: round(4em / 3, 1px); height: round(4em / 3, 1px); }
+  .brand .mark { width: calc(round(1.2em, 1px) * 53.5 / 96); height: round(1.2em, 1px); }
 }
 /* in the header the lockup is the home link: a 2.75rem target with its ink, apex to baseline, centred in it. Its line
-   holds 0.292 em above the apex and 0.136 em below the baseline, so the bottom padding evens the two. */
+   holds the mark's 1.2 em above the baseline and the name's 0.13 em below it, so the top padding evens the two. */
 .site-header .brand {
   flex: none;
   flex-wrap: wrap;
   align-content: center;
   min-height: 2.75rem;
-  padding-bottom: 0.156em;
+  padding-top: 0.13em;
   text-decoration: none;
 }
 .site-nav { margin-left: auto; }

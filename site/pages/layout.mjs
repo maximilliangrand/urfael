@@ -9,9 +9,13 @@ export const EMAIL = 'contact@myg-media.com'
 /** The default social card: the ᚢ mark, the Uru concept drawing and the tagline. */
 const OG_IMAGE = { src: `${ORIGIN}/media/og-urfael.png`, width: 1200, height: 630 }
 
-/** The mark, exactly as media/urfael-logo.svg draws it: the rune Uruz standing free, one shape in currentColor,
- * so it takes the colour of the lockup it sits in (.brand in site.css). From a 25 px box up; the favicon has the small cut. */
-export const MARK = '<svg class="mark" viewBox="0 0 128 128" aria-hidden="true" focusable="false"><path fill="currentColor" d="M32 12L85.3 51.98A16 16 0 0 1 91.22 60.9L104 112L88 112L76.04 64.15A4 4 0 0 0 74.56 61.92L54.4 46.8A4 4 0 0 0 48 50L48 112L32 112Z"/></svg>'
+/** The mark, Faithful, exactly as media/urfael-logo.svg draws it: the rune Uruz in a light chisel cut, one shape in
+ * currentColor, so it takes the colour of the lockup it sits in (.brand in site.css). Its box is the mark's nominal
+ * frame, not the file's 128 square: from the stem's left edge (x 40) to the roof's point (x 93.5), and from the nominal
+ * top (y 16) to the baseline the feet stand on (y 112). The beak and the feet's toes reach 2.5 units left of it, and the
+ * apex and the toes 1 unit over it, as a pointed letter overshoots, so the box shows its overflow. The favicon has the
+ * bold cut. */
+export const MARK = '<svg class="mark" viewBox="40 16 53.5 96" aria-hidden="true" focusable="false"><path fill="currentColor" d="M46 15L93.5 44.5L89 48L89 105L91.5 104L91.5 107.5L77.5 113L77.5 109.5L80 108.5L80 46.5L49 27.5L49 105L51.5 104L51.5 107.5L37.5 113L37.5 109.5L40 108.5L40 23.5L37.5 22Z"/></svg>'
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
