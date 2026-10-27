@@ -1,12 +1,14 @@
 """Build docs/assets/fonts/urfael-rune.woff2: one glyph, U+16A2, drawn from the Urfael mark, Faithful, so every ᚢ the site
 writes is the logo.
-Usage: python build-rune.py docs/media/urfael-logo.svg docs/assets/fonts/urfael-rune.woff2  (needs fonttools and brotli)."""
+Usage, from the repo root: python site/fonts/build-rune.py docs/media/urfael-logo.svg docs/assets/fonts/urfael-rune.woff2
+(needs fonttools and brotli)."""
 import re, sys
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.pens.cu2quPen import Cu2QuPen
 from fontTools.pens.transformPen import TransformPen
 from fontTools.svgLib.path import parse_path
+from fontTools.misc.timeTools import timestampFromString
 
 SRC, OUT = sys.argv[1], sys.argv[2]
 d = re.search(r'\sd="([^"]+)"', open(SRC).read()).group(1)
@@ -20,6 +22,9 @@ SCALE = CAP / 96
 STEM0, STEM1, BASE = 40, 89, 112
 SIDE = 90
 ADVANCE = round((STEM1 - STEM0) * SCALE + 2 * SIDE)
+# the font's dates are the day this cut was built, not the hour it is rebuilt, so a rebuild is byte for byte the
+# committed file
+BUILT = timestampFromString('Tue Oct 27 13:06:59 2026')
 
 def glyph(draw):
     pen = TTGlyphPen(None)
@@ -31,6 +36,7 @@ def rune(pen):
     parse_path(d, flipped)
 
 fb = FontBuilder(UPM, isTTF=True)
+fb.updateHead(created=BUILT, modified=BUILT)
 fb.setupGlyphOrder(['.notdef', 'space', 'uni16A2'])
 fb.setupCharacterMap({0x20: 'space', 0x16A2: 'uni16A2'})
 glyphs = {'.notdef': glyph(lambda p: None), 'space': glyph(lambda p: None), 'uni16A2': glyph(rune)}
