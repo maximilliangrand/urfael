@@ -39,9 +39,10 @@ export const uru: IconDraw = (k) => {
   body.patch(front, badgeH, squircle(0, 0, 0.6, 0.5, 32), { tone: 'mid', fill: 'ground', out: 0.04 });
   const stitch = squircle(0, 0, 0.46, 0.37, 28);
   for (let i = 0; i < stitch.length; i += 2) body.patch(front, badgeH, [stitch[i], stitch[(i + 1) % stitch.length]], { tone: 'lo', open: true, out: 0.05, detail: true });
-  // the rune ᚢ along the mark's centre line: its stem on the left as we see it, the arm falling to the right and the leg
-  // stepping out to its foot (the patch's across runs right to left)
-  body.patch(front, badgeH, [[0.145, -0.22], [0.145, 0.22], [-0.076, 0.054], [-0.145, -0.22]], { tone: 'mid', open: true, out: 0.05, detail: true });
+  // the rune ᚢ along the centre line of the mark's bold cut, which an icon's heavier line needs to keep the counter
+  // open: its stem on the left as we see it, the roof falling to the right and the shorter leg straight down (the
+  // patch's across runs right to left)
+  body.patch(front, badgeH, [[0.124, -0.22], [0.124, 0.22], [-0.124, 0.067], [-0.124, -0.22]], { tone: 'mid', open: true, out: 0.05, detail: true });
   const faceH = at(URU.face.v), hu = URU.face.hu * s, hv = URU.face.hv * s;
   body.patch(front, faceH, squircle(0, 0, hu + 0.3, hv + 0.26, 56), { tone: 'mid', fill: 'ground', out: 0.03 });
   k.light(false);

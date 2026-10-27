@@ -248,10 +248,11 @@ export function uru(P: Projector, C: Camera, parent: Element, o: UruOptions): Ur
       + poly(ring2(0, 0, 0.66, 0.52, 16).map(([u, v]) => F.W(kr * Math.cos(ka + u / kr), kr * Math.sin(ka + u / kr), kz + v))));
     U.tails.setAttribute("d", !knotOk ? "" : tl.map((pts) => open(pts.slice(1))).join("") + tl.map((pts) => { const q = ribbon(pts.slice(-2), () => 0.8 * S); return seg(q[1], q[2]); }).join(""));
     // the stitched patch on the chest, its rune tone on tone, sewn along the mark's centre line: the stem on the left as
-    // we see it, the arm falling 3 for 4 to the right, the leg stepping out 1 for 4 to its foot
+    // we see it, the roof falling to the right at the mark's 32 degrees, and the shorter leg straight down to the same
+    // baseline as the stem
     U.patch.setAttribute("d", chart(ring2(0, BADGE, 1.38, 1.38), 0.16));
     U.stitch.setAttribute("d", chart(ring2(0, BADGE, 1.06, 1.06), 0.18));
-    U.rune.setAttribute("d", open(([[0.474, -0.72], [0.474, 0.72], [-0.25, 0.177], [-0.474, -0.72]] as Vec2[]).map(([u, v]) => onFace(u, BADGE + v, 0.2))));
+    U.rune.setAttribute("d", open(([[0.332, -0.72], [0.332, 0.72], [-0.332, 0.306], [-0.332, -0.72]] as Vec2[]).map(([u, v]) => onFace(u, BADGE + v, 0.2))));
     // the face: a soft bezel, the dark window, two cheeks and two eyes, nothing between the eyes
     U.bezel.setAttribute("d", chart(squircle(0, FACE.v, FACE.hu + 0.55, FACE.hv + 0.5, 4, 48), 0.06));
     U.face.setAttribute("d", chart(squircle(0, FACE.v, FACE.hu, FACE.hv, 4, 48), 0.12));
