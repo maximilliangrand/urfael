@@ -45,7 +45,7 @@ const card = `<!DOCTYPE html>
   .card__frame::before { top: 34px; }
   .card__frame::after { bottom: 34px; }
   .card__copy { display: flex; flex-direction: column; justify-content: center; padding: 0 var(--pad); }
-  /* the site's lockup (.brand in site.css) at a 34px name, so a 45px mark */
+  /* the site's lockup (.brand in site.css) at a 34px name, so a 41px mark */
   .card__brand { align-self: flex-start; margin-bottom: 54px; font-size: 34px; }
   .card h1 { margin: 0 0 30px; font: 600 74px/0.98 var(--sans); letter-spacing: -0.05em; color: #0a0a0a; }
   .card__line { margin: 0; max-width: 30rem; font: 400 23px/1.45 var(--sans); letter-spacing: -0.005em; color: #454545; }
