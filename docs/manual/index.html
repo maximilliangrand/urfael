@@ -32,14 +32,16 @@
        every scheme, so its logo is held to the mark's black */
     .app-name-link img, .cover-main img { filter: brightness(0) invert(5.5%); }
     /* the sidebar's name is the site's lockup (.brand in site.css): the name in Outfit 600 and the mark's black, the
-       mark's box 4/3 em with its feet on the name's baseline (baseline alignment, then a drop of the box's empty bottom),
-       0.104em from its foot to the U, and the box's third of an em left of the stem taken back, so its ink is centred */
+       mark's nominal height 1.2 em, so its 128 box 1.6 em, with its feet on the name's baseline (baseline alignment, then
+       a drop of the box's empty bottom, 16 of 128). The box holds 37.5 units (0.46875 em) left of the beak and the toes,
+       taken back, so its ink is centred, and 34.5 units right of the roof's point, taken back to leave the site's 26
+       units (0.325 em) from the point to the U, less the U's 0.0625 em side bearing */
     .sidebar > h1 .app-name-link, .sidebar > h1 .app-name-link:hover {
-      display: inline-flex; align-items: baseline; gap: 0.104em; margin-left: calc(-1em / 3);
+      display: inline-flex; align-items: baseline; gap: 0; margin-left: -0.46875em;
       font-family: "Outfit", ui-sans-serif, system-ui, sans-serif; font-weight: 600; line-height: 1; letter-spacing: -0.01em;
       color: #0e0e0f !important;
     }
-    .app-name-link img { width: calc(4em / 3); height: calc(4em / 3); flex: none; transform: translateY(12.5%); }
+    .app-name-link img { width: 1.6em; height: 1.6em; flex: none; margin-right: -0.16875em; transform: translateY(12.5%); }
     .search input { background: #ffffff; color: var(--ink); border: 1px solid var(--line-2); }
     .search .results-panel { background: #ffffff; } .search .matching-post { border-bottom-color: var(--line); } .search .search-keyword { color: var(--ink); font-weight: 600; }
     /* the page */
