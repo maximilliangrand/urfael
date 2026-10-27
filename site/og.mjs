@@ -72,7 +72,11 @@ const TYPES = { '.css': 'text/css', '.js': 'text/javascript', '.woff2': 'font/wo
 
 const browser = await pw.chromium.launch()
 try {
-  const page = await (await browser.newContext({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1, reducedMotion: 'reduce' })).newPage()
+  const page = await (await browser.newContext({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1, reducedMotion: 'reduce', timezoneId: 'UTC' })).newPage()
+  // the wall clock in the drawing tells the page's time, so the card holds it at 10:08:30, as the desk's clock rests,
+  // and a rebuild changes the card only when the drawing or the copy does
+  if (!page.clock) throw new Error('build:og needs playwright-core 1.45 or later, to hold the wall clock still')
+  await page.clock.setFixedTime(new Date('2026-10-27T10:08:30Z'))
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
   // the card, and docs/ under it, served from memory: no server, nothing leaves the machine
