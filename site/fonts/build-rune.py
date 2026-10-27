@@ -1,5 +1,6 @@
-"""Build docs/assets/fonts/urfael-rune.woff2: one glyph, U+16A2, drawn from the Urfael mark, so every ᚢ the site writes is the logo.
-Usage: python build-rune.py <mark.svg> <out.woff2>  (needs fonttools and brotli)."""
+"""Build docs/assets/fonts/urfael-rune.woff2: one glyph, U+16A2, drawn from the Urfael mark, Faithful, so every ᚢ the site
+writes is the logo.
+Usage: python build-rune.py docs/media/urfael-logo.svg docs/assets/fonts/urfael-rune.woff2  (needs fonttools and brotli)."""
 import re, sys
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -10,11 +11,15 @@ from fontTools.svgLib.path import parse_path
 SRC, OUT = sys.argv[1], sys.argv[2]
 d = re.search(r'\sd="([^"]+)"', open(SRC).read()).group(1)
 
-UPM, CAP = 1000, 714            # cap height matches the Noto cut it replaces
-SCALE = CAP / 96                # the mark's nominal height is y 16 to 112
-LSB, RSB = 90, 80
-X0, X1, BASE = 32, 104, 112      # the mark's ink spans x 32 to 104 and stands on y 112
-ADVANCE = round((X1 - X0) * SCALE + LSB + RSB)
+# The nominal height, y 16 to 112, sits on Geist's cap height, as the Noto cut the font replaced did; the apex and the
+# toes overshoot it by 1 unit. Each stem stands SIDE from the glyph's edge, about Geist's H at 400 (92): the left
+# stem's left edge (x 40) and the right leg's right edge (x 89), so the beak, the toes and the roof's point reach into
+# the side bearings, as serifs do.
+UPM, CAP = 1000, 714
+SCALE = CAP / 96
+STEM0, STEM1, BASE = 40, 89, 112
+SIDE = 90
+ADVANCE = round((STEM1 - STEM0) * SCALE + 2 * SIDE)
 
 def glyph(draw):
     pen = TTGlyphPen(None)
@@ -22,7 +27,7 @@ def glyph(draw):
     return pen.glyph()
 
 def rune(pen):
-    flipped = TransformPen(Cu2QuPen(pen, max_err=0.5, reverse_direction=True), (SCALE, 0, 0, -SCALE, LSB - X0 * SCALE, BASE * SCALE))
+    flipped = TransformPen(Cu2QuPen(pen, max_err=0.5, reverse_direction=True), (SCALE, 0, 0, -SCALE, SIDE - STEM0 * SCALE, BASE * SCALE))
     parse_path(d, flipped)
 
 fb = FontBuilder(UPM, isTTF=True)
