@@ -1,8 +1,0 @@
-# Urfael — full documentation
-
-> Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. {{robot}}, a little AI you can carry, is in development. Locked down by default. Honest about limits.
-
-The repository README comes first: it is the current source for every software fact, and where a manual page disagrees, the README wins. {{robot}}, a little AI you can carry, is in development: not yet shown, with no product, price or release date. See https://urfael.com/uru.
-
-Every page of the Urfael manual, concatenated for machine reading. Source: https://github.com/maximilliangrand/urfael
-

@@ -37,6 +37,5 @@ vault-template/**/03_Resources/visuals/*.html
 .vscode/
 .claude/worktrees/
 
-# --- vercel cli link for the site ---
-docs/.vercel
+# --- a Vercel CLI link is local state, never commit it ---
 .vercel
