@@ -1,13 +1,13 @@
 # Urfael
 
-> Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. Uru, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.
+> Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. Uru, a little AI you can carry, is in development. Locked down by default. Honest about limits.
 
-Urfael is a brand with two products: Urfael Assistant, the open-source (MIT) software, available now, and Uru, a soft helper robot for the home, at the research stage (not a medical device). The mark is the Elder Futhark rune ᚢ (Uruz), often read as strength, health and vitality, and Uru's name comes from it. Urfael is published by MYG Media SRL. It is an independent project, not affiliated with or endorsed by Anthropic.
+Urfael makes Urfael Assistant, the open-source (MIT) software, available now, and is developing Uru, a little AI creature with a face, moods and a memory, built into small objects you carry and not yet shown (no product, price or release date). The mark is the Elder Futhark rune ᚢ (Uruz), often read as strength, health and vitality, and Uru's name comes from it. Urfael is published by MYG Media SRL. It is an independent project, not affiliated with or endorsed by Anthropic.
 
 ## Site
-- [Home](https://urfael.com/): The brand: help that lives with you. The assistant today, Uru in research.
+- [Home](https://urfael.com/): The brand: help that lives with you. The assistant today, Uru next.
 - [Urfael Assistant](https://urfael.com/assistant): What the software does, its security posture, the tests you can run, what is lightly tested, what it costs, and how to install it.
-- [Uru](https://urfael.com/uru): The helper robot we are researching: goals, principles, what it won't do, and where it stands.
+- [Uru](https://urfael.com/uru): The little AI we are building to carry with you: goals, principles, what it won't do, and where it stands.
 - [FAQ](https://urfael.com/faq): Questions about the assistant.
 - [Compare](https://urfael.com/compare): The assistant beside Hermes Agent and OpenClaw, gaps included.
 - [What's tested](https://urfael.com/honesty): The assistant's maturity report.
@@ -81,4 +81,4 @@ The human-readable manual is at https://urfael.vercel.app/manual/#/. Each link b
 - [Troubleshooting](https://raw.githubusercontent.com/maximilliangrand/urfael/main/docs/manual/reference/troubleshooting.md): Most problems have a one-command answer. Start with urfael doctor, fix what it flags, and only dig deeper if a symptom survives that.
 
 ## Uru
-- [Uru](https://urfael.com/uru): A soft, friendly helper robot for the home, at the research stage. Not a medical device. No product or release date.
+- [Uru](https://urfael.com/uru): A little AI creature you can carry, in development and under wraps. No product, price or release date.
