@@ -1,42 +1,11 @@
 import { circ } from '../../hairline/core/iso';
 import { unit, type IconDraw, type Vec3 } from '../kit';
-import { along, arc, helper, rad, ringOf, tunnel } from './parts';
+import { along, arc, rad, ringOf, tunnel } from './parts';
 
 /**
- * The rest of the copy's cards and callouts: the emergency-number line on /uru (a telephone, never a
- * cross), the evidence section and the install section on /assistant, where Uru is today, and following
- * along. One part of each is in the accent.
+ * The rest of the copy's cards: the evidence section and the install section on /assistant, where Uru is
+ * today, and following along. One part of each is in the accent.
  */
-
-/**
- * Call your local emergency number: a rotary telephone, its dial on the sloping front, the cord curled at
- * its side; the handset, lifted to call, is the accent.
- */
-export const call: IconDraw = (k) => {
-  const coil: Vec3[] = [];
-  for (let i = 0; i <= 90; i++) {
-    const t = i / 90, x = 0.5 - 1.9 * Math.sin(t * 2.2), y = 3.3 + 4.6 * t, z = 4.9 - 4.6 * t ** 0.8;
-    const a = t * Math.PI * 22;
-    coil.push([x + 0.28 * Math.cos(a), y + 0.18 * Math.sin(a), z + 0.28 * Math.sin(a)]);
-  }
-  k.line(coil, { tone: 'mid', detail: true });
-  k.line([[0.5, 3.3, 4.9], [-1.3, 5.6, 2.4], [-0.6, 7.9, 0.3]], { tone: 'mid' });
-  k.taper([0, 0, 10, 9.4], [1.0, 0.7, 9.0, 6.2], 0, 4.4, { r: 2.2, b: 0.5 });
-  const up = unit([0, -3.2, 4.4]);
-  const n = unit([0, 4.4, 3.2]);
-  const centre: Vec3 = [5, 7.8, 2.2];
-  const dial = k.face(along(centre, n, 0.35), [1, 0, 0], up);
-  k.slab(dial, circ(2.05, 48), circ(1.8, 48), 0.35);
-  const d = k.on(dial);
-  for (let i = 0; i < 10; i++) { const t = rad(65 + i * 28); d.circle(1.32 * Math.cos(t), 1.32 * Math.sin(t), 0.3, { tone: 'mid' }); }
-  d.circle(0, 0, 0.66, { tone: 'mid', fill: 'ground' });
-  d.circle(0, 0, 0.42, { tone: 'lo', detail: true });
-  d.line([[1.55 * Math.cos(rad(28)), 1.55 * Math.sin(rad(28))], [2.0 * Math.cos(rad(22)), 2.0 * Math.sin(rad(22))]], { tone: 'mid', detail: true });
-  for (const x of [1.7, 7.3]) k.box(x, 2.2, x + 1.0, 4.4, 4.4, 5.3, { r: 0.35, b: 0.15 });
-  for (const x of [1.4, 8.6]) k.cyl(x, 3.3, 1.3, 4.95, 5.6, { b: 0.35, tone: 'accent' });
-  k.box(1.0, 2.65, 9.0, 3.95, 5.55, 6.35, { r: 0.62, b: 0.25, tone: 'accent' });
-  k.pane('y', 9.4, 3.6, 0.35, 6.4, 0.75, { r: 0.18, tone: 'lo', detail: true });
-};
 
 /**
  * Tests you can run yourself: a multimeter with its leads plugged in and its probes laid out ready; the
@@ -93,18 +62,26 @@ export const install: IconDraw = (k) => {
 };
 
 /**
- * Where Uru is today, the research stage: a sculptor's banding wheel with a sculpted study of Uru on it and a
- * modelling tool laid by; the study is the accent.
+ * Where Uru is today, the research stage: a sculptor's banding wheel on the bench, and on it a round tin,
+ * its lid on and a paper band sealing it, with a pencil laid by for the drawings; the sealed tin is the accent.
  */
 export const research: IconDraw = (k) => {
   k.cyl(0, 0, 2.5, 0, 0.7, { b: 0.5 });
   k.cyl(0, 0, 0.6, 0.7, 2.7, { b: 0.2 });
   k.cyl(0, 0, 5.0, 2.7, 3.45, { b: 0.65 });
   for (let i = 0; i < 25; i++) { const t = rad(-45 + i * 7.5); k.line([[5 * Math.cos(t), 5 * Math.sin(t), 2.85], [5 * Math.cos(t), 5 * Math.sin(t), i % 4 === 0 ? 3.3 : 3.1]], { tone: 'lo', detail: true }); }
-  for (const r of [3.7, 2.5]) k.disc(0, 0, r, 3.45, { tone: 'lo', detail: true });
-  helper(k, -0.2, -0.3, 3.45, 1.85, { tone: 'accent' });
-  k.box(1.4, 3.1, 4.6, 3.5, 3.45, 3.72, { r: 0.18, b: 0.08 });
-  k.line(arc(0, 0, 0.42, 0, 300, 10).map(([a, b]): Vec3 => [4.95 + a, 3.3 + b * 0.6, 3.72 + 0.4 + b * 0.5]), { tone: 'mid' });
+  k.disc(0, 0, 3.7, 3.45, { tone: 'lo', detail: true });
+  // the tin: its body, the paper band round it with a seal at the front, and the lift-off lid over its rim
+  const T = 3.45, R = 2.0, h = 3.5;
+  const tin = k.lathe([-0.2, -0.3, T], [[R, 0], [R, h]], { tone: 'accent', n: 56 });
+  tin.strip(1.2, 2.2, { out: 0.06, tone: 'mid', detail: true });
+  tin.patch(45, 1.7, arc(0, 0, 0.42, 0, 360, 16), { tone: 'mid', fill: 'ground', out: 0.1, detail: true });
+  tin.seam(0.25, { tone: 'lo', detail: true });
+  k.cyl(-0.2, -0.3, R + 0.18, T + h - 0.25, T + h + 0.4, { b: 0.35, tone: 'accent' });
+  // the pencil, lying on the wheel in front of the tin: its body, the sharpened cone and the lead
+  const axis = unit([0.76, -0.65, 0]), base: Vec3 = [1.0, 4.0, T + 0.3];
+  k.lathe(base, [[0.3, 0], [0.3, 3.3], [0.12, 4.0], [0.03, 4.2]], { axis, n: 24 });
+  k.lathe(base, [[0.3, 0], [0.3, 0.55]], { axis, n: 24, detail: true });
 };
 
 /** Follow along: a mailbox on its post with the flag up, a letter ready to go; the flag is the accent. */

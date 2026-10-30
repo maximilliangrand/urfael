@@ -19,14 +19,14 @@ import { cylinder, ellipse, encode, frontHalf } from './path';
 
 /**
  * The strokes and fills an icon may use. `edge`, `mid` and `lo` are the neutral hairlines, `accent` is the
- * one bright mark. `ink`, `warm` and `blush` exist for Uru alone: its face window is the one dark solid,
- * and its eyes and cheeks sit on it.
+ * one bright mark. `ink`, `warm` and `blush` exist for Uru alone: the dark gap under its box's lid is the one
+ * dark solid, and its eyes (and, where they would read, its cheeks) sit on it.
  */
 export type Tone = 'edge' | 'mid' | 'lo' | 'accent' | 'ink' | 'warm' | 'blush';
 export type Fill = 'ground' | 'none' | 'tone';
 /**
  * A drawn path in paint order; `box` is its extent on screen, or null for a crease inside a silhouette. A `light`
- * mark is part of a light solid on any ground (Uru's body, as the figures draw it), so a re-theme never repaints it.
+ * mark is part of a light solid on any ground (Uru's box), so a re-theme never repaints it.
  */
 export type Mark = { d: string; tone: Tone; fill: Fill; detail: boolean; box: [number, number, number, number] | null; light: boolean };
 
@@ -286,7 +286,7 @@ export function kit(fine = true) {
       const ring = inset.map((q) => F.at(q.u, q.v)), normals = inset.map((q) => add(mul(F.u, q.nu), mul(F.v, q.nv)));
       seam(ring, normals, { detail: o.detail });
     },
-    /** Marks the marks that follow as a light solid (on) or as the card's own paint (off): Uru's white body. */
+    /** Marks the marks that follow as a light solid (on) or as the card's own paint (off): Uru's white box. */
     light(on: boolean) { light = on; },
     /**
      * A ball about c: a circle from every side, as arcs; its crease the front of a ring inside its equator,

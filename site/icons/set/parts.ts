@@ -1,9 +1,9 @@
-import type { Ring } from '../../hairline/core/iso';
-import { unit, type Kit, type Lathe, type Profile, type Tone, type Vec3 } from '../kit';
+import { rrect, type Ring } from '../../hairline/core/iso';
+import { faceMarks, LOOKS } from '../../figures/uru-kit';
+import { unit, type Kit, type Tone, type Vec3 } from '../kit';
 
 /**
- * Parts more than one icon draws: Uru's pebble, the small helper that stands for Uru inside other icons,
- * a stone, and outlines the kit has no builder for.
+ * Parts more than one icon draws: Uru's box, a pebble, and outlines the kit has no builder for.
  */
 
 /** Degrees to radians. */
@@ -19,57 +19,35 @@ export const arc = (cu: number, cv: number, r: number, from: number, to: number,
     return [cu + r * Math.cos(t), cv + r * Math.sin(t)];
   });
 
-/** An ellipse about (cu, cv), for shapes on a face or a surface. */
-export const oval = (cu: number, cv: number, ru: number, rv: number, n = 20): [number, number][] =>
-  Array.from({ length: n }, (_, i) => [cu + ru * Math.cos((i / n) * Math.PI * 2), cv + rv * Math.sin((i / n) * Math.PI * 2)]);
-
-/** A squircle about (cu, cv), |u|^4 + |v|^4 = 1 scaled: Uru's face window. */
-export const squircle = (cu: number, cv: number, ru: number, rv: number, n = 48): [number, number][] =>
-  Array.from({ length: n }, (_, i) => {
-    const t = (i / n) * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
-    return [cu + ru * Math.sign(c) * Math.abs(c) ** 0.5, cv + rv * Math.sign(s) * Math.abs(s) ** 0.5];
-  });
-
-/** A dome eye: flat underneath, round on top, `w` across and `h` high, its foot at (cu, cv). */
-export const domeEye = (cu: number, cv: number, w: number, h: number, n = 14): [number, number][] =>
-  Array.from({ length: n + 1 }, (_, i): [number, number] => {
-    const t = Math.PI * (i / n);
-    return [cu + (w / 2) * Math.cos(t), cv + h * Math.sin(t) ** 0.85];
-  });
-
 /**
- * Uru's one-piece pebble as a lathe profile, R across at its widest and H high: a flat foot, widest a
- * fifth of the way up, and a soft superellipse dome above (`dome` 2 is an ellipse; less is more egg-like),
- * so the shoulders come in and the top is round.
+ * Uru's box: a small rounded square box, W across and H high, standing on (x, y, z), and its lift-off lid.
+ * Shut, the lid sits on the box. Open, it is lifted a crack, hinged along its back edge, and the dark gap
+ * under it, the drawing's one dark solid, shows Uru's two dome eyes peeking out on the left-front face, in
+ * the figures' own eye shapes (figures/uru-kit.ts), nothing between them. The eyes are then the accent.
+ * `light` draws the box and lid as a light solid, white on any band.
  */
-export function pebble(R: number, H: number, n = 18, dome = 1.9): Profile {
-  const out: [number, number][] = [];
-  const tm = 0.2;
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    let r: number;
-    if (t <= tm) r = R * (1 - 0.14 * ((tm - t) / tm) ** 2);
-    else r = R * Math.max(0, 1 - ((t - tm) / (1 - tm)) ** dome) ** (1 / dome);
-    out.push([r, t * H]);
+export function uruBox(k: Kit, x: number, y: number, z: number, W: number, H: number, o: { open?: boolean; light?: boolean; tone?: Tone; detail?: boolean } = {}) {
+  const u = W / 9, wall = 0.32 * u, over = 0.28 * u, LH = 0.3 * H, look = { tone: o.tone, detail: o.detail };
+  // the lid's foot at depth v across the box: level when shut, tipped up towards the front when open
+  const gap = o.open ? 0.4 * u : 0, tilt = o.open ? 0.19 : 0, foot = (v: number) => z + H + gap + (v + over) * tilt;
+  k.light(!!o.light);
+  k.box(x, y, x + W, y + W, z, z + H, { r: 1.1 * u, b: wall, ...look });
+  if (o.open) {
+    k.light(false);
+    const inner = rrect(wall, wall, W - wall, W - wall, 0.8 * u);
+    k.hullOf(inner.flatMap((q): Vec3[] => [[x + q.u, y + q.v, z + H], [x + q.u, y + q.v, foot(q.v)]]), { tone: 'ink', fill: 'tone' });
+    const F = k.face([x, y + W - wall, z], [1, 0, 0], [0, 0, 1]), eyes = k.on(F), sc = 1.15 * u;
+    for (const e of faceMarks(LOOKS.rest).eyes) eyes.shape(e.map(([a, b]): [number, number] => [0.53 * W + a * sc, H + 0.34 * u + (b + 0.35) * sc]), { tone: 'warm', fill: 'tone' });
+    k.light(!!o.light);
   }
-  return out;
+  const lid = rrect(-over, -over, W + over, W + over, 1.3 * u), crease = rrect(-over + 0.35 * u, -over + 0.35 * u, W + over - 0.35 * u, W + over - 0.35 * u, 0.95 * u);
+  k.hullOf(lid.flatMap((q): Vec3[] => [[x + q.u, y + q.v, foot(q.v)], [x + q.u, y + q.v, foot(q.v) + LH]]), look);
+  k.seam(crease.map((q): Vec3 => [x + q.u, y + q.v, foot(q.v) + LH]), crease.map((q): Vec3 => [q.nu, q.nv, 0]), { detail: o.detail });
+  k.light(false);
 }
 
-/**
- * The small helper inside other icons: Uru's pebble, its lantern bead on a stalk, no face. The face is
- * Uru's own icon; elsewhere the pebble and bead say who it is without a second dark shape.
- */
-export function helper(k: Kit, x: number, y: number, z: number, R: number, o: { tone?: Tone; detail?: boolean } = {}): Lathe {
-  const H = R * 2.05;
-  const body = k.lathe([x, y, z], pebble(R, H), { tone: o.tone, detail: o.detail, n: 40 });
-  body.seam(H * 0.28, { tone: 'lo', detail: true });
-  k.cyl(x, y, R * 0.11, z + H - R * 0.1, z + H + R * 0.42, { tone: o.tone, b: 0.05, detail: o.detail });
-  k.ball([x, y, z + H + R * 0.62], R * 0.26, { tone: o.tone, detail: o.detail, crease: false });
-  return body;
-}
-
-/** A stone: an ellipsoid about c, turned `turn` degrees about the vertical, with its crease a little below its middle. */
-export function stone(k: Kit, c: Vec3, rx: number, ry: number, rz: number, turn: number, o: { tone?: Tone; detail?: boolean } = {}) {
+/** A pebble: an ellipsoid about c, turned `turn` degrees about the vertical, with its crease a little below its middle. */
+export function pebble(k: Kit, c: Vec3, rx: number, ry: number, rz: number, turn: number, o: { tone?: Tone; detail?: boolean } = {}) {
   const ct = Math.cos(rad(turn)), st = Math.sin(rad(turn));
   const at = (u: number, v: number, w: number): Vec3 => [c[0] + u * ct - v * st, c[1] + u * st + v * ct, c[2] + w];
   const pts: Vec3[] = [];

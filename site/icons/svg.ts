@@ -9,8 +9,8 @@ import { ICONS, type IconName } from './index';
  * Its paint is presentation attributes: a plain solid inherits the svg element's (edge stroke, ground fill),
  * every other mark carries its own. So a file works as an <img>, pasted inline, or through the sprite's
  * <use>, and since any CSS rule outranks a presentation attribute, a page can re-theme an inline icon by
- * class (icons.css does, for the wash band and for the night band). A light mark, Uru's body, spells its paint
- * out and is never re-themed, so Uru stays white on the night band. The strokes are
+ * class (icons.css does, for the wash band and for the night band). A light mark, Uru's box, spells its paint
+ * out and is never re-themed, so the box stays white on the night band. The strokes are
  * hairlines in screen pixels at any size (vector-effect: non-scaling-stroke). No filters, no gradients,
  * no CSS variables inside the file, no text.
  */
@@ -20,7 +20,7 @@ export type Variant = 'full' | 'compact';
 /**
  * The light palette, black, white and neutral greys only: three greys for the hairlines (darker for the
  * compact variant, which is drawn smaller), pure ink as the one bright stroke (19.8:1 on the white), and
- * Uru's face: the page's black, white dome eyes on it (19.8:1) and grey cheeks. site/icons/build.mjs checks
+ * Uru's peek: the page's black for the gap under its box's lid, white dome eyes on it (19.8:1) and grey cheeks. site/icons/build.mjs checks
  * the ratios, and that every colour is a neutral grey.
  */
 export const PALETTE: Record<Variant, Record<Tone | 'ground', string>> = {
@@ -64,7 +64,7 @@ function paintOf(m: Mark, variant: Variant): string {
 
 /**
  * A light mark's paint, spelled out in full, under its own class rather than the re-theming ones, so icons.css
- * repaints it only for forced colours: the white body stays white on any band.
+ * repaints it only for forced colours: the white box stays white on any band.
  */
 function lightPaint(m: Mark, variant: Variant): string {
   const paint = PALETTE[variant];

@@ -1,9 +1,9 @@
 import type { IconDraw, Vec3 } from '../kit';
-import { arc, helper, NEAR, rad, RIGHT, ringOf } from './parts';
+import { arc, NEAR, rad, RIGHT, ringOf, uruBox } from './parts';
 
 /**
  * What Urfael holds to, on the home page, and Uru's principles, on /uru: gentle, private, honest about
- * limits, a human in the loop, on your side, open to inspection. Each is an object from a home, not a
+ * limits, a human in the loop, on your side, open to inspection. Each is an object or a scene, not a
  * symbol; one part of each, the one the principle is about, is in the accent.
  */
 
@@ -116,8 +116,8 @@ export const honest: IconDraw = (k) => {
 };
 
 /**
- * A human in the loop: a person standing at the centre of a round track, with the helper on the track
- * beside them; the person, who makes the important decisions, is the accent.
+ * Open with everyone around you: a person standing at the centre of a round track, with Uru's small box,
+ * shut, on the track beside them; the person, who decides, is the accent.
  */
 export const human: IconDraw = (k) => {
   const top = 1.0;
@@ -129,29 +129,27 @@ export const human: IconDraw = (k) => {
   const body = k.lathe([0, 0, top], [[1.55, 0], [1.6, 0.4], [1.45, 2.4], [1.2, 3.5], [0.8, 3.95], [0.35, 4.1]], { tone: 'accent' });
   body.seam(2.1, { tone: 'lo', detail: true });
   k.ball([0, 0, top + 5.25], 1.05, { tone: 'accent' });
-  const at = rad(-16);
-  helper(k, 4.58 * Math.cos(at), 4.58 * Math.sin(at), top, 1.05);
+  const at = rad(-16), W = 2.1;
+  uruBox(k, 4.58 * Math.cos(at) - W / 2, 4.58 * Math.sin(at) - W / 2, top, W, 1.7);
 };
 
-/** On your side: an armchair, and at its side a small table with the helper on it; the helper is the accent. */
+/**
+ * On your side: a person and Uru's box side by side under one umbrella, which the person holds over them
+ * both; the umbrella is the accent.
+ */
 export const onYourSide: IconDraw = (k) => {
-  for (const [x, y] of [[0.8, 0.6], [7.2, 0.6]]) k.cyl(x, y, 0.32, 0, 0.8, { b: 0.1 });
-  k.box(0, 0, 8, 2.1, 0.8, 8.6, { r: 1.2, b: 0.45 });
-  for (const z of [5.0, 6.8]) k.line([[1.4, 2.1, z], [6.6, 2.1, z]], { tone: 'lo', detail: true });
-  k.box(0, 2.1, 1.6, 7.8, 0.8, 5.4, { r: 0.75, b: 0.3 });
-  k.box(1.6, 2.1, 6.4, 7.8, 0.8, 2.7, { r: 0.6, b: 0.25 });
-  k.box(1.6, 2.1, 6.4, 7.6, 2.7, 3.7, { r: 0.9, b: 0.35 });
-  k.line([[2.4, 7.6, 3.2], [5.6, 7.6, 3.2]], { tone: 'lo', detail: true });
-  k.box(1.7, 2.1, 6.3, 2.9, 3.7, 7.7, { r: 0.7, b: 0.3 });
-  for (const [x, y] of [[0.8, 7.2]]) k.cyl(x, y, 0.32, 0, 0.8, { b: 0.1 });
-  k.box(6.4, 2.1, 8, 7.8, 0.8, 5.4, { r: 0.75, b: 0.3 });
-  k.pane('x', 8, 2.8, 1.4, 7.1, 4.7, { r: 0.5, tone: 'lo', detail: true });
-  k.cyl(7.2, 7.2, 0.32, 0, 0.8, { b: 0.1 });
-  const tx = 11.2, ty = 5.0, tz = 5.2;
-  k.cyl(tx, ty, 1.35, 0, 0.35, { b: 0.35 });
-  k.cyl(tx, ty, 0.24, 0.35, tz - 0.45, { b: 0.08 });
-  k.cyl(tx, ty, 2.1, tz - 0.45, tz, { b: 0.45 });
-  helper(k, tx, ty, tz, 1.0, { tone: 'accent' });
+  k.disc(0.9, -0.9, 5.2, 0, { tone: 'lo', detail: true });
+  const body = k.lathe([-0.6, 0.6, 0], [[1.55, 0], [1.6, 0.4], [1.45, 2.4], [1.2, 3.5], [0.8, 3.95], [0.35, 4.1]]);
+  body.seam(2.1, { tone: 'lo', detail: true });
+  k.ball([-0.6, 0.6, 5.25], 1.05);
+  uruBox(k, 1.6, -4.0, 0, 2.9, 2.2);
+  // the umbrella: its shaft from the person's hand, the hook of its handle, the canopy and its ribs, the tip
+  const sx = 0.9, sy = -0.9, rim = 8.8;
+  k.line([[sx, sy, 2.7], [sx, sy, rim + 1.2]], { tone: 'mid' });
+  k.line(arc(0, 0, 0.45, 180, 360, 8).map(([a, b]): Vec3 => [sx + RIGHT[0] * (a + 0.45), sy + RIGHT[1] * (a + 0.45), 2.7 + b]), { tone: 'mid' });
+  const canopy = k.lathe([sx, sy, rim], [[3.7, 0], [3.5, 0.38], [2.9, 0.9], [1.9, 1.33], [0.8, 1.6], [0.12, 1.7]], { tone: 'accent', n: 64 });
+  for (let i = 0; i < 8; i++) canopy.meridian(22.5 + i * 45, 0.05, 1.62, { tone: 'lo', detail: true });
+  k.cyl(sx, sy, 0.12, rim + 1.62, rim + 2.3, { b: 0.04, tone: 'accent' });
 };
 
 /**
