@@ -18,7 +18,6 @@ A short, honest checklist so the docs never drift from the code again (a product
 4. **Bump the version** in `app/package.json` and add a `CHANGELOG.md` entry for it (the consistency test checks the entry exists).
 5. **Regenerate the lockfile** if dependencies changed: `cd app && npm install --package-lock-only`, then commit `package-lock.json`. Confirm `npm audit` is clean or that any remaining advisory is build/GUI tooling only (the runtime daemon + CLI have zero required dependencies).
 6. **Tag it:** `git tag -a vX.Y.Z -m "..." && git push origin vX.Y.Z`.
-7. **Deploy the site** (manual, outward-facing): `vercel deploy --prod` from `docs/`, attributed to the project's noreply email.
 
 ## What is intentionally not automated
 
