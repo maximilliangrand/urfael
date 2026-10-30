@@ -26,23 +26,24 @@ import type { Spec } from '../hairline/mount';
  */
 
 // demo.ts stays in this folder as the commented example figure; it is not on the site, so it is not registered.
-import { mount as uruHome, ROBOT } from './uru-home';
 import { mount as assistantDesk } from './assistant-desk';
-import { mount as uruStudy } from './uru-study';
 import { mount as uruFaces } from './uru-faces';
+import { mount as uruSealed } from './uru-sealed';
+import { ROBOT } from './uru-kit';
 
 export const FIGURES = {
-  'uru-home': {
-    id: 'uru-home',
-    label: `A concept drawing of ${ROBOT}, a soft round helper robot, at home in a living room with an armchair, a cup of tea, a photo album, a window, a bookshelf and a phone, a cat asleep on the rug. Point at one and ${ROBOT} turns toward it: the cup lifts, the album opens, the curtains part, a book slides out or the phone tips up.`,
-    subject: `${ROBOT} at home`,
-    hint: 'Point around the room',
-    touch: 'Tap around the room',
+  'uru-sealed': {
+    id: 'uru-sealed',
+    label: `Two sealed boxes on a shop plinth, a square one and a round tin, each closed with a paper band and a round seal. The tin's lid sits a little ajar, and ${ROBOT}'s eyes peek out of the dark gap. Point at a box, or move between them with the arrow keys, and its lid lifts a crack and ${ROBOT} peeks out.`,
+    subject: `${ROBOT}, under wraps`,
+    hint: 'Point at a box',
+    touch: 'Tap a box',
     rest: 'rest',
-    range: [3, 6, 9], // the head tilt, in degrees
-    viewBox: [20, 3, 360, 310],
-    tour: { mode: 'step', points: [[182, 128.9], [317, 119.3], [285, 162], [317, 167.7], [101, 167.7], [74, 128.9]] }, // hello, window, tea, photos, book, call
-    engine: uruHome,
+    range: [3, 3.8, 4.6], // the lid's lift at its front edge, in world units
+    viewBox: [10, 3, 380, 318], // holds at the slider's top end
+    tour: { mode: 'step', points: [[161, 112.7], [222.7, 179.7]] }, // square box, round tin
+    focusable: true, // the arrow keys walk the two boxes; Escape or blur returns to rest
+    engine: uruSealed,
   },
   'assistant-desk': {
     id: 'assistant-desk',
@@ -57,28 +58,16 @@ export const FIGURES = {
     focusable: true, // arrow keys walk the parts in story order; Escape or blur returns to rest
     engine: assistantDesk,
   },
-  'uru-study': {
-    id: 'uru-study',
-    label: `An illustration of ${ROBOT}, the helper robot we are researching. It is not a design. ${ROBOT}'s soft cover, a soft inner shell, a light frame and the gliding base ring are drawn apart above a sketching board with three fabric swatches. Pointing at a layer draws the layers above it clear.`,
-    subject: `${ROBOT}, in layers`,
-    hint: 'Point at a layer',
-    touch: 'Tap a layer',
-    rest: 'rest',
-    range: [6, 10, 14], // the lift, in world units
-    viewBox: [89, 6, 222, 308], // portrait; holds at the slider's top end
-    tour: { mode: 'step', points: [[200, 112], [200, 195], [200, 232], [200, 262]] }, // cover, shell, frame, base
-    engine: uruStudy,
-  },
   'uru-faces': {
     id: 'uru-faces',
-    label: `${ROBOT} on a braided rug beside a sideboard on which stand five framed portraits of its face, one expression each: happy, curious, listening, thinking and sleepy. Pointing at a portrait lifts it and turns it to face you, and ${ROBOT} turns toward it and takes on that expression.`,
+    label: `Five framed portraits of ${ROBOT}'s face on a sideboard, one expression each: happy, curious, listening, thinking and sleepy, with a floor lamp in the corner. One portrait is awake. Pointing at a portrait lifts it and turns it to face you, and it comes alive and takes on its expression.`,
     subject: `${ROBOT}'s faces`,
     hint: 'Point at a portrait',
     touch: 'Tap a portrait',
     rest: 'rest',
     range: [3, 5, 7], // the rise, in world units
-    viewBox: [27, 9, 346, 305], // holds at the slider's top end
-    tour: { mode: 'step', points: [[191.4, 104.3], [226, 123.4], [251.9, 132.9], [286.5, 152], [321.1, 171]] }, // happy, curious, listening, thinking, sleepy
+    viewBox: [26, 1, 348, 322], // holds at the slider's top end
+    tour: { mode: 'step', points: [[149.1, 90.9], [191, 114], [233.5, 126.7], [272.7, 150.1], [310.7, 170.1]] }, // happy, curious, listening, thinking, sleepy
     engine: uruFaces,
   },
 } satisfies Record<string, Spec>;

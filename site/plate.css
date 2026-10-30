@@ -129,16 +129,6 @@ a:is(:hover, :focus-visible) .plate--cell .plate__frame { background: none; }
     /* the engine's DARK (written by site/build.mjs): white linework on the black, and a screen a step above the
        black, #1c1c1c, so it reads as a screen */
     color-scheme: dark;
-    /* Uru's body, the drawing's light part: a white solid in black line, with the page's black face window,
-       white dome eyes on it (19.8:1) and grey cheeks (3.3:1), so Uru is the one white figure in the room */
-    --hairline-light-plate: #ffffff;
-    --hairline-light-hi: #0a0a0a;
-    --hairline-light-edge: #8a8a8a;
-    --hairline-light-mid: #b4b4b4;
-    --hairline-light-lo: #dadada;
-    --hairline-light-ink: #0a0a0a;
-    --hairline-light-warm: #ffffff;
-    --hairline-light-blush: #646464;
   }
   .band-night .plate[data-size="sheet"] .plate__surface,
   .band-night .plate[data-size="hero"] .plate__surface { --hairline-edge: #a3a3a3; --hairline-mid: #5c5c5c; --hairline-lo: #2b2b2b; --hairline-stroke: 0.9; }

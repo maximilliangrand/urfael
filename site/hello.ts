@@ -3,11 +3,11 @@ import type { Registry } from './plate';
 /**
  * "Say hello" on the Uru page. A button written as
  *
- *   <button type="button" data-say-hello="uru-faces">Say hello</button>
+ *   <button type="button" data-say-hello="uru-sealed">Say hello</button>
  *
  * points at the named figure's first tour stop for a moment, the way a hand
- * would, so the robot in the drawing answers the press (on uru-faces the first
- * stop is the happy portrait). It sends the same synthetic pointer events the
+ * would, so Uru in the drawing answers the press (on uru-sealed the first stop
+ * is a box, and Uru peeks out of it). It sends the same synthetic pointer events the
  * scroll tour sends, so the figure needs no extra API. The speech bubble the
  * button also cycles belongs to site.js, which works without this file.
  *
