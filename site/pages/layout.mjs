@@ -6,7 +6,7 @@ export const ORIGIN = 'https://urfael.com'
 export const GITHUB = 'https://github.com/maximilliangrand/urfael'
 export const EMAIL = 'contact@myg-media.com'
 
-/** The default social card: the ᚢ mark, the Uru concept drawing and the tagline. */
+/** The default social card: the ᚢ mark, the tagline and the Uru teaser drawing, two sealed boxes. */
 const OG_IMAGE = { src: `${ORIGIN}/media/og-urfael.png`, width: 1200, height: 630 }
 
 /** The mark, Faithful, exactly as media/urfael-logo.svg draws it: the rune Uruz in a light chisel cut, one shape in
@@ -50,7 +50,7 @@ export function head(page, robot) {
     `<meta property="og:image" content="${OG_IMAGE.src}">`,
     `<meta property="og:image:width" content="${OG_IMAGE.width}">`,
     `<meta property="og:image:height" content="${OG_IMAGE.height}">`,
-    `<meta property="og:image:alt" content="${esc(`The Urfael mark beside a concept drawing of ${robot}, a soft round helper robot, at home. Help that lives with you.`)}">`,
+    `<meta property="og:image:alt" content="${esc(`The Urfael mark beside a concept drawing of two sealed boxes, a square one and a round tin, with ${robot} peeking out. Help that lives with you.`)}">`,
     '<meta name="twitter:card" content="summary_large_image">',
     `<meta name="twitter:title" content="${esc(ogTitle)}">`,
     `<meta name="twitter:description" content="${esc(ogDescription)}">`,
@@ -110,7 +110,7 @@ ${links.map(([href, text]) => `          <li><a href="${href}">${text}</a></li>`
   <div class="wrap">
     <div class="footer__mast">
       <p class="footer__lockup"><span class="brand">${MARK}<span class="brand__word">Urfael</span></span><span class="footer__dot" aria-hidden="true">·</span><span class="footer__tag">Help that lives with you.</span></p>
-      <p class="footer__about">Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. ${name}, a soft helper robot for the home, is at the research stage. Locked down by default. Honest about limits.</p>
+      <p class="footer__about">Urfael makes friendly AI that lives with you. Urfael Assistant is open source and runs on your own machine today. ${name}, a little AI you can carry, is in development. Locked down by default. Honest about limits.</p>
     </div>
     <div class="footer__cols">
 ${group('urfael', 'Urfael', [['/', 'Home'], ['/assistant', 'Assistant'], ['/uru', name]])}
@@ -120,7 +120,7 @@ ${group('hello', 'Say hello', [[GITHUB, 'GitHub'], [`mailto:${EMAIL}?subject=Hel
     </div>
     <div class="footer__small">
       <p>Urfael is an independent open-source project (MIT), not affiliated with, endorsed by or sponsored by Anthropic. Claude and Claude Code are trademarks of Anthropic. Provider names and marks belong to their respective owners and indicate compatibility only.</p>
-      <p>${name} is a research project and is not a medical device.</p>
+      <p>${name} is in development. Nothing is for sale yet.</p>
       <p>Urfael and the ᚢ mark identify MYG Media SRL’s projects.</p>
       <p>© 2026 MYG Media SRL</p>
     </div>

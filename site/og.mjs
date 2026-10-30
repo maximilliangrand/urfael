@@ -1,5 +1,5 @@
 // Builds the social card: `npm run build:og` from the repo root, after `npm run build:site`.
-//   docs/media/og-urfael.png  1200 × 630, black and white: the mark, the line, and Fig. 1, Uru at home, labelled as a concept drawing
+//   docs/media/og-urfael.png  1200 × 630, black and white: the mark, the line, and Fig. 1, Uru under wraps, labelled as a concept drawing
 // The card is the real Fig. 1 plate from docs/assets (figures.js, plate.css, site.css), drawn at rest under reduced
 // motion, so it changes when the figure does and names the robot from site/figures/uru-kit.ts (ROBOT), like every
 // page. It takes a screenshot, so it needs playwright-core and its Chromium; it looks for `playwright-core` from
@@ -60,9 +60,9 @@ const card = `<!DOCTYPE html>
     <div class="card__copy">
       <p class="brand card__brand">${MARK}<span class="brand__word">Urfael</span></p>
       <h1>Help that lives with&nbsp;you.</h1>
-      <p class="card__line">An open-source assistant on your own machine today. <b>${esc(ROBOT)}</b>, a soft helper robot for the home, in research.</p>
+      <p class="card__line">An open-source assistant on your own machine today. Next, <b>${esc(ROBOT)}</b>: a little AI you can carry, under wraps.</p>
     </div>
-    <figure class="plate plate--cell" data-figure="uru-home" data-fig="1" data-size="hero"></figure>
+    <figure class="plate plate--cell" data-figure="uru-sealed" data-fig="1" data-size="hero"></figure>
   </div>
 </div>
 </body>
@@ -99,7 +99,7 @@ try {
   await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))))
   if (errors.length) throw new Error(`the card's page failed: ${errors.join('; ')}`)
   writeFileSync(OUT, await page.screenshot({ type: 'png' }))
-  console.log(`${relative(ROOT, OUT)}  1200 × 630, ${ROBOT} at home`)
+  console.log(`${relative(ROOT, OUT)}  1200 × 630, ${ROBOT} under wraps`)
 } finally {
   await browser.close()
 }

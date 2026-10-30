@@ -1,7 +1,7 @@
 {
   "name": "Urfael",
   "short_name": "Urfael",
-  "description": "Friendly AI that lives with you. An open-source assistant that runs on your own machine, and {{robot}}, a helper robot in research.",
+  "description": "Friendly AI that lives with you. An open-source assistant that runs on your own machine, and {{robot}}, a little AI you can carry, in development.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FFFFFF",
