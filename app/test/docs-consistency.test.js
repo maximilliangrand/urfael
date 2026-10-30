@@ -25,7 +25,8 @@ function manualMd() {
   try { walk(base); } catch {}
   return out;
 }
-const DOCS = ['README.md', 'PARITY.md', 'CONTRIBUTING.md', 'docs/launch/demo.tape', 'docs/index.html', 'docs/assistant.html', 'docs/honesty.html', 'docs/faq.html', 'docs/SECURITY-BENCHMARK.md', ...manualMd()];
+// urfael.com's pages are checked against the same sources by the website's own build, not here.
+const DOCS = ['README.md', 'PARITY.md', 'CONTRIBUTING.md', 'docs/launch/demo.tape', 'docs/SECURITY-BENCHMARK.md', ...manualMd()];
 
 test('the benchmark + class counts are derivable and sane', () => {
   assert.ok(CHECKS > 0 && CLASSES > 0, 'derived counts must be positive (checks=' + CHECKS + ', classes=' + CLASSES + ')');
@@ -34,7 +35,7 @@ test('the benchmark + class counts are derivable and sane', () => {
 // ── the policed docs must actually be found + non-empty, so this guard can never PASS VACUOUSLY (e.g. wrong cwd in
 //    CI). Without this, a missing file makes every regex match nothing and drift slips through silently. ──
 test('the policed docs are present and non-empty (no vacuous pass)', () => {
-  for (const rel of ['README.md', 'docs/index.html', 'docs/SECURITY-BENCHMARK.md', 'CHANGELOG.md']) {
+  for (const rel of ['README.md', 'docs/manual/README.md', 'docs/SECURITY-BENCHMARK.md', 'CHANGELOG.md']) {
     assert.ok(read(rel).length > 500, rel + ' was not found or is too small; the consistency guard cannot run against it (cwd/path problem?)');
   }
   assert.ok(CHANNELS > 0, 'TEAM_CHANNELS must be derivable');
@@ -86,11 +87,11 @@ test('every total-channel-count claim in the docs equals the real channel count'
   }
 });
 
-// The redesigned site reports source counts rather than a passing score or a fixed unit-test total.
+// README reports the benchmark as source counts rather than a passing score or a fixed unit-test total.
 test('the published benchmark source counts match the harness', () => {
   for (const rel of [...DOCS, 'ARCHITECTURE.md']) {
     const counts = [...read(rel).matchAll(/(\d+)\s+groups and\s+(\d+)/g)];
-    if (rel === 'README.md' || rel === 'docs/honesty.html') {
+    if (rel === 'README.md') {
       assert.ok(counts.length, rel + ' must describe the benchmark source counts');
     }
     for (const m of counts) {
@@ -133,7 +134,6 @@ test('CHANNEL_MATURITY classifies exactly the real channel roster', () => {
 test('every maturity ledger names every code-complete channel (single-sourced, no underclaim)', () => {
   const ledgers = {
     'README.md': /## What's lightly tested([\s\S]*?)\n## /,
-    'docs/honesty.html': /<section\b[^>]*aria-labelledby="light"[^>]*>([\s\S]*?)<\/section>/,
     'docs/manual/channels/overview.md': /## What is lightly tested([\s\S]*?)(?:\n## |$)/,
   };
   for (const [rel, re] of Object.entries(ledgers)) {

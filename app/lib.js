@@ -399,7 +399,7 @@ function resolvePrincipal(roster, channel, senderId) {
 // The channels a roster can have (used to validate `urfael team add`).
 const TEAM_CHANNELS = ['telegram', 'discord', 'slack', 'imessage', 'email', 'matrix', 'signal', 'whatsapp', 'qq', 'simplex', 'phone', 'mattermost', 'googlechat', 'sms', 'dingtalk', 'homeassistant', 'bluebubbles', 'feishu', 'wecom'];
 
-// Single source of truth for channel maturity, cited identically in README, docs/honesty.html and the manual so the
+// Single source of truth for channel maturity, cited identically in README, urfael.com/honesty and the manual so the
 // ledger can never disagree with itself again. `status` is one of two honest buckets:
 //   'certified'     — exercised against real accounts; the best-tested core.
 //   'code-complete' — parsing, signature verification and the fail-closed allowlist are unit-tested and frozen as
